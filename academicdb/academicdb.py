@@ -1,8 +1,8 @@
 import pymongo
 import requests
-from autocv.orcid import get_dois_from_orcid_record
-from autocv.pubmed import get_pubmed_data
-from autocv.researcher import Researcher
+from orcid import get_dois_from_orcid_record
+from pubmed import get_pubmed_data
+from researcher import Researcher
 from bs4 import BeautifulSoup
 import urllib.request
 import secrets
@@ -37,8 +37,7 @@ def setup_collections(client, dbname):
     result.create_collection('metadata')
     result.metadata.create_index([('orcid', pymongo.ASCENDING)], unique=True)
     result.create_collection('publications')
-    result.metadata.create_index([('DOI', pymongo.ASCENDING)], unique=True)
-
+    result.metadata.create_index([('eid', pymongo.ASCENDING)], unique=True)
     result.create_collection('authors')
     result.create_collection('funding')
     result.create_collection('conferences')
@@ -70,10 +69,10 @@ def add_publications_to_db(pubs, db):
     existctr = 0
 
     for key, item in pubs.items():
-        if 'DOI' not in item:
+        if 'doi' not in item:
             if db['publications'].find_one({'title': item['title']}) is not None:
                 existing_pub = db['publications'].find_one({'title': item['title']})
-                item['DOI'] = existing_pub['DOI']
+                item['doi'] = existing_pub['doi']
                 print(f'found existing publication by title {item["title"]}')
             else:
                 item['DOI'] = f'nodoi_{secrets.token_urlsafe(10)}'
@@ -118,9 +117,22 @@ def add_researcher_metadata_to_db(researcher, db):
         raise ValueError("new record has different orcid than existing record")
 
 
+def serialize_scopus_doc(doc):
+    doc_dict = {field: getattr(doc, field) for field in doc._fields}
+    # split fields with multiple values into lists
+    split_fields = ['afid', 'affilname', 'affiliation_city', 'affiliation_country',
+        'author_names', 'author_ids', 'author_afids']
+    for field in split_fields:
+        try:
+            doc_dict[field] = doc_dict[field].split(';')
+        except AttributeError:
+            pass
+    return(doc_dict)
+
+
 if __name__ == "__main__":
 
-    paramfile = 'params.json'
+    paramfile = '../params.json'
     overwrite_db = True
     verbose = True
     refresh_publications = False
@@ -133,21 +145,18 @@ if __name__ == "__main__":
 
     r = Researcher(paramfile)
     r.get_orcid_data()
+
     add_researcher_metadata_to_db(r, db)
-    r.get_orcid_dois()
 
-    if refresh_publications:
-        r.get_pubmed_data() # gets all records from pubmed
-        r.make_publication_records()
-        r.serialize()
-        add_publications_to_db(r.serialized['publications'], db)
+    scopus_au = AuthorRetrieval(r.scopus_id)
 
-    if get_coauthors:
-        for pub in db['publications'].find():
-            if 'authors' not in pub:
-                print("no authors found, skipping")
-                continue
-            authors = [i.lstrip() for i in pub['authors'].split(',')]
-            for author in authors:
-                if db.authors.find_one({'name': author}) is None:
-                    db.authors.insert_one({'name': author})
+    scopus_pubs = scopus_au.get_documents()
+    print(f'found {len(scopus_pubs)} publications in scopus')
+
+    r.publications = {}
+    for pub in scopus_pubs:
+        r.publications[pub.doi] = serialize_scopus_doc(pub)
+
+
+    add_publications_to_db(r.publications, db)
+
