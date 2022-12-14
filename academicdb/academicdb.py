@@ -7,6 +7,15 @@ from bs4 import BeautifulSoup
 import urllib.request
 import secrets
 import autocv.orcid as orcid
+from pybliometrics.scopus import AuthorRetrieval
+
+
+def get_scopus_id_from_orcid(orcid_data):
+    # get the scopus id from the orcid record
+    for ext_id in orcid_data['person']['external-identifiers']['external-identifier']:
+        if ext_id['external-id-type'] == 'Scopus Author ID':
+            return ext_id['external-id-value']
+    return None
 
 
 def setup_db(dbname='academicdb', overwrite=False):
