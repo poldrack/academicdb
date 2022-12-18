@@ -1,16 +1,27 @@
+import contextlib
 import pymongo
 import requests
-from orcid import get_dois_from_orcid_record
+import orcid
 from pubmed import get_pubmed_data
 from researcher import Researcher
 from bs4 import BeautifulSoup
 import urllib.request
-import secrets
+import hashlib
 import autocv.orcid as orcid
 from pybliometrics.scopus import AuthorRetrieval
+import pybliometrics
+from collections import defaultdict
+import os
+import pandas as pd
+from collections import OrderedDict
+from utils import get_links
+from Bio import Entrez
+from orcid import get_dois_from_orcid_record
+from collections import Counter
+import math
+from contextlib import suppress
 
-
-def get_scopus_id_from_orcid(orcid_data):
+def get_scopus_id_from_orcid(orcid_data: dict):
     # get the scopus id from the orcid record
     for ext_id in orcid_data['person']['external-identifiers']['external-identifier']:
         if ext_id['external-id-type'] == 'Scopus Author ID':
@@ -18,8 +29,20 @@ def get_scopus_id_from_orcid(orcid_data):
     return None
 
 
-def setup_db(dbname='academicdb', overwrite=False):
-    # Connect to the MongoDB
+def setup_db(dbname='academicdb', collections=None, overwrite=False):
+    """
+    setup the database and collections
+    
+    Parameters
+    ----------
+    dbname : str
+            name of the database
+    collections : list
+            list of collections to create/overwrite (default: all)
+    overwrite : bool
+            overwrite the database if it already exists (default: False)
+    """
+
     client = pymongo.MongoClient(port=27017)
     if dbname in client.list_database_names() and not overwrite:
         # check to make sure only one metadata record exists
@@ -28,26 +51,30 @@ def setup_db(dbname='academicdb', overwrite=False):
                 "more than one metadata record exists in the database - please rerun with overwrite set to True")
         return client[dbname]
     elif dbname in client.list_database_names():
-        client.drop_database(dbname)
+        if collections is None:
+            client.drop_database(dbname)
+        else:
+            for c in collections:
+                client[dbname].drop_collection(c)
     return setup_collections(client, dbname)
 
 
-def setup_collections(client, dbname):
+def setup_collections(client: pymongo.mongo_client.MongoClient, dbname: str):
     result = client[dbname]
-    result.create_collection('metadata')
-    result.metadata.create_index([('orcid', pymongo.ASCENDING)], unique=True)
-    result.create_collection('publications')
-    result.metadata.create_index([('eid', pymongo.ASCENDING)], unique=True)
-    result.create_collection('authors')
-    result.create_collection('funding')
-    result.create_collection('conferences')
-    result.create_collection('talks')
-    result.create_collection('education')
-    result.create_collection('employment')
-    result.create_collection('distinctions')
-    result.create_collection('invited_positions')
-    result.create_collection('memberships')
-    result.create_collection('service')
+    collections_to_create = ['coauthors', 'funding', 'conferences', 'talks', 
+        'education', 'employment', 'distinctions', 'metadata', 'publications',
+        'invited_positions', 'memberships', 'service', 'trainees', 'pmcid']
+    for c in collections_to_create:
+        if c not in result.list_collection_names():
+            result.create_collection(c)
+    indices_to_create = {
+        'metadata': 'orcid',
+        'publications': 'eid',
+        'pmcid': 'pmid',
+    }
+    for c, idx in indices_to_create.items():
+        result[c].create_index([(idx, pymongo.ASCENDING)], unique=True)
+
     return result
 
 
@@ -58,7 +85,54 @@ def load_params_from_json(paramfile='params.json'):
     return params
 
 
-def add_publications_to_db(pubs, db):
+def abbrev_authorname(author: str):
+    """
+    abbreviate the author name - replace first/middle names with initials
+    assmes the author name is in the format "last, first middle"
+    """
+
+    # if author.find(',') > -1:
+    #     author = author.split(',')[0]
+    # fix for authors with multiple last names e.g Zeynep Enkavi
+    lastname, firstnames = author.split(',')
+    if len(lastname.split(' ')) > 1:
+        lastname = lastname.split(' ')[-1]
+        firstnames += lastname.split(' ')[0]
+    return lastname + ' ' + ''.join([i[0] for i in firstnames.split()])
+    
+
+def get_pmcid_from_pmid(pmid: str, db: pymongo.database.Database):
+    """
+    get the pmcid from the pmid
+    """
+
+    # check if the pmcid is already in the database
+    pmid_match = db['pmcid'].find_one({'pmid': pmid})
+    if pmid_match:
+        return pmid_match['pmcid']
+
+    handle = Entrez.elink(dbfrom="pubmed", db="pmc", linkname="pubmed_pmc", id=pmid, retmode="text")
+    record = Entrez.read(handle)
+    handle.close()
+    try:
+        pmcid = record[0]['LinkSetDb'][0]['Link'][0]['Id']
+    except Exception:
+        pmcid = None
+    print(f'adding pmcid for {pmid} to database: {pmcid}')
+    db['pmcid'].insert_one({'pmid': pmid, 'pmcid': pmcid})
+    return None
+
+def remove_nans_from_pub(pub: dict):
+    """
+    remove nans from the publication record
+    """
+    for k, v in pub.items():
+        with suppress(KeyError, TypeError):
+            if math.isnan(v):
+                pub[k] = None
+    return pub
+
+def add_publications_to_db(pubs: dict, db: pymongo.database.Database, links: dict):
     """
     Insert the records into the database
     - pubs should be a list of dicts
@@ -68,25 +142,30 @@ def add_publications_to_db(pubs, db):
     newctr = 0
     existctr = 0
 
-    for key, item in pubs.items():
-        if 'doi' not in item:
-            if db['publications'].find_one({'title': item['title']}) is not None:
-                existing_pub = db['publications'].find_one({'title': item['title']})
-                item['doi'] = existing_pub['doi']
-                print(f'found existing publication by title {item["title"]}')
-            else:
-                item['DOI'] = f'nodoi_{secrets.token_urlsafe(10)}'
-                print(f'no DOI found for {item["title"]}, generating random DOI {item["DOI"]}')
-        if not db['publications'].find_one({'DOI': item['DOI']}):
-            db['publications'].insert_one(item)
+    for item in pubs.values():
+        if not db['publications'].find_one({'eid': item['eid']}):
             newctr += 1
         else:
             existctr += 1
+        item['firstauthor'] = item['author_names'][0]
+        item['authors_abbrev'] = [abbrev_authorname(i) for i in item['author_names']]
+        # dois should be case insensitive but scopus dois are mixed- convert to lowercase for easier matching
+        if 'doi' in item and item['doi'] is not None:
+            item['doi'] = item['doi'].lower()
+        if 'PMCID' not in item:
+            item['PMCID'] = get_pmcid_from_pmid(item['pubmed_id'], db)
+        for linktype, linkdict in links.items():
+            if item['doi'] in linkdict:
+                item[linktype] = linkdict[item['doi']]
+        item = remove_nans_from_pub(item)
+    
+        db['publications'].replace_one({'eid': item['eid']}, item, upsert=True)
+
     print(f'added {newctr} publications to the database')
     print(f'found {existctr} existing publications in the database')
 
 
-def add_researcher_metadata_to_db(researcher, db):
+def add_researcher_metadata_to_db(researcher: Researcher, db: pymongo.database.Database):
     """
     add metadata from params
     - include all string fields from the researcher object
@@ -123,40 +202,265 @@ def serialize_scopus_doc(doc):
     split_fields = ['afid', 'affilname', 'affiliation_city', 'affiliation_country',
         'author_names', 'author_ids', 'author_afids']
     for field in split_fields:
-        try:
+        with contextlib.suppress(AttributeError):
             doc_dict[field] = doc_dict[field].split(';')
-        except AttributeError:
-            pass
     return(doc_dict)
+
+
+# need to put these straight into the database so that we can reuse them
+def get_coauthors_from_pubs(pubs: dict, db: pymongo.database.Database, my_scopus_id: str):
+    print('getting coauthors from publications')
+    coauthor_ids = {}
+    for key, item in pubs.items():
+        if 'author_ids' not in item:
+            continue
+        if my_scopus_id in item['author_ids']:
+            item['author_ids'].remove(my_scopus_id)
+        for author_id in item['author_ids']:
+            if db['coauthors'].find_one({'identifier': author_id}) is None:
+                au_record = AuthorRetrieval(author_id)
+                coauthor_dict = {
+                    'identifier': author_id,
+                    'name': f'{au_record.surname}, {au_record.given_name}',
+                    'pubs': {},
+                    'orcid': au_record.orcid,
+                    'affiliation': au_record.affiliation_current[0]._asdict() if au_record.affiliation_current else None,
+                }
+            else:
+                coauthor_dict = db['coauthors'].find_one({'identifier': author_id})
+            coauthor_dict['pubs'][key] = item['coverDate']
+            db['coauthors'].replace_one(
+                {'identifier': author_id},
+                coauthor_dict,
+                upsert=True)
+    return list(db.coauthors.find())
+ 
+
+def get_editorial_dict(basedir, editorial_filename='editorial.csv'):
+    editorial_file = os.path.join(basedir, editorial_filename)
+    if os.path.exists(editorial_file):
+        editorial_df = pd.read_csv(editorial_file)
+    else:
+        return None
+
+    editorial_df = editorial_df.fillna('')
+    editorial_dict = OrderedDict()
+    for i in editorial_df.index:
+        role = editorial_df.loc[i, 'role']
+        if role not in editorial_dict:
+            editorial_dict[role] = []
+        if editorial_df.loc[i, 'dates'] != '':
+            date_string = f" ({editorial_df.loc[i, 'dates']})"
+        else:
+            date_string = ''
+        editorial_dict[role].append(editorial_df.loc[i, 'journal'].strip(' ') + date_string)
+
+    return(editorial_dict)
+
+
+def get_teaching_dict(basedir, teaching_filename='teaching.csv'):
+    teaching_file = os.path.join(basedir, teaching_filename)
+    if os.path.exists(teaching_file):
+        teaching_df = pd.read_csv(teaching_file)
+    else:
+        return
+
+    teaching_dict = OrderedDict()
+    for i in teaching_df.index:
+        coursetype = teaching_df.loc[i, 'type']
+        if coursetype not in teaching_dict:
+            teaching_dict[coursetype] = []
+        teaching_dict[coursetype].append(teaching_df.loc[i, 'name'])
+    return teaching_dict
+
+
+def get_presentations(basedir, presentations_filename='conference.csv'):
+    presentations_file = os.path.join(basedir, presentations_filename)
+    if os.path.exists(presentations_file):
+        presentations = pd.read_csv(presentations_file) #, index_col=0)
+    else:
+        return
+
+    presentations = presentations.sort_values('year', ascending=False)
+    return(presentations)
+
+
+def get_talks(basedir, talks_filename='talks.csv', verbose=True):
+    talks_file = os.path.join(basedir, talks_filename)
+    if os.path.exists(talks_file):
+        return pd.read_csv(talks_file) #, index_col=0)
+    else:
+        return None
+
+
+def add_df_to_db(df, db, collection_name):
+    db[collection_name].delete_many({}) # clear out the collection
+    for i in df.index:
+        db[collection_name].insert_one(df.loc[i].to_dict())
+
+
+def add_dict_to_db(dictlist: list, db, collection_name):
+    """
+    take in a list of dicts and add them to the database
+    """
+    db[collection_name].delete_many({}) # clear out the collection
+    for i in dictlist:
+        db[collection_name].insert_one(i)
+
+
+def remove_matching_pubs(db):
+    """
+    remove publications that have the same title and authors
+    - drop the book version
+    """
+    alltitles = [i['title'] for i in db.publications.find()]
+    cnt = Counter(alltitles)
+    matchtitles = [i for i in cnt if cnt[i] > 1]
+    print('found %d duplicate titles' % len(matchtitles))
+
+    for matchtitle in matchtitles:
+        print(f'matching title: {matchtitle}')
+        myquery = {'title': matchtitle, 'aggregationType': 'Book'}
+        x = db.publications.delete_many(myquery)
+        print(x.deleted_count, " duplicates deleted.") 
+
+
+def add_additional_pubs_from_file(db, pubfile, verbose=True):
+    """
+    add additional publications to the database
+    """
+    addl_pubs = pd.read_csv(pubfile)
+    added_pubs = {}
+    pubdict = {i['eid']: i for i in db.publications.find()}
+    alltitles = [i['title'] for i in pubdict.values()]
+    alldois = [i['doi'] for i in pubdict.values()]
+    for i in addl_pubs.index:
+        pub = addl_pubs.loc[i].to_dict()
+        pub['title'] = pub['title'].rstrip('.')
+        pub['pageRange'] = pub['page']
+        del pub['page']
+        pub['coverDate'] = f"{pub['year']}-01-01"
+        with suppress(TypeError):
+            if math.isnan(pub['DOI']):
+                pub['DOI'] = None
+        with suppress(TypeError):
+            if math.isnan(pub['volume']):
+                pub['volume'] = None
+        with suppress(TypeError):
+            if math.isnan(pub['pageRange']):
+                pub['pageRange'] = None
+        pub['authors_abbrev'] = [a.lstrip(' ') for a in pub['authors'].split(',')]
+        pub['firstauthor'] = pub['authors_abbrev'][0]
+        pub['doi'] = pub['DOI']
+        del pub['DOI']
+        if pub['type'] == 'book':
+            pub['publicationName'] = pub['title']
+        else:
+            pub['publicationName'] = pub['journal']
+        del pub['journal']
+        typedict = {'journal-article': ('Journal', 'Article'),
+                    'book': ('Book', 'Book'),
+                    'book-chapter': ('Book', 'Book Chapter'),
+                    'proceedings-article': ('Conference Proceeding', 'Conference Paper')
+                    }
+        pub['aggregationType'], pub['subtypeDescription'] = typedict[pub['type']]
+        pub = remove_nans_from_pub(pub)
+        if pub['title'] not in alltitles:
+            print('adding %s' % pub['title'])
+            pub['eid'] = f"added-{hashlib.md5(pub['title'].encode('utf-8')).hexdigest()}"
+            db.publications.insert_one(pub)
+        else:
+            print(f'publication {pub["title"]} already in database, updating')
+            existing_pub = [i for i in pubdict.values() if i['title'] == pub['title']][0]
+            updated_pub = existing_pub | pub
+            db.publications.update_one({'eid': existing_pub['eid']}, {'$set': updated_pub})
 
 
 if __name__ == "__main__":
 
     paramfile = '../params.json'
+    basedir = '/home/poldrack/Dropbox/Documents/Vita/autoCV'
+    Entrez.email = 'poldrack@stanford.edu'
     overwrite_db = True
     verbose = True
-    refresh_publications = False
-    get_coauthors = True
+    update_publications = True
+    get_coauthors = False
+    add_additional_pubs = True
     # NSF requires all relationships within last 48 months
     authorship_cutoff_years = 4
 
     # Connect to the MongoDB
-    db = setup_db(overwrite=overwrite_db)
+    db = setup_db(overwrite=overwrite_db, collections=['publications'])
 
+    # get orcid data and set up researcher object
     r = Researcher(paramfile)
     r.get_orcid_data()
-
+    
     add_researcher_metadata_to_db(r, db)
 
-    scopus_au = AuthorRetrieval(r.scopus_id)
+    # get publications
+    linkfile = os.path.join(basedir, 'links.csv')
+    links = get_links(linkfile)
 
-    scopus_pubs = scopus_au.get_documents()
-    print(f'found {len(scopus_pubs)} publications in scopus')
+    if update_publications or overwrite_db:
+        scopus_au = AuthorRetrieval(r.scopus_id)
+        scopus_pubs = scopus_au.get_documents(view='COMPLETE')
+        print(f'found {len(scopus_pubs)} publications in scopus')
+        # check against ORCID records
+        orcid_dois = get_dois_from_orcid_record(r.orcid_data)
+        print(f'found {len(orcid_dois)} publications in ORCID')
 
-    r.publications = {}
-    for pub in scopus_pubs:
-        r.publications[pub.doi] = serialize_scopus_doc(pub)
+        r.publications = {}
+        for pub in scopus_pubs:
+            r.publications[pub.eid] = serialize_scopus_doc(pub)
 
+        # clear matching titles - e.g. from a paper later published in a collection
+        add_publications_to_db(r.publications, db, links)
+        if add_additional_pubs:
+            added_pubs = add_additional_pubs_from_file(
+                db, os.path.join(basedir, 'additional_pubs.csv'))
+        remove_matching_pubs(db)
 
-    add_publications_to_db(r.publications, db)
+        scopus_dois = [i['doi'] for i in db.publications.find()]
 
+    r.publications = {i['eid']: i for i in list(db.publications.find())}
+
+    # get coauthors
+    if (get_coauthors and r.publications is not None) or overwrite_db:
+        if not hasattr(r, 'coauthors'):
+            setattr(r, 'coauthors', None)
+        r.coauthors = get_coauthors_from_pubs(r.publications, db, r.scopus_id)
+        print('found ', len(r.coauthors), ' coauthors')
+
+    # get data that are available in orcid
+    education_df = orcid.get_orcid_education(r.orcid_data)
+    add_df_to_db(education_df, db, 'education')
+
+    employment_df = orcid.get_orcid_employment(r.orcid_data)
+    add_df_to_db(employment_df, db, 'employment')
+
+    distinctions_df = orcid.get_orcid_distinctions(r.orcid_data)
+    add_df_to_db(distinctions_df, db, 'distinctions')
+
+    service_df = orcid.get_orcid_service(r.orcid_data)
+    add_df_to_db(service_df, db, 'service')
+
+    memberships_df = orcid.get_orcid_memberships(r.orcid_data)
+    add_df_to_db(memberships_df, db, 'memberships')
+
+    funding_df = orcid.get_orcid_funding(r.orcid_data)
+    add_df_to_db(funding_df, db, 'funding')
+
+    presentations_df = get_presentations(basedir)
+    add_df_to_db(presentations_df, db, 'presentations')
+
+    # todo: teaching
+
+    editorial_dict = get_editorial_dict(basedir)
+    add_dict_to_db(editorial_dict, db, 'editorial')
+
+    teaching_dict = get_teaching_dict(basedir)
+
+    trainee_file = os.path.join(os.path.dirname(basedir), 'trainee_history.xlsx')
+    trainee_df = pd.read_excel(trainee_file)
+    add_df_to_db(trainee_df, db, 'trainees')
