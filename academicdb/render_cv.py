@@ -175,6 +175,14 @@ def get_publication_outlet(pub):
         return f"\\textbf{{TBD{pub['aggregationType']}}}"
 
 
+def cleanup_title(title):
+    """
+    fix some edge cases
+    """
+    title = title.replace('<inf>', '')
+    title = title.replace('</inf>', '')
+    return title
+
 def format_publication(pub, debug=False):
     output = ''
     if debug:
@@ -183,7 +191,7 @@ def format_publication(pub, debug=False):
     output += f" ({pub['coverDate'].split('-')[0]}). "
 
     if not pub['subtypeDescription'] == 'Book':
-        output += f"{pub['title']}."
+        output += f"{cleanup_title(pub['title'])}."
     output += get_publication_outlet(pub)
     with suppress(KeyError):
         if pub['PMCID'] is not None:
@@ -204,7 +212,7 @@ def format_publication(pub, debug=False):
 
 
 
-def get_publications(db):
+def get_publications(db, exclude_dois=None):
     publications = list(db['publications'].find())
     years = get_publication_years(publications)
     output = ''
@@ -218,7 +226,9 @@ def get_publications(db):
         year_pubs = list(db['publications'].find({'coverDate': {'$regex': f'^{year}'}}).sort("firstauthor", pymongo.ASCENDING))
         output += f"\\subsection*{{{year}}}"
         for pub in year_pubs:
-            if 'Corrigendum' in pub['title']:
+            if 'Corrigendum' in pub['title'] or "Author Correction" in pub['title'] or "Erratum" in pub['title']:
+                continue
+            if exclude_dois is not None and pub['doi'] in exclude_dois:
                 continue
             pub = escape_characters_for_latex(pub)
             # output += f"\\textit{{{pub['eid'].replace('_','-')}}} "
