@@ -236,42 +236,20 @@ def get_coauthors_from_pubs(pubs: dict, db: pymongo.database.Database, my_scopus
     return list(db.coauthors.find())
  
 
-def get_editorial_dict(basedir, editorial_filename='editorial.csv'):
+def get_editorial_df(basedir, editorial_filename='editorial.csv'):
     editorial_file = os.path.join(basedir, editorial_filename)
     if os.path.exists(editorial_file):
-        editorial_df = pd.read_csv(editorial_file)
+        return pd.read_csv(editorial_file)
     else:
         return None
 
-    editorial_df = editorial_df.fillna('')
-    editorial_dict = OrderedDict()
-    for i in editorial_df.index:
-        role = editorial_df.loc[i, 'role']
-        if role not in editorial_dict:
-            editorial_dict[role] = []
-        if editorial_df.loc[i, 'dates'] != '':
-            date_string = f" ({editorial_df.loc[i, 'dates']})"
-        else:
-            date_string = ''
-        editorial_dict[role].append(editorial_df.loc[i, 'journal'].strip(' ') + date_string)
 
-    return(editorial_dict)
-
-
-def get_teaching_dict(basedir, teaching_filename='teaching.csv'):
+def get_teaching_df(basedir, teaching_filename='teaching.csv'):
     teaching_file = os.path.join(basedir, teaching_filename)
     if os.path.exists(teaching_file):
-        teaching_df = pd.read_csv(teaching_file)
+        return pd.read_csv(teaching_file)
     else:
-        return
-
-    teaching_dict = OrderedDict()
-    for i in teaching_df.index:
-        coursetype = teaching_df.loc[i, 'type']
-        if coursetype not in teaching_dict:
-            teaching_dict[coursetype] = []
-        teaching_dict[coursetype].append(teaching_df.loc[i, 'name'])
-    return teaching_dict
+        return None
 
 
 def get_presentations(basedir, presentations_filename='conference.csv'):
@@ -456,10 +434,11 @@ if __name__ == "__main__":
 
     # todo: teaching
 
-    editorial_dict = get_editorial_dict(basedir)
-    add_dict_to_db(editorial_dict, db, 'editorial')
+    editorial_df = get_editorial_df(basedir)
+    add_df_to_db(editorial_df, db, 'editorial')
 
-    teaching_dict = get_teaching_dict(basedir)
+    teaching_df = get_teaching_df(basedir)
+    add_df_to_db(teaching_df, db, 'teaching')
 
     trainee_file = os.path.join(os.path.dirname(basedir), 'trainee_history.xlsx')
     trainee_df = pd.read_excel(trainee_file)
