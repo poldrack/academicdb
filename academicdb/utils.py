@@ -168,8 +168,7 @@ def get_keys_sorted_by_author(pubs):
 
 
 def escape_characters_for_latex(pub):
-    for field in pub.__dict__.keys():
-        value = getattr(pub, field)
-        if hasattr(value, 'replace'):
-            setattr(pub, field, value.replace(r' &', r' \&') ) # noqa
+    for field in ['title', 'publicationName']:
+        if field in pub and hasattr(pub[field], 'replace'):
+            pub[field] = pub[field].replace(r' &', r' \&') # noqa
     return(pub)
