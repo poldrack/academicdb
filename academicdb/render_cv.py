@@ -62,9 +62,7 @@ def get_editorial(db):
             role_entries = [e for e in editorial if e['role'] == role]
             if role_entries:
                 output += f"\\textit{{{role}}}: "
-                journals = []
-                for entry in role_entries:
-                    journals.append(entry['journal'])
+                journals = [entry['journal'] for entry in role_entries]
                 output += f"{', '.join(journals)}\n\n"
     return output
 
@@ -94,6 +92,52 @@ def get_memberships(db):
     return output + ', '.join(orgs) + '\n\n'
 
 
+
+def get_conference_years(conferences):
+    years = list(set([int(i['date'].split('-')[0]) for i in conferences]))
+    years.sort(reverse=True)
+    return years
+
+
+def get_conferences(db):
+    conferences = list(db['conferences'].find())
+    years = get_conference_years(conferences)
+    output = ''
+    if conferences:
+        output += """
+\\section*{Conference Presentations}
+\\noindent
+"""
+    for year in years:
+        year_talks = list(db['conferences'].find({'date': {'$regex': f'^{year}'}}).sort("monthnum", pymongo.DESCENDING))
+        output += f"\\subsection*{{{year}}}"
+        for talk in year_talks:
+            title = talk['title'].rstrip('.').rstrip(' ')
+            if title[-1] != '?':
+                title += '.'
+            location = talk['location'].rstrip('.').rstrip(' ').rstrip(',')
+            output += f"\\textit{{{title}}} {location}, {talk['month']}.\n\n"
+    return output
+
+
+def get_talks(db):
+    talks = list(db['talks'].find())
+    years = list(set([int(i['year']) for i in talks]))
+    years.sort(reverse=True)
+    output = ''
+    if talks:
+        output += """
+\\section*{Invited addresses and colloquia (* - talks given virtually)}
+\\noindent
+"""
+    for year in years:
+        year_talks = list(db['talks'].find({'year': year}))
+        output += f"{year}: "
+        talk_locations = [talk['place'] for talk in year_talks]
+        output += ', '.join(talk_locations) + "\n\n"
+    return output
+
+
 def get_teaching(db):
     teaching = list(db['teaching'].find())
     output = ''
@@ -106,9 +150,7 @@ def get_teaching(db):
         level_entries = [e for e in teaching if e['type'] == level]
         if level_entries:
             output += f"\\textit{{{level}}}: "
-            courses = []
-            for entry in level_entries:
-                courses.append(entry['name'])
+            courses = [entry['name'] for entry in level_entries]
             output += f"{', '.join(courses)}\n\n"
     return output
 
@@ -207,7 +249,7 @@ def format_publication(pub, debug=False):
     if 'OSF' in pub and pub['OSF'] is not None:
         output += f"\\href{{{pub['OSF']}}}{{OSF}} "
 
-    output += '\n\n'
+    output += '\\vspace{2mm}\n\n'
     return output
 
 
@@ -236,6 +278,33 @@ def get_publications(db, exclude_dois=None):
 
     return output
 
+def get_heading(metadata):
+
+    address= ''
+    for addr_line in metadata['address']:
+        address += f"{addr_line}\\\\\n"
+    heading = f"""
+\\reversemarginpar 
+{{\\LARGE Russell A. Poldrack}}\\\\[4mm] 
+\\vspace{{-1cm}} 
+
+\\begin{{multicols}}{{2}} 
+{address}
+\\columnbreak 
+
+Phone: {metadata['phone']} \\\\
+email: {metadata['email']} \\\\
+url: \\href{{{metadata['url']}}}{{{metadata['url'].split("//")[1]}}} \\\\
+url: \\href{{{metadata['github']}}}{{{metadata['github'].split("//")[1]}}} \\\\
+Mastodon: {metadata['mastodon']} \\\\
+ORCID: \\href{{https://orcid.org/{metadata['orcid']}}}{{{metadata['orcid']}}} \\\\
+\\end{{multicols}}
+
+\\hrule
+"""
+
+    return heading
+
 if __name__ == "__main__":
     client = pymongo.MongoClient('localhost', 27017)
     db = client['academicdb']
@@ -253,14 +322,14 @@ if __name__ == "__main__":
     with open('latex_header.tex', 'r') as f:
         doc = f.read()
     
-    # education
+    doc += get_heading(metadata)
+
     doc += get_education(db)
 
     doc += get_employment(db)
 
     doc += get_distinctions(db)
 
-    # todo: editorial
     doc += get_editorial(db)
 
     doc += get_memberships(db)
@@ -274,6 +343,10 @@ if __name__ == "__main__":
     doc += get_teaching(db)
 
     doc += get_publications(db)
+
+    doc += get_conferences(db)
+
+    doc += get_talks(db)
 
     with open('latex_footer.tex', 'r') as f:
         doc += f.read()
