@@ -5,6 +5,7 @@ from poldracklab.utils.run_shell_cmd import run_shell_cmd
 import datetime
 from utils import escape_characters_for_latex
 from contextlib import suppress
+from academicdb import remove_nans_from_pub
 
 
 def get_education(db):
@@ -151,15 +152,16 @@ def get_teaching(db):
         if level_entries:
             output += f"\\textit{{{level}}}: "
             courses = [entry['name'] for entry in level_entries]
-            output += f"{', '.join(courses)}\n\n"
+            output += f"{', '.join(courses)}\\vspace{{2mm}}\n\n"
     return output
 
 def get_funding(db):
-    "TODO: need to figure out role, is not currenlty returned by orcid api"
+    "use data from file since ORCID doesn't yet show role in API"
     current_year = datetime.datetime.now().year
-    funding = list(db['funding'].find().sort('start_date', pymongo.DESCENDING))
-    active_funding = [f for f in funding if int(f['end_date']) >= current_year]
-    completed_funding = [f for f in funding if int(f['end_date']) < current_year]
+    funding = list(db['funding'].find().sort('role', pymongo.ASCENDING))
+    active_funding = [remove_nans_from_pub(f) for f in funding if int(f['end_date']) >= current_year]
+    funding = list(db['funding'].find().sort('end_date', pymongo.DESCENDING))
+    completed_funding = [remove_nans_from_pub(f) for f in funding if int(f['end_date']) < current_year]
 
     output = ''
     if funding:
@@ -170,7 +172,17 @@ def get_funding(db):
 \\subsection*{Active:}
 """
         for e in active_funding:
-            output += f"{e['role']}, {e['organization']}, {e['start_date']}-{e['end_date']}\n\n"
+            linkstring = ''
+            if 'url' in e and e['url']:
+                linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+            output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+
+        output += "\\subsection*{Completed:}"
+        for e in completed_funding:
+            linkstring = ''
+            if 'url' in e and e['url']:
+                linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+            output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
     return output
 
 
@@ -337,6 +349,7 @@ if __name__ == "__main__":
     doc += get_service(db)
 
     # todo: funding
+    doc += get_funding(db)
 
     # todo: teaching - need to populate database
 
