@@ -4,7 +4,45 @@ class for publications
 
 import hashlib
 import json
-from .pubmed import parse_pubmed_record
+
+from utils import get_random_hash
+from pubmed import parse_pubmed_record
+
+
+def serialize_pubs_to_json(pubs, outfile):
+    """
+    save a list of publications to json
+
+    parameters:
+    -----------
+    pubs: a list of Publication objects
+    outfile: string, filename to save to
+    """
+
+    # first combine into a single dictionary
+    pubdict = {}
+    for p in pubs:
+        if p.hash in pubdict:
+            print('WARNING: hash collision')
+            p.hash = p.hash + get_random_hash(4)
+        pubdict[p.hash] = vars(p)
+    with open(outfile, 'w') as f:
+        json.dump(pubdict, f)
+    return(pubdict)
+
+
+def shorten_authorlist(authors, maxlen=10, n_to_show=3):
+    authors_split = authors.split(',')
+    if len(authors_split) > maxlen:
+        authors = ','.join(authors_split[:n_to_show]) + ' et al.'
+    return authors
+
+
+def load_pubs_from_json(infile):
+    pubdict = {}
+    with open(infile) as f:
+        pubdict = json.load(f)
+    return(pubdict)
 
 
 class Publication:
