@@ -10,11 +10,12 @@ from scholarly import MaxTriesExceededException
 import pypatent
 from urllib.error import HTTPError
 
-from .orcid import get_dois_from_orcid_record
-from .pubmed import get_pubmed_data
-from .publication import JournalArticle, Book, BookChapter
-from .crossref import get_crossref_records, parse_crossref_record
-from .utils import get_additional_pubs_from_csv, CustomJSONEncoder, get_random_hash, drop_excluded_pubs
+from orcid import get_dois_from_orcid_record
+from pubmed import get_pubmed_data
+#from publication import JournalArticle, Book, BookChapter
+#from .crossref import get_crossref_records, parse_crossref_record
+from utils import get_additional_pubs_from_csv, CustomJSONEncoder, get_random_hash, drop_excluded_pubs
+
 
 
 class Researcher:
@@ -25,6 +26,7 @@ class Researcher:
         self.basedir = os.path.dirname(param_file) if basedir is None else basedir
         self.format = format
         fields_to_add = [
+            'scopus_id',
             'orcid_data',
             'orcid_dois',
             'pubmed_data',
