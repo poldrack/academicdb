@@ -43,7 +43,7 @@ def setup_db(dbname='academicdb', collections=None, overwrite=False):
             overwrite the database if it already exists (default: False)
     """
 
-    client = pymongo.MongoClient(port=27017)
+    client = pymongo.MongoClient(host="127.0.0.1", port=27017)
     if dbname in client.list_database_names() and not overwrite:
         # check to make sure only one metadata record exists
         if len(list(client[dbname]['metadata'].find())) > 1:
@@ -91,8 +91,6 @@ def abbrev_authorname(author: str):
     assmes the author name is in the format "last, first middle"
     """
 
-    # if author.find(',') > -1:
-    #     author = author.split(',')[0]
     # fix for authors with multiple last names e.g Zeynep Enkavi
     lastname, firstnames = author.split(',')
     if len(lastname.split(' ')) > 1:
@@ -174,7 +172,7 @@ def add_researcher_metadata_to_db(researcher: Researcher, db: pymongo.database.D
     index by orcid
     """
     researcher_md_dict = {
-        k: v for k, v in researcher.__dict__.items() if isinstance(v, str) and len(v) > 0}
+        k: v for k, v in researcher.__dict__.items() if isinstance(v, (str, list, dict)) and len(v) > 0}
 
     # validate names against ORCID record
     assert researcher.orcid_data['person']['name']['given-names']['value'].lower() == researcher.firstname.lower(), \
@@ -244,6 +242,40 @@ def get_editorial_df(basedir, editorial_filename='editorial.csv'):
         return None
 
 
+def get_talks_df(basedir, talks_filename='talks.csv'):
+    talks_file = os.path.join(basedir, talks_filename)
+    if os.path.exists(talks_file):
+        return pd.read_csv(talks_file)
+    else:
+        return None
+
+
+
+def get_conference_df(basedir, conference_filename='conference.csv'):
+    conference_file = os.path.join(basedir, conference_filename)
+    if os.path.exists(conference_file):
+        conference_df = pd.read_csv(conference_file)
+    else:
+        return None
+
+    month_name_to_number = {
+        'January': '01',
+        'February': '02',
+        'March': '03',
+        'April': '04',
+        'May': '05',
+        'June': '06',
+        'July': '07',
+        'August': '08',
+        'September': '09',
+        'October': '10',
+        'November': '11',
+        'December': '12',
+    }
+    conference_df['monthnum'] = conference_df['month'].map(month_name_to_number)
+    conference_df['date'] = conference_df['year'].astype(str) + '-' + conference_df['monthnum'].astype(str) + '-01'
+    return conference_df
+
 def get_teaching_df(basedir, teaching_filename='teaching.csv'):
     teaching_file = os.path.join(basedir, teaching_filename)
     if os.path.exists(teaching_file):
@@ -267,6 +299,17 @@ def get_talks(basedir, talks_filename='talks.csv', verbose=True):
     talks_file = os.path.join(basedir, talks_filename)
     if os.path.exists(talks_file):
         return pd.read_csv(talks_file) #, index_col=0)
+    else:
+        return None
+
+
+def get_funding(basedir, funding_filename='funding.csv'):
+    return get_df(os.path.join(basedir, funding_filename))
+
+
+def get_df(filename):
+    if os.path.exists(filename):
+        return pd.read_csv(filename)
     else:
         return None
 
@@ -356,19 +399,19 @@ def add_additional_pubs_from_file(db, pubfile, verbose=True):
 
 if __name__ == "__main__":
 
-    paramfile = '../params.json'
     basedir = '/home/poldrack/Dropbox/Documents/Vita/autoCV'
+    paramfile = os.path.join(basedir, 'params.json')
     Entrez.email = 'poldrack@stanford.edu'
-    overwrite_db = True
+    overwrite_db = False
     verbose = True
     update_publications = True
-    get_coauthors = False
+    get_coauthors = True
     add_additional_pubs = True
     # NSF requires all relationships within last 48 months
     authorship_cutoff_years = 4
 
     # Connect to the MongoDB
-    db = setup_db(overwrite=overwrite_db, collections=['publications'])
+    db = setup_db(overwrite=overwrite_db, collections=['metadata', 'publications'])
 
     # get orcid data and set up researcher object
     r = Researcher(paramfile)
@@ -426,19 +469,23 @@ if __name__ == "__main__":
     memberships_df = orcid.get_orcid_memberships(r.orcid_data)
     add_df_to_db(memberships_df, db, 'memberships')
 
-    funding_df = orcid.get_orcid_funding(r.orcid_data)
+    funding_df = get_funding(basedir) # orcid.get_orcid_funding(r.orcid_data)
     add_df_to_db(funding_df, db, 'funding')
 
     presentations_df = get_presentations(basedir)
     add_df_to_db(presentations_df, db, 'presentations')
-
-    # todo: teaching
 
     editorial_df = get_editorial_df(basedir)
     add_df_to_db(editorial_df, db, 'editorial')
 
     teaching_df = get_teaching_df(basedir)
     add_df_to_db(teaching_df, db, 'teaching')
+
+    conference_df = get_conference_df(basedir)
+    add_df_to_db(conference_df, db, 'conferences')
+
+    talks_df = get_talks_df(basedir)
+    add_df_to_db(talks_df, db, 'talks')
 
     trainee_file = os.path.join(os.path.dirname(basedir), 'trainee_history.xlsx')
     trainee_df = pd.read_excel(trainee_file)
