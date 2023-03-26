@@ -43,10 +43,15 @@ need a new object to store information about coauthors
 - docker mongo setup: https://www.bmc.com/blogs/mongodb-docker-container/
 
 ## step 1: populate database from orcid
+- get various info contained there
 
-## step 2: add publications from crossref and/or scopus
+## step 2: add publications from scopus
 
+- using scopus since it includes author ids and affiliations which will make the NSF stuff much easier
 https://pybliometrics.readthedocs.io/en/stable/ - to access scopus using API key
+- it also seems more comprehensive
+- requires an API key (which I got via stanford)
+
 
 ## step 3: add other items from text files
 

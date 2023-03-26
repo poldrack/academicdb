@@ -308,7 +308,7 @@ Phone: {metadata['phone']} \\\\
 email: {metadata['email']} \\\\
 url: \\href{{{metadata['url']}}}{{{metadata['url'].split("//")[1]}}} \\\\
 url: \\href{{{metadata['github']}}}{{{metadata['github'].split("//")[1]}}} \\\\
-Mastodon: {metadata['mastodon']} \\\\
+Twitter: {metadata['twitter']} \\\\
 ORCID: \\href{{https://orcid.org/{metadata['orcid']}}}{{{metadata['orcid']}}} \\\\
 \\end{{multicols}}
 

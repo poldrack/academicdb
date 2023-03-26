@@ -402,7 +402,7 @@ if __name__ == "__main__":
     basedir = '/home/poldrack/Dropbox/Documents/Vita/autoCV'
     paramfile = os.path.join(basedir, 'params.json')
     Entrez.email = 'poldrack@stanford.edu'
-    overwrite_db = False
+    overwrite_db = True
     verbose = True
     update_publications = True
     get_coauthors = True
