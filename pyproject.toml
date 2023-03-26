@@ -1,0 +1,12 @@
+[build-system]
+requires = ["hatchling", "Biopython", "crossrefapi", "pymongo",
+            "scholarly"]
+build-backend = "hatchling.build"
+
+[project]
+name = "academicdb"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
