@@ -14,6 +14,7 @@ def mongodb():
     # clean up after tests are done
     db.client.drop_database(dbname)
 
+
 # smoke test for AbstractDatabase
 def test_abstract_database():
     with pytest.raises(TypeError):
