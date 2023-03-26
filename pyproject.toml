@@ -1,12 +1,16 @@
 [build-system]
-requires = ["hatchling", "Biopython", "crossrefapi", "pymongo",
-            "scholarly"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "academicdb"
+description = "Database for CV creation"
+dynamic = ["version"]
 
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
 ]
+
+[tool.hatch.version]
+path = "src/academicdb/__about__.py"
