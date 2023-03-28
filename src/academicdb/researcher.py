@@ -9,14 +9,19 @@ import scholarly
 from scholarly import MaxTriesExceededException
 import pypatent
 from urllib.error import HTTPError
+from crossref.restful import Works
 try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib
 
-from .orcid import get_dois_from_orcid_record
-from .pubmed import get_pubmed_data
-from .utils import get_additional_pubs_from_csv, CustomJSONEncoder, get_random_hash, drop_excluded_pubs
+from . import orcid
+from . import pubmed
+from . import utils
+
+#from .orcid import get_dois_from_orcid_record
+#from .pubmed import get_pubmed_data
+#from .utils import get_additional_pubs_from_csv, CustomJSONEncoder, get_random_hash, drop_excluded_pubs
 
 researcher_fields = [
     'scopus_id',
@@ -73,10 +78,10 @@ class Researcher:
             self.get_orcid_data()
         if self.dois is None:
             self.dois = {}
-        self.dois['orcid'] = get_dois_from_orcid_record(self.orcid_data)
+        self.dois['orcid'] = orcid.get_dois_from_orcid_record(self.orcid_data)
 
     def get_pubmed_data(self):
-        self.pubmed_data = get_pubmed_data(self.query, self.email)
+        self.pubmed_data = pubmed.get_pubmed_data(self.query, self.email)
         print('retrieved %d full pubmed records' % len(self.pubmed_data['PubmedArticle']))
 
     def get_google_scholar_data(self):
@@ -85,10 +90,23 @@ class Researcher:
                 ' '.join([self.firstname, self.lastname]))
             query_resp = next(search_query)
             self.gscholar_data = scholarly.scholarly.fill(query_resp)
+            self.gscholar_data
         except MaxTriesExceededException:
             print('problem accessing google scholar')
 
+    def get_crossref_data(self):
+        works = Works()
+        self.crossref_data = []
+        print('searching crossref, this might take a few minutes...')
+        query_results = works.query(author=f'{self.firstname} {self.lastname}')
 
+        for result in query_results:
+            # drop the references as they clutter things up and we don't use them
+            del result['references']
+            self.crossref_data.append(result)
+
+
+    # move this out of this class
     def make_publication_records(self, use_exclusions=True):
         # test pubmed
         self.get_pubmed_data()
@@ -137,18 +155,18 @@ class Researcher:
                 elif hasattr(p, 'ISBN'):
                     id = p.ISBN
                 else:
-                    id = get_random_hash()
+                    id = utils.get_random_hash()
 
                 self.publications[id] = p
         if use_exclusions:
-            self.publications = drop_excluded_pubs(self.publications)
+            self.publications = utils.drop_excluded_pubs(self.publications)
 
         print('found %d additional pubs from ORCID via crossref' % (len(self.publications) - len(pubmed_dois)))
 
         additional_pubs_file = os.path.join(
             self.basedir, 'additional_pubs.csv'
         )
-        additional_pubs = get_additional_pubs_from_csv(additional_pubs_file)
+        additional_pubs = utils.get_additional_pubs_from_csv(additional_pubs_file)
         for pub in additional_pubs:
             if additional_pubs[pub]['type'] in ['journal-article', 'proceedings-article']:
                 self.publications[pub] = JournalArticle()
@@ -206,5 +224,5 @@ class Researcher:
         if self.serialized is None:
             self.serialize()
         with open(filename, 'w') as f:
-            json.dump(self.serialized, f, cls=CustomJSONEncoder,
+            json.dump(self.serialized, f, cls=utils.CustomJSONEncoder,
                       indent=4)
