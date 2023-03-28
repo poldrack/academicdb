@@ -23,7 +23,11 @@ class AbstractDatabase(ABC):
         pass
 
     @abstractmethod
-    def query(self, query_string, **kwargs):
+    def query(self, query_string: str, **kwargs):
+        pass
+
+    @abstractmethod
+    def add(self, table: str, content: dict, **kwargs):
         pass
 
 
