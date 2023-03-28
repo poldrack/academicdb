@@ -11,6 +11,12 @@ import json
 import scholarly
 
 
+def load_config(configfile):
+    import toml
+    config = toml.load(configfile)
+    return(config)
+
+
 def get_random_hash(length=16):
     return(''.join(random.choice(string.ascii_lowercase) for i in range(length)))
 
@@ -172,3 +178,17 @@ def escape_characters_for_latex(pub):
         if field in pub and hasattr(pub[field], 'replace'):
             pub[field] = pub[field].replace(r' &', r' \&') # noqa
     return(pub)
+
+
+def abbrev_authorname(author: str):
+    """
+    abbreviate the author name - replace first/middle names with initials
+    assmes the author name is in the format "last, first middle"
+    """
+
+    # fix for authors with multiple last names e.g Zeynep Enkavi
+    lastname, firstnames = author.split(',')
+    if len(lastname.split(' ')) > 1:
+        lastname = lastname.split(' ')[-1]
+        firstnames += lastname.split(' ')[0]
+    return lastname + ' ' + ''.join([i[0] for i in firstnames.split()])
