@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from Bio import Entrez
+from pybliometrics.scopus import AuthorRetrieval
 # tomllib is included in standard library in Python 3.11+
 try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib
-from .recordConverter import PubmedRecordConverter
 
 
 class AbstractQuery(ABC):
@@ -28,10 +28,11 @@ class PubmedQuery(AbstractQuery):
     """
     def __init__(self, email=None, **kwargs):
         super().__init__(**kwargs)
+        # an email address is required for Entrez queries
         if email is None:
             with open("config.toml", 'rb') as f:
                 config = tomllib.load(f)
-            email = config['biopython']['email']
+            email = config['researcher']['email']
             assert email is not None, \
                 "No email provided for Entrez query (in congig.toml or as argument)"
         Entrez.email = email
@@ -54,14 +55,16 @@ class PubmedQuery(AbstractQuery):
         return records_list
 
 
-if __name__ == "__main__":
-    # Example usage
-    email = "your_email@example.com"
-    pubmed_search = PubmedQuery(email)
-    query_string = "cancer"
-    results = pubmed_search.query(query_string)
+class ScopusQuery(AbstractQuery):
+    """
+    """
+    def __init__(self,  **kwargs):
+        super().__init__(**kwargs)
+ 
+    def query(self, query_string):
+        pass
 
-    pub = []
-    for record in results:
-        pub.append(PubmedRecordConverter(record).convert())
+    def author_query(self, authorid):
+        scopus_au = AuthorRetrieval(authorid)
+        return(scopus_au.get_documents(view='COMPLETE'))
 
