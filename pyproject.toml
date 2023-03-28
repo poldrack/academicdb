@@ -11,6 +11,9 @@ dynamic = ["version"]
 addopts = [
     "--import-mode=importlib",
 ]
+pythonpath = [
+  ".", "src"
+]
 
 [tool.hatch.version]
 path = "src/academicdb/__about__.py"
