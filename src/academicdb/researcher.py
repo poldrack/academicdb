@@ -8,6 +8,8 @@ import requests
 import scholarly
 from scholarly import MaxTriesExceededException
 import pypatent
+import logging
+
 from urllib.error import HTTPError
 from crossref.restful import Works
 try:
@@ -18,10 +20,9 @@ except ModuleNotFoundError:
 from . import orcid
 from . import pubmed
 from . import utils
+from . import query
+from . import recordConverter
 
-#from .orcid import get_dois_from_orcid_record
-#from .pubmed import get_pubmed_data
-#from .utils import get_additional_pubs_from_csv, CustomJSONEncoder, get_random_hash, drop_excluded_pubs
 
 researcher_fields = [
     'scopus_id',
@@ -104,6 +105,41 @@ class Researcher:
             # drop the references as they clutter things up and we don't use them
             del result['references']
             self.crossref_data.append(result)
+
+
+
+    def get_publications(self, maxret=None):
+        """
+        get publications from scopus/crossref
+
+        Parameters
+        ----------
+        maxret : int
+            maximum number of publications to return
+        """
+        scopus_records = query.ScopusQuery().author_query(self.scopus_id)
+        self.publications  = {}
+        if maxret is not None:
+            scopus_records = scopus_records[:maxret]
+
+        for scopus_record in scopus_records:
+
+            if utils.has_skip_strings(scopus_record.title):
+                logging.info(f'Skipping record with title: {scopus_record.title}')
+                continue
+
+            doi = scopus_record.doi if scopus_record.doi is not None else scopus_record.eid
+            if doi is None:
+                logging.warning(f"Could not get DOI for record {scopus_record.title}")
+                continue
+            try:
+                self.publications[doi] = recordConverter.ScopusRecordConverter(
+                    scopus_record, self.email).convert()
+                if self.publications[doi] is None:
+                    logging.warning(f"Problem converting record {doi}")
+                    continue
+            except RuntimeError:
+                logging.warning(f"Could not convert record {doi}")
 
 
     # move this out of this class
