@@ -9,7 +9,45 @@ import random
 import string
 import json
 import scholarly
+from contextlib import suppress
+import math
+from Bio import Entrez
 
+
+def get_pmcid_from_pmid(pmid: str, email: str):
+    """
+    get the pmcid from the pmid
+    """
+
+    with Entrez.elink(dbfrom="pubmed", db="pmc", linkname="pubmed_pmc", id=pmid, retmode="text", email=email) as handle:
+        record = Entrez.read(handle)
+
+    try:
+        pmcid = record[0]['LinkSetDb'][0]['Link'][0]['Id']
+    except Exception:
+        pmcid = None
+    return pmcid
+
+
+
+def has_skip_strings(target, skip_strings=None):
+    if skip_strings is None:
+        skip_strings = ['corrigendum', 'erratum', 'author correction', 'publisher correction']
+    for skip_string in skip_strings:
+        if target.lower().find(skip_string)> -1:
+            return(True)
+    return(False)
+
+
+def remove_nans_from_pub(pub: dict):
+    """
+    remove nans from the publication record
+    """
+    for k, v in pub.items():
+        with suppress(KeyError, TypeError):
+            if math.isnan(v):
+                pub[k] = None
+    return pub
 
 def load_config(configfile):
     import toml
