@@ -118,12 +118,15 @@ class Researcher:
         print('retrieved %d full pubmed records' % len(self.pubmed_data['PubmedArticle']))
 
     def get_google_scholar_data(self):
+        fields_to_keep = ['citedby5y', 'hindex', 'hindex5y', 'i10index',
+                          'i10index5y', 'cites_per_year']
         try:
             search_query = scholarly.scholarly.search_author(
                 ' '.join([self.metadata.firstname, self.metadata.lastname]))
             query_resp = next(search_query)
             self.gscholar_data = scholarly.scholarly.fill(query_resp)
-            self.gscholar_data
+            self.gscholar_data = {
+                i:v for i, v in self.gscholar_data.items() if i in fields_to_keep}
         except MaxTriesExceededException:
             print('problem accessing google scholar')
 
@@ -178,6 +181,13 @@ class Researcher:
             if '_id' in self.publications[doi]:
                 del self.publications[doi]['_id']
 
+            # save authors and affiliations from scopus
+            try:
+                self.publications[doi]['author_ids'] = scopus_record.author_ids.split(';')
+                self.publications[doi]['affiliation_ids'] = scopus_record.author_afids.split(';')
+            except AttributeError:
+                logging.warning(f"Could not get author_ids or affiliation_ids for record {doi}")
+
             # get pmid and pmcid if available
             self.publications[doi]['PMID'] = scopus_record.pubmed_id
             self.publications[doi]['PMCID'] = utils.get_pmcid_from_pmid(scopus_record.pubmed_id, email=self.metadata.email)
@@ -221,6 +231,19 @@ class Researcher:
             self.publications[pub['DOI']] = pub
             logging.debug(f'added {pub["DOI"]}:{pub["title"]} from file')
 
+    def add_links_to_publications(self, links_file):
+        """
+        add links to publications from a csv file
+        """
+        links = pd.read_csv(links_file)
+        for i in links.index:
+            doi = links.loc[i].DOI
+            if doi in self.publications:
+                if 'links' not in self.publications[doi]:
+                    self.publications[doi]['links'] = {}
+                self.publications[doi]['links'][links.loc[i].type] = links.loc[i].url
+            else:
+                logging.warning(f"Could not find link DOI {links.loc[i].DOI} in publications")
 
     def to_database(self, db: database.Database):
         """
