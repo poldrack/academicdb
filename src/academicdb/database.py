@@ -6,9 +6,9 @@ import logging
 class AbstractDatabase(ABC):
     def __init__(self, **kwargs):
         self.db = None
-        self.collections = ['coauthors', 'funding', 'conferences', 'talks', 
+        self.collections = ['coauthors', 'funding', 'conference', 'talks', 
             'education', 'employment', 'distinctions', 'metadata', 'publications',
-            'invited_positions', 'memberships', 'service', 'trainees', 'pmcid']
+            'memberships', 'service', 'trainees']
 
     @abstractmethod
     def setup_db(self,  **kwargs):
@@ -36,11 +36,14 @@ class AbstractDatabase(ABC):
 
 
 class MongoDatabase(AbstractDatabase):
-    def __init__(self, dbname: str ='academicdb', overwrite: bool = False, **kwargs):
+    def __init__(self, dbname: str ='academicdb', 
+                 connect_string: str = None,
+                 overwrite: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.client = None
         self.dbname = dbname
         self.overwrite = overwrite
+        self.connect_string = connect_string
 
         self.connect()
         self.setup_db()
@@ -48,7 +51,10 @@ class MongoDatabase(AbstractDatabase):
 
 
     def connect(self, **kwargs):
-        self.client = pymongo.MongoClient(host="127.0.0.1", port=27017)
+        if self.connect_string is not None:
+            self.client = pymongo.MongoClient(self.connect_string)
+        else:
+            self.client = pymongo.MongoClient(host="127.0.0.1", port=27017)
 
     def setup_db(self, **kwargs):
         # it exists and overwrite is False, just make sure metadata are ok
@@ -92,9 +98,12 @@ class MongoDatabase(AbstractDatabase):
 
         for c in content:
             print('adding content to collection', table)
-            print(c)
             if table == 'publications':
-                self.client[self.dbname][table].update_one({'DOI': c['DOI']}, {'$set': c}, upsert=True)
+                if c and 'DOI' in c:
+                    self.client[self.dbname][table].update_one(
+                        {'DOI': c['DOI']}, {'$set': c}, upsert=True)
+                else:
+                    logging.warning(f'no DOI found in publication: {c}')
             else:
                 self.client[self.dbname][table].insert_one({'$set': c})
 
