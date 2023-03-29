@@ -22,10 +22,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-c',
-        '--configfile',
+        '--configdir',
         type=str,
-        help='input file',
-        default='config.toml'
+        help='directory for config files',
+        default=os.path.join(os.path.expanduser('~'), '.academicdb')
     )
     parser.add_argument(
         '-b',
@@ -58,24 +58,30 @@ def parse_args():
         action='store_true',
         help='add additional information from csv files'
     )
-    args = parser.parse_args()
-    return(args)
+    parser.add_argument(
+        '--nodb',
+        action='store_true',
+        help='do not write to database'
+    )
+    parser.add_argument(
+        '-t',
+        '--test',
+        action='store_true',
+        help='test mode'
+    )
+    return parser.parse_args()
 
 
 def load_config(configfile):
     import toml
-    config = toml.load(configfile)
-    return(config)
+    return toml.load(configfile)
 
 
 def df_to_dicts(df):
     """
     take a dataframe and return a list of dictionaries
     """
-    dictlist = []
-    for i in df.index:
-        dictlist.append(df.loc[i].to_dict())
-    return(dictlist)
+    return [df.loc[i].to_dict() for i in df.index]
 
 
 if __name__ == "__main__":
@@ -86,14 +92,30 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.DEBUG)
     logging.info('Running dbbuilder.py')
     
-    db = database.Database(database.MongoDatabase(overwrite=args.overwrite))
+    if not os.path.exists(args.configdir):
+        raise FileNotFoundError(f'Config directory {args.configdir} does not exist')
+    
+    configfile = os.path.join(args.configdir, 'config.toml')
+    dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
 
-    r = researcher.Researcher(args.configfile)
+    if os.path.exists(dbconfigfile):
+        logging.info(f'Using database config file {dbconfigfile}')
+        dbconfig = load_config(dbconfigfile)
+        assert dbconfig['mongo']['CONNECT_STRING'], 'CONNECT_STRING must be specified in dbconfig'
+        db = database.Database(database.MongoDatabase(overwrite=args.overwrite, 
+                                                      connect_string = dbconfig['mongo']['CONNECT_STRING']))
+    else:
+        logging.info(f'Using default localhost database config')
+        db = database.Database(database.MongoDatabase(overwrite=args.overwrite))
+
+    r = researcher.Researcher(configfile)
     r.get_orcid_data()
+    r.get_google_scholar_data()
 
     if args.add_pubs:
         logging.info('Getting publications')
-        r.get_publications(maxret=5)
+        maxret = 5 if args.test else None
+        r.get_publications(maxret=maxret)
         print(f'Found {len(r.publications)} publications')
 
         additional_pubs_file = os.path.join(args.basedir, 'additional_pubs.csv')
@@ -139,4 +161,11 @@ if __name__ == "__main__":
         memberships_df = orcid.get_orcid_memberships(r.orcid_data)
         setattr(r, 'memberships', df_to_dicts(memberships_df))
 
+    linksfile = os.path.join(args.basedir, 'links.csv')
+    if os.path.exists(linksfile):
+        logging.info(f'Adding links from {linksfile}')
+        r.add_links_to_publications(linksfile)
 
+    
+    if not args.nodb:
+        r.to_database(db)
