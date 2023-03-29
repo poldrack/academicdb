@@ -30,3 +30,11 @@ def test_mongo_setup_db(mongodb):
     mongodb.setup_db()
     mongodb.setup_collections()
     assert dbname in mongodb.client.list_database_names()
+
+def test_add(mongodb):
+    mongodb.add('test', [{'a': 1, 'b': 2}])
+    assert len(list(mongodb.client.testdb.test.find({}))) == 1
+
+def test_get_collection(mongodb):
+    mongodb.add('test', [{'a': 1, 'b': 2}])
+    assert len(mongodb.get_collection('test')) == 1
