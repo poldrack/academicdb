@@ -27,7 +27,11 @@ class AbstractDatabase(ABC):
         pass
 
     @abstractmethod
-    def add(self, table: str, content: dict, **kwargs):
+    def add(self, table: str, content: list, **kwargs):
+        pass
+
+    @abstractmethod
+    def list_collections(self, **kwargs):
         pass
 
 
@@ -38,36 +42,41 @@ class MongoDatabase(AbstractDatabase):
         self.dbname = dbname
         self.overwrite = overwrite
 
+        self.connect()
+        self.setup_db()
+        self.setup_collections()
+
+
     def connect(self, **kwargs):
         self.client = pymongo.MongoClient(host="127.0.0.1", port=27017)
 
     def setup_db(self, **kwargs):
-        # it exists and overwrite is False, just return client
-        if self.dbname in self.client.list_database_names() and not overwrite:
+        # it exists and overwrite is False, just make sure metadata are ok
+        if self.dbname in self.client.list_database_names() and not self.overwrite:
             # check to make sure only one metadata record exists
             if len(list(self.client[self.dbname]['metadata'].find())) > 1:
                 raise ValueError(
                     "more than one metadata record exists in the database - please rerun with overwrite set to True")
-            logging.debug("keeping existing database")
+            logging.info("keeping existing database")
 
         # otherwise clean everything out and start over
         elif self.dbname in self.client.list_database_names():
-            logging.debug('dropping database')
+            logging.info('dropping database')
             if self.collections is None:
                 for c in self.collections:
                     self.client[self.dbname].drop_collection(c)
-            self.client[self.dbname].drop_database(self.dbname)
+            self.client.drop_database(self.dbname)
 
 
     def setup_collections(self, **kwargs):
-        logging.debug('setting up collections')
+        logging.info('setting up collections')
         result = self.client[self.dbname]
         for c in self.collections:
             if c not in result.list_collection_names():
+                logging.debug(f'creating collection {c}')
                 result.create_collection(c)
         indices_to_create = {
-            'metadata': 'orcid',
-            'publications': 'eid',
+            'publications': 'DOI',
             'pmcid': 'pmid',
         }
         for c, idx in indices_to_create.items():
@@ -77,6 +86,20 @@ class MongoDatabase(AbstractDatabase):
     def query(self, query_string: str, **kwargs):
         pass
 
+    def add(self, table: str, content: list, **kwargs):
+        if table not in self.list_collections():
+            self.client[self.dbname].create_collection(table)
+
+        for c in content:
+            print('adding content to collection', table)
+            print(c)
+            if table == 'publications':
+                self.client[self.dbname][table].update_one({'DOI': c['DOI']}, {'$set': c}, upsert=True)
+            else:
+                self.client[self.dbname][table].insert_one({'$set': c})
+
+    def list_collections(self, **kwargs):
+        return self.client[self.dbname].list_collection_names()
 
 # dependency inversion
 class Database():
@@ -92,3 +115,9 @@ class Database():
 
     def disconnect(self, **kwargs):
         self.db.disconnect(**kwargs)
+
+    def add(self, table: str, content: list, **kwargs):
+        self.db.add(table, content, **kwargs)
+    
+    def list_collections(self, **kwargs):
+        self.db.list_collections(**kwargs)
