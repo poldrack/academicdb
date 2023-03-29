@@ -44,16 +44,14 @@ class ScopusRecordConverter(AbstractRecordConverter):
     def convert(self):
         """
         """
-        crossref_record = Works().doi(self.record.doi)
-        pubmed_record = query.PubmedQuery(email=self.email).query(self.record.doi)
-        if pubmed_record is None:
-            return None
-        # TODO - deal with multiple pubmed records per doi
-        if len(pubmed_record) > 1:
-            logging.warning(f'Multiple pubmed records found for doi: {self.record.doi}')
-    
-        self.pub = pubmed.parse_pubmed_record(pubmed_record[0])
-        self.pub['scopus_coauthor_ids'] = self.record.author_ids.split(';')
+        if self.record.doi is not None:
+            crossref_record = Works().doi(self.record.doi)
+        else:
+            logging.error('No DOI found for Scopus record')
+            raise RuntimeError('No DOI found for Scopus record')
+        self.pub = CrossrefRecordConverter(crossref_record).convert()
+        if self.pub is not None:
+            self.pub['scopus_coauthor_ids'] = self.record.author_ids.split(';')
         return(self.pub)
 
     
