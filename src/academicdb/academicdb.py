@@ -21,6 +21,7 @@ from collections import Counter
 import math
 from contextlib import suppress
 
+
 def get_scopus_id_from_orcid(orcid_data: dict):
     # get the scopus id from the orcid record
     for ext_id in orcid_data['person']['external-identifiers']['external-identifier']:
@@ -85,18 +86,6 @@ def load_params_from_json(paramfile='params.json'):
     return params
 
 
-def abbrev_authorname(author: str):
-    """
-    abbreviate the author name - replace first/middle names with initials
-    assmes the author name is in the format "last, first middle"
-    """
-
-    # fix for authors with multiple last names e.g Zeynep Enkavi
-    lastname, firstnames = author.split(',')
-    if len(lastname.split(' ')) > 1:
-        lastname = lastname.split(' ')[-1]
-        firstnames += lastname.split(' ')[0]
-    return lastname + ' ' + ''.join([i[0] for i in firstnames.split()])
     
 
 def get_pmcid_from_pmid(pmid: str, db: pymongo.database.Database):
