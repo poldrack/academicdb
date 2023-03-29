@@ -6,7 +6,6 @@ sys.path.insert(0, os.path.join(myPath, '../academcicdb'))
 
 from src.academicdb.researcher import Researcher, researcher_fields
 
-
 @pytest.fixture
 def researcher():
     return Researcher()
@@ -14,14 +13,14 @@ def researcher():
 
 def test_researcher_creation(researcher):
     assert researcher is not None
-    assert researcher.orcid is not None
+    assert researcher.metadata.orcid is not None
     for field in researcher_fields:
         assert hasattr(researcher, field)
  
 def test_orcid_data(researcher):
     researcher.get_orcid_data()
     assert researcher.orcid_data is not None
-    assert researcher.orcid_data['orcid-identifier']['path'] == researcher.orcid
+    assert researcher.orcid_data['orcid-identifier']['path'] == researcher.metadata.orcid
     assert 'activities-summary' in researcher.orcid_data
     assert 'works' in researcher.orcid_data['activities-summary']
 
@@ -39,3 +38,8 @@ def test_pubmed_data(researcher):
 #     researcher.get_google_scholar_data()
 #     assert researcher.gscholar_data is not None
 
+
+def test_get_publications(researcher):
+    researcher.get_publications(maxret=5)
+    assert researcher.publications is not None
+    assert len(researcher.publications) == 5
