@@ -370,8 +370,8 @@ def main():
     assert len(metadata) == 1, "There should be only one metadata document"
     metadata = metadata[0]
 
-    header = pkgutil.get_data('academicdb', 'data/latex_header.tex')
-    footer = pkgutil.get_data('academicdb', 'data/latex_footer.tex')
+    header = pkgutil.get_data('academicdb', 'data/latex_header.tex').decode('utf-8')
+    footer = pkgutil.get_data('academicdb', 'data/latex_footer.tex').decode('utf-8')
 
     doc = header
 
