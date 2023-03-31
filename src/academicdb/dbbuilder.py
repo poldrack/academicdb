@@ -4,19 +4,19 @@ import os
 from academicdb import (
     database,
     researcher,
-    query,
-    recordConverter,
     orcid,
-    utils
+    utils,
+    publication
 )
 import pandas as pd
-import src.academicdb.publication as publication # import JournalArticle, Book, BookChapter
+
 
 # setup logging as global
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -32,7 +32,7 @@ def parse_args():
         '--basedir',
         type=str,
         help='base directory',
-        default='.'
+        required=True
     )
     parser.add_argument(
         '-d',
@@ -47,16 +47,14 @@ def parse_args():
         help='overwrite existing database'
     )
     parser.add_argument(
-        '-p',
-        '--add_pubs',
+        '--no_add_pubs',
         action='store_true',
-        help='get publications'
+        help='do not get publications'
     )
     parser.add_argument(
-        '-i',
-        '--add_info',
+        '--no_add_info',
         action='store_true',
-        help='add additional information from csv files'
+        help='do not add additional information from csv files'
     )
     parser.add_argument(
         '--nodb',
@@ -67,7 +65,13 @@ def parse_args():
         '-t',
         '--test',
         action='store_true',
-        help='test mode'
+        help='test mode (limit number of publications)'
+    )
+    parser.add_argument(
+        '--bad_dois_file',
+        type=str,
+        help='file with bad dois to remove',
+        default='bad_dois.csv'
     )
     return parser.parse_args()
 
@@ -84,7 +88,46 @@ def df_to_dicts(df):
     return [df.loc[i].to_dict() for i in df.index]
 
 
-if __name__ == "__main__":
+def add_citations(publications, reftypes=None):
+    if reftypes is None:
+        reftypes = ['latex', 'md']
+
+    for doi, pub in publications.items():
+        pub_func = {
+            'journal-article': publication.JournalArticle,
+            'proceedings-article': publication.JournalArticle,
+            'book-chapter': publication.BookChapter,
+            'book': publication.Book
+        }
+        pubstruct = pub_func[pub['type']]().from_dict(pub)
+        publications[doi]['citation'] = {
+            reftype: pubstruct.format_reference(reftype) for reftype in reftypes
+        }
+    return publications
+
+
+def drop_empty_pubs(publications):
+    empty_pubs = [i for i in publications if publications[i] is None]
+    for i in empty_pubs:
+        del publications[i]
+    return publications
+
+
+def setup_db(dbconfigfile, overwrite):
+    if os.path.exists(dbconfigfile):
+        logging.info(f'Using database config file {dbconfigfile}')
+        dbconfig = load_config(dbconfigfile)
+        assert dbconfig['mongo']['CONNECT_STRING'], 'CONNECT_STRING must be specified in dbconfig'
+        return database.Database(database.MongoDatabase(
+            overwrite=overwrite, 
+            connect_string=dbconfig['mongo']['CONNECT_STRING'])
+        )
+    else:
+        logging.info('Using default localhost database config')
+        return database.Database(database.MongoDatabase(overwrite=overwrite))
+
+
+def main():
     
     args = parse_args()
     print(args)
@@ -95,25 +138,15 @@ if __name__ == "__main__":
     if not os.path.exists(args.configdir):
         raise FileNotFoundError(f'Config directory {args.configdir} does not exist')
     
-    configfile = os.path.join(args.configdir, 'config.toml')
     dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
-    bad_doi_file = os.path.join(args.basedir, 'bad_dois.csv')
+    db = setup_db(dbconfigfile, args.overwrite)
 
-    if os.path.exists(dbconfigfile):
-        logging.info(f'Using database config file {dbconfigfile}')
-        dbconfig = load_config(dbconfigfile)
-        assert dbconfig['mongo']['CONNECT_STRING'], 'CONNECT_STRING must be specified in dbconfig'
-        db = database.Database(database.MongoDatabase(overwrite=args.overwrite, 
-                                                      connect_string = dbconfig['mongo']['CONNECT_STRING']))
-    else:
-        logging.info(f'Using default localhost database config')
-        db = database.Database(database.MongoDatabase(overwrite=args.overwrite))
-
+    configfile = os.path.join(args.configdir, 'config.toml')
     r = researcher.Researcher(configfile)
     r.get_orcid_data()
     r.get_google_scholar_data()
 
-    if args.add_pubs:
+    if not args.no_add_pubs:
         logging.info('Getting publications')
         maxret = 5 if args.test else None
         r.get_publications(maxret=maxret)
@@ -125,15 +158,16 @@ if __name__ == "__main__":
             print(f'Total of {len(r.publications)} publications after addition')
 
     # drop bad dois
+    bad_doi_file = args.bad__dois_file if os.path.exists(args.bad_dois_file) else os.path.join(args.basedir, 'bad_dois.csv')
+
     if os.path.exists(bad_doi_file):
         bad_dois = pd.read_csv(bad_doi_file)
         for doi in bad_dois['doi']:
             del r.publications[doi]
-    empty_pubs = [i for i in r.publications if r.publications[i] is None]
-    for i in empty_pubs:
-        del r.publications[i]
 
-    if args.add_info:
+    r.publications = drop_empty_pubs(r.publications)
+
+    if not args.no_add_info:
         additional_files = [
             'editorial.csv',
             'talks.csv',
@@ -156,6 +190,7 @@ if __name__ == "__main__":
 
                 setattr(r, target, items)
 
+
         education_df = orcid.get_orcid_education(r.orcid_data)
         setattr(r, 'education', df_to_dicts(education_df))
 
@@ -176,19 +211,7 @@ if __name__ == "__main__":
         logging.info(f'Adding links from {linksfile}')
         r.add_links_to_publications(linksfile)
 
-    # create citations
-    reftypes = ['latex', 'md']
-    for doi, pub in r.publications.items():
-        pub_func = {
-            'journal-article': publication.JournalArticle,
-            'proceedings-article': publication.JournalArticle,
-            'book-chapter': publication.BookChapter,
-            'book': publication.Book
-        }
-        pubstruct = pub_func[pub['type']]().from_dict(pub)
-        r.publications[doi]['citation'] = {
-            reftype: pubstruct.format_reference(reftype) for reftype in reftypes
-        }
+    r.publications = add_citations(r.publications)
 
     if not args.nodb:
         r.to_database(db)
