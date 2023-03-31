@@ -38,3 +38,8 @@ def test_add(mongodb):
 def test_get_collection(mongodb):
     mongodb.add('test', [{'a': 1, 'b': 2}])
     assert len(mongodb.get_collection('test')) == 1
+
+
+def test_drop(mongodb):
+    mongodb.add('test', [{'a': 1, 'b': 2}])
+    mongodb.drop_collection('test')
