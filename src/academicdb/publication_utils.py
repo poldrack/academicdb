@@ -1,7 +1,9 @@
+from . import utils
 
-from .utils import get_random_hash
-from .pubmed import parse_pubmed_record
 
+
+
+# older stuff below
 
 def serialize_pubs_to_json(pubs, outfile):
     """
@@ -18,7 +20,7 @@ def serialize_pubs_to_json(pubs, outfile):
     for p in pubs:
         if p.hash in pubdict:
             print('WARNING: hash collision')
-            p.hash = p.hash + get_random_hash(4)
+            p.hash = p.hash + utils.get_random_hash(4)
         pubdict[p.hash] = vars(p)
     with open(outfile, 'w') as f:
         json.dump(pubdict, f)
@@ -26,10 +28,11 @@ def serialize_pubs_to_json(pubs, outfile):
 
 
 def shorten_authorlist(authors, maxlen=10, n_to_show=3):
-    authors_split = authors.split(',')
+    authors_split = [i.lstrip().rstrip() for i in authors.split(',')]
     if len(authors_split) > maxlen:
-        authors = ','.join(authors_split[:n_to_show]) + ' et al.'
-    return authors
+        return ', '.join(authors_split[:n_to_show]) + ' et al.'
+    else:
+        return ', '.join(authors_split)
 
 def load_pubs_from_json(infile):
     pubdict = {}
