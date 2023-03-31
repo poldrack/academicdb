@@ -196,6 +196,8 @@ class Researcher:
         logging.info('checking for additional pubmed dois')
         pubmed_recs = query.PubmedQuery(self.metadata.email).query(self.metadata.query)
         for rec in pubmed_recs:
+            if maxret is not None and len(self.publications) >= maxret:
+                break
             p = recordConverter.PubmedRecordConverter(rec).convert()
             if p['DOI'] not in self.publications:
                 if 'PMC' in p:
@@ -203,6 +205,7 @@ class Researcher:
                     del p['PMC']
                 logging.info(f"adding additional pubmed record {p['DOI']}")
                 self.publications[p['DOI']] = p
+
 
     def get_additional_pubs_from_file(self, pubfile):
         """
