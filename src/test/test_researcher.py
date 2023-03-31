@@ -48,4 +48,4 @@ def test_get_publications(researcher):
 def test_get_coauthors(researcher):
     researcher.get_publications(maxret=5)
     researcher.get_coauthors()
-    assert researcher.coauthors is not None
+    assert len(researcher.coauthors) >= len(researcher.publications)
