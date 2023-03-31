@@ -37,7 +37,7 @@ class PubmedQuery(AbstractQuery):
                 "No email provided for Entrez query (in congig.toml or as argument)"
         Entrez.email = email
 
-    def query(self, query_string, max_results=10):
+    def query(self, query_string, max_results=1000):
         with Entrez.esearch(db="pubmed", term=query_string, retmax=max_results) as handle:
             record = Entrez.read(handle)
 
