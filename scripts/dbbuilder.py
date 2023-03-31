@@ -10,7 +10,7 @@ from academicdb import (
     utils
 )
 import pandas as pd
-
+import src.academicdb.publication as publication # import JournalArticle, Book, BookChapter
 
 # setup logging as global
 logging.basicConfig(
@@ -97,6 +97,7 @@ if __name__ == "__main__":
     
     configfile = os.path.join(args.configdir, 'config.toml')
     dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
+    bad_doi_file = os.path.join(args.basedir, 'bad_dois.csv')
 
     if os.path.exists(dbconfigfile):
         logging.info(f'Using database config file {dbconfigfile}')
@@ -122,6 +123,15 @@ if __name__ == "__main__":
         if os.path.exists(additional_pubs_file):
             r.get_additional_pubs_from_file(additional_pubs_file)
             print(f'Total of {len(r.publications)} publications after addition')
+
+    # drop bad dois
+    if os.path.exists(bad_doi_file):
+        bad_dois = pd.read_csv(bad_doi_file)
+        for doi in bad_dois['doi']:
+            del r.publications[doi]
+    empty_pubs = [i for i in r.publications if r.publications[i] is None]
+    for i in empty_pubs:
+        del r.publications[i]
 
     if args.add_info:
         additional_files = [
@@ -166,6 +176,19 @@ if __name__ == "__main__":
         logging.info(f'Adding links from {linksfile}')
         r.add_links_to_publications(linksfile)
 
-    
+    # create citations
+    reftypes = ['latex', 'md']
+    for doi, pub in r.publications.items():
+        pub_func = {
+            'journal-article': publication.JournalArticle,
+            'proceedings-article': publication.JournalArticle,
+            'book-chapter': publication.BookChapter,
+            'book': publication.Book
+        }
+        pubstruct = pub_func[pub['type']]().from_dict(pub)
+        r.publications[doi]['citation'] = {
+            reftype: pubstruct.format_reference(reftype) for reftype in reftypes
+        }
+
     if not args.nodb:
         r.to_database(db)
