@@ -158,7 +158,7 @@ def main():
             print(f'Total of {len(r.publications)} publications after addition')
 
     # drop bad dois
-    bad_doi_file = args.bad__dois_file if os.path.exists(args.bad_dois_file) else os.path.join(args.basedir, 'bad_dois.csv')
+    bad_doi_file = args.bad_dois_file if os.path.exists(args.bad_dois_file) else os.path.join(args.basedir, 'bad_dois.csv')
 
     if os.path.exists(bad_doi_file):
         bad_dois = pd.read_csv(bad_doi_file)
