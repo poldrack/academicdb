@@ -56,6 +56,14 @@ database_fields = [
     'coauthors'
 ]
 
+
+def get_affiliation(aff):
+    if aff.parent_preferred_name is not None:
+        return f'{aff.preferred_name}, {aff.parent_preferred_name}, {aff.city}, {aff.country}'
+    else:
+        return f'{aff.preferred_name}, {aff.city}, {aff.country}'
+
+
 class ResearcherMetadata:
     def __init__(self):
         fields = [
@@ -259,6 +267,35 @@ class Researcher:
                 self.publications[doi]['links'][links.loc[i].type] = links.loc[i].url
             else:
                 logging.warning(f"Could not find link DOI {links.loc[i].DOI} in publications")
+
+
+    def get_coauthors(self):
+
+        self.coauthors = {}
+        for pub in self.publications:
+            if 'scopus_coauthor_ids' in pub:
+                for coauthor in pub['scopus_coauthor_ids']:
+                    if coauthor not in self.coauthors:
+                        coauthor_info = AuthorRetrieval(coauthor)
+                        if coauthor_info.indexed_name is None:
+                            continue
+                        if coauthor_info.affiliation_current is None:
+                            affil = None
+                            affil_id = None
+                        else:
+                            affil = [get_affiliation(aff) for aff in coauthor_info.affiliation_current]
+                            affil_id = [aff.id for aff in coauthor_info.affiliation_current]
+                        self.coauthors[coauthor] = {
+                            'scopus_id': coauthor,
+                            'name': coauthor_info.indexed_name,
+                            'affiliation': affil,
+                            'affiliation_id': affil_id,
+                            'year': pub['year']
+                        }
+                    else:
+                        if pub['year'] > self.coauthors[coauthor]['year']:
+                            self.coauthors[coauthor]['year'] = pub['year']
+
 
     def to_database(self, db: database.Database):
         """
