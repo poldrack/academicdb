@@ -1,19 +1,30 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
+[tool.poetry]
 name = "academicdb"
-description = "Database for CV creation"
-dynamic = ["version"]
+version = "0.1.0"
+description = "Database for an academic CV"
+authors = ["Russ Poldrack <poldrack@gmail.com>"]
+license = "MIT"
+readme = "README.md"
 
-[tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
-]
-pythonpath = [
-  ".", "src"
-]
+[tool.poetry.dependencies]
+python = "^3.9"
+pandas = "^1.5.3"
+numpy = "^1.23"
+biopython = "^1.81"
+scholarly = "^1.7.11"
+crossrefapi = "^1.5.0"
+toml = "^0.10.2"
+pybliometrics = "^3.4.0"
+pymongo = "^4.3.3"
+orcid = "^1.0.3"
 
-[tool.hatch.version]
-path = "src/academicdb/__about__.py"
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.2"
+
+[tool.poetry.scripts]
+dbbuilder = "academicdb.dbbuilder:main"
+render_cv = "academicdb.render_cv:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
