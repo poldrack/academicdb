@@ -102,9 +102,9 @@ def test_from_article_dict(article_dict):
 
 
 def test_latex_reference_article(article_dict):
-    pub = JournalArticle()
+    pub = JournalArticle(etalthresh=100)
     pub.from_dict(article_dict)
-    ref = pub.format_reference(format='latex', etalthresh=100)
+    ref = pub.format_reference(format='latex')
     assert (
         ref
         == 'Ciric R, Thompson WH, Lorenz R, Goncalves M, MacNicol EE, Markiewicz CJ, Halchenko YO, Ghosh SS, Gorgolewski KJ, Poldrack RA, Esteban O (2022). TemplateFlow: FAIR-sharing of multi-scale, multi-species brain models. \\textit{Nature Methods, 19}, 1568-1571.'
@@ -112,9 +112,9 @@ def test_latex_reference_article(article_dict):
 
 
 def test_md_reference_article(article_dict):
-    pub = JournalArticle()
+    pub = JournalArticle(etalthresh=100)
     pub.from_dict(article_dict)
-    ref = pub.format_reference(format='md', etalthresh=100)
+    ref = pub.format_reference(format='md')
     assert (
         ref
         == 'Ciric R, Thompson WH, Lorenz R, Goncalves M, MacNicol EE, Markiewicz CJ, Halchenko YO, Ghosh SS, Gorgolewski KJ, Poldrack RA, Esteban O (2022). TemplateFlow: FAIR-sharing of multi-scale, multi-species brain models. *Nature Methods, 19*, 1568-1571.'
