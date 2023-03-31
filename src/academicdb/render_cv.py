@@ -1,4 +1,3 @@
-import pymongo
 import datetime
 from contextlib import suppress
 from academicdb.utils import (
@@ -11,7 +10,7 @@ import logging
 import argparse
 import os
 from academicdb import database
-
+import pkgutil
 
 def get_education(education):
     output = ''
@@ -371,14 +370,11 @@ def main():
     assert len(metadata) == 1, "There should be only one metadata document"
     metadata = metadata[0]
 
-    headerfile = os.path.join(datadir, 'latex_header.tex')
-    footerfile = os.path.join(datadir, 'latex_footer.tex')
-    assert os.path.exists(headerfile), f'Header file {headerfile} does not exist'
-    assert os.path.exists(footerfile), f'Footer file {footerfile} does not exist'
+    header = pkgutil.get_data('academicdb', 'data/latex_header.tex')
+    footer = pkgutil.get_data('academicdb', 'data/latex_footer.tex')
 
-    with open(headerfile, 'r') as f:
-        doc = f.read()
-    
+    doc = header
+
     doc += get_heading(metadata)
     
 
@@ -404,8 +400,7 @@ def main():
 
     doc += get_talks(db.get_collection('talks'))
 
-    with open(footerfile, 'r') as f:
-        doc += f.read()
+    doc += footer
 
 
     # write to file
