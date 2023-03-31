@@ -9,5 +9,5 @@ required_fields = [
     'DOI',
     'PMID',
     'PMC',
-    'type'
+    'type',
 ]

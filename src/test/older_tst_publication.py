@@ -9,21 +9,23 @@ from academicdb.researcher import Researcher
 from academicdb.publication import Publication, JournalArticle
 
 # test fixtures to share across tests
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def publication():
     p = Publication()
-    return(p)
+    return p
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope='session')
 def pubmed_data():
     pmids = [32425159, 32272064]
     Entrez.email = 'testing@autocv.org'
     handle = Entrez.efetch(
-        db="pubmed",
-        id=",".join(['%d' % i for i in pmids]),
-        retmax=1000, retmode="xml")
-    return(Entrez.read(handle))
+        db='pubmed',
+        id=','.join(['%d' % i for i in pmids]),
+        retmax=1000,
+        retmode='xml',
+    )
+    return Entrez.read(handle)
 
 
 def test_publication_class():

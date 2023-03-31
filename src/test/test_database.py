@@ -1,10 +1,12 @@
 import pytest
 import sys
+
 sys.path.append('../academicdb')
 from src.academicdb.database import AbstractDatabase
 from src.academicdb.database import MongoDatabase
 
 dbname = 'testdb'
+
 
 @pytest.fixture
 def mongodb():
@@ -31,9 +33,11 @@ def test_mongo_setup_db(mongodb):
     mongodb.setup_collections()
     assert dbname in mongodb.client.list_database_names()
 
+
 def test_add(mongodb):
     mongodb.add('test', [{'a': 1, 'b': 2}])
     assert len(list(mongodb.client.testdb.test.find({}))) == 1
+
 
 def test_get_collection(mongodb):
     mongodb.add('test', [{'a': 1, 'b': 2}])

@@ -10,27 +10,29 @@ from src.academicdb.recordConverter import (
     AbstractRecordConverter,
     PubmedRecordConverter,
     ScopusRecordConverter,
-    CrossrefRecordConverter
+    CrossrefRecordConverter,
 )
 from src.academicdb.utils import load_config
 from src.test.required_fields import required_fields
 
+
 @pytest.fixture
 def pubmed_record():
     pubmed_search = PubmedQuery()
-    query_string = "31452104"  # PubMed ID known to return a single record
+    query_string = '31452104'  # PubMed ID known to return a single record
     results = pubmed_search.query(query_string, max_results=1)
     assert len(results) == 1
-    assert "MedlineCitation" in results[0]
-    return(results[0])
+    assert 'MedlineCitation' in results[0]
+    return results[0]
+
 
 @pytest.fixture
 def scopus_record():
     scopus_search = ScopusQuery()
-    authorid = "7004739390" 
+    authorid = '7004739390'
     results = scopus_search.author_query(authorid)
     assert len(results) > 300
-    return(results[0])
+    return results[0]
 
 
 @pytest.fixture
