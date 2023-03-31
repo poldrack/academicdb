@@ -34,6 +34,10 @@ class AbstractDatabase(ABC):
     def list_collections(self, **kwargs):
         pass
 
+    @abstractmethod
+    def get_collection(self, collection_name: str, **kwargs):
+        pass
+
 
 class MongoDatabase(AbstractDatabase):
     def __init__(self, dbname: str ='academicdb', 
@@ -97,7 +101,6 @@ class MongoDatabase(AbstractDatabase):
             self.client[self.dbname].create_collection(table)
 
         for c in content:
-            print('adding content to collection', table)
             if table == 'publications':
                 if c and 'DOI' in c:
                     self.client[self.dbname][table].update_one(
@@ -109,6 +112,17 @@ class MongoDatabase(AbstractDatabase):
 
     def list_collections(self, **kwargs):
         return self.client[self.dbname].list_collection_names()
+
+    def get_collection(self, collection_name: str, **kwargs):
+        # deal with some tables that don't use $set
+        testitem = self.client[self.dbname][collection_name].find_one({})
+        if '$set' not in testitem:
+            return list(self.client[self.dbname][collection_name].find({}))
+        else:
+            return [
+                item['$set']
+                for item in self.client[self.dbname][collection_name].find({})
+            ]
 
 # dependency inversion
 class Database():
@@ -129,4 +143,7 @@ class Database():
         self.db.add(table, content, **kwargs)
     
     def list_collections(self, **kwargs):
-        self.db.list_collections(**kwargs)
+        return self.db.list_collections(**kwargs)
+    
+    def get_collection(self, collection_name: str, **kwargs):
+        return self.db.get_collection(collection_name, **kwargs)
