@@ -72,8 +72,8 @@ class Researcher:
     def __init__(self, param_file='config.toml', basedir=None):
         self.param_file = param_file
         self.basedir = os.path.dirname(param_file) if basedir is None else basedir
-        self.metadata = ResearcherMetadata()
 
+        self.metadata = ResearcherMetadata()
         self.setup_fields()
         self.load_params()
 
@@ -192,6 +192,18 @@ class Researcher:
             self.publications[doi]['PMID'] = scopus_record.pubmed_id
             self.publications[doi]['PMCID'] = utils.get_pmcid_from_pmid(scopus_record.pubmed_id, email=self.metadata.email)
 
+        # check for additional pubmed dois that are not on scopus
+        logging.info('checking for additional pubmed dois')
+        pubmed_recs = query.PubmedQuery(self.metadata.email).query(self.metadata.query)
+        for rec in pubmed_recs:
+            p = recordConverter.PubmedRecordConverter(rec).convert()
+            if p['DOI'] not in self.publications:
+                if 'PMC' in p:
+                    p['PMCID'] = p['PMC']
+                    del p['PMC']
+                logging.info(f"adding additional pubmed record {p['DOI']}")
+                self.publications[p['DOI']] = p
+
     def get_additional_pubs_from_file(self, pubfile):
         """
         add additional publications from a csv file
@@ -256,7 +268,7 @@ class Researcher:
                 continue
             table_value = getattr(self, table)
             if table == 'metadata':
-                table_value = table_value.__dict__
+                table_value = [table_value.__dict__]
             elif isinstance(table_value, dict):
                 table_value = list(table_value.values())
             if table_value is not None:
@@ -265,124 +277,3 @@ class Researcher:
             else:
                 logging.warning(f'Table {table} is None')
 
-
-    # move this out of this class
-    def make_publication_records(self, use_exclusions=True):
-        # test pubmed
-        self.get_pubmed_data()
-        pubmed_dois = []
-        self.publications = {}
-        for r in self.pubmed_data['PubmedArticle']:
-            pub = JournalArticle()
-            pub.from_pubmed(r)
-
-            pub.format_reference(format=self.format)
-            pub.hash = pub.get_pub_hash()
-            self.publications[pub.DOI] = pub
-            # keep track of pubmed DOIs so that we
-            # don't overwrite with crossref
-            pubmed_dois.append(pub.DOI)
-
-        if self.orcid_data is None:
-            self.get_orcid_data()
-        if self.orcid_dois is None:
-            self.get_orcid_dois()
-        print('found %d  ORCID dois' % len(self.orcid_dois))
-
-        # load orcid pubs using crossref
-        self.crossref_data = get_crossref_records(self.orcid_dois)
-        print('found %d crossref records' % len(self.crossref_data))
-
-        for c in self.crossref_data:
-            d = parse_crossref_record(self.crossref_data[c])
-            if d is not None:
-                # skip existing pubmed records and preprints
-                if d['DOI'] in pubmed_dois:
-                    continue
-
-                if d['type'] in ['journal-article', 'proceedings-article']:
-                    p = JournalArticle()
-                elif d['type'] in ['book', 'monograph']:
-                    p = Book()
-                elif d['type'] == 'book-chapter':
-                    p = BookChapter()
-                else:
-                    continue
-
-                p.from_dict(d)
-                if hasattr(p, 'DOI'):
-                    id = p.DOI
-                elif hasattr(p, 'ISBN'):
-                    id = p.ISBN
-                else:
-                    id = utils.get_random_hash()
-
-                self.publications[id] = p
-        if use_exclusions:
-            self.publications = utils.drop_excluded_pubs(self.publications)
-
-        print('found %d additional pubs from ORCID via crossref' % (len(self.publications) - len(pubmed_dois)))
-
-        additional_pubs_file = os.path.join(
-            self.basedir, 'additional_pubs.csv'
-        )
-        additional_pubs = utils.get_additional_pubs_from_csv(additional_pubs_file)
-        for pub in additional_pubs:
-            if additional_pubs[pub]['type'] in ['journal-article', 'proceedings-article']:
-                self.publications[pub] = JournalArticle()
-            elif additional_pubs[pub]['type'] in ['book', 'monograph']:
-                self.publications[pub] = Book()
-            elif additional_pubs[pub]['type'] == 'book-chapter':
-                self.publications[pub] = BookChapter()
-            else:
-                print('skipping unknown type', additional_pubs[pub]['type'])
-                continue
-            self.publications[pub].from_dict(additional_pubs[pub])
-
-    def from_json(self, filename):
-        with open(filename, 'r') as f:
-            serialized = json.load(f)
-        for k in serialized.keys():
-            if hasattr(self, k):
-                # print('ingesting', k)
-                if k == 'publications':
-                    self.publications = {}
-                    for pub in serialized[k]:
-                        if serialized[k][pub]['type'] in ['journal-article', 'proceedings-article']:
-                            self.publications[pub] = JournalArticle()
-                        elif serialized[k][pub]['type'] in ['book', 'monograph']:
-                            self.publications[pub] = Book()
-                        elif serialized[k][pub]['type'] == 'book-chapter':
-                            self.publications[pub] = BookChapter()
-                        else:
-                            print('skipping unknown type', serialized[k][pub]['type'])
-                            continue
-                        self.publications[pub].from_dict(serialized[k][pub])
-                else:
-                    setattr(self, k, serialized[k])
-
-    def serialize_publications(self):
-        self.serialized['publications'] = {}
-        for k, pubinfo_orig in self.publications.items():
-            pubinfo = pubinfo_orig.to_json()
-            if len(pubinfo) == 0:
-                print('skipping', k)
-                continue
-            else:
-                self.serialized['publications'][k] = pubinfo
-
-    def serialize(self):
-        self.serialized = {}
-        self_dict = self.__dict__.copy()
-        if 'gscholar_data' in self_dict and self_dict['gscholar_data'] is not None and 'hindex' in self_dict['gscholar_data']:
-            self.serialized['gscholar_data'] = {
-                'hindex': self_dict['gscholar_data']['hindex']}
-        
-        self.serialize_publications()
-
-    def to_json(self, filename):
-        if self.serialized is None:
-            self.serialize()
-        with open(filename, 'w') as f:
-            json.dump(self.serialized, f, cls=utils.CustomJSONEncoder,
-                      indent=4)
