@@ -108,7 +108,7 @@ def parse_pubmed_record(record):
 
     return({
         'DOI': get_pubmed_doi(record),
-        'Abstract': get_pubmed_abstract(record),
+        'abstract': get_pubmed_abstract(record),
         'PMC': get_pubmed_pmcid(record),
         'PMID': get_pubmed_pmid(record),
         'type': 'journal-article',

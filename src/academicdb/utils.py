@@ -9,6 +9,100 @@ import random
 import string
 import json
 import scholarly
+from contextlib import suppress
+import math
+from Bio import Entrez
+import subprocess
+
+def serialize_pubs_to_json(pubs, outfile):
+    """
+    save a list of publications to json
+
+    parameters:
+    -----------
+    pubs: a list of Publication objects
+    outfile: string, filename to save to
+    """
+
+    # first combine into a single dictionary
+    pubdict = {}
+    for p in pubs:
+        if p.hash in pubdict:
+            print('WARNING: hash collision')
+            p.hash = p.hash + get_random_hash(4)
+        pubdict[p.hash] = vars(p)
+    with open(outfile, 'w') as f:
+        json.dump(pubdict, f)
+    return(pubdict)
+
+
+def shorten_authorlist(authors, maxlen=10, n_to_show=3):
+    authors_split = authors.split(',')
+    if len(authors_split) > maxlen:
+        authors = ','.join(authors_split[:n_to_show]) + ' et al.'
+    return authors
+
+
+def load_pubs_from_json(infile):
+    pubdict = {}
+    with open(infile) as f:
+        pubdict = json.load(f)
+    return(pubdict)
+
+def run_shell_cmd(cmd,cwd=[]):
+    """ run a command in the shell using Popen
+    """
+    stdout_holder=[]
+    if cwd:
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,cwd=cwd)
+    else:
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    for line in process.stdout:
+             print(line.strip())
+             stdout_holder.append(line.strip())
+    process.wait()
+    return stdout_holder
+
+
+def get_pmcid_from_pmid(pmid: str, email: str):
+    """
+    get the pmcid from the pmid
+    """
+
+    with Entrez.elink(dbfrom="pubmed", db="pmc", linkname="pubmed_pmc", id=pmid, retmode="text", email=email) as handle:
+        record = Entrez.read(handle)
+
+    try:
+        pmcid = record[0]['LinkSetDb'][0]['Link'][0]['Id']
+    except Exception:
+        pmcid = None
+    return pmcid
+
+
+
+def has_skip_strings(target, skip_strings=None):
+    if skip_strings is None:
+        skip_strings = ['corrigendum', 'erratum', 'author correction', 'publisher correction']
+    for skip_string in skip_strings:
+        if target.lower().find(skip_string)> -1:
+            return(True)
+    return(False)
+
+
+def remove_nans_from_pub(pub: dict):
+    """
+    remove nans from the publication record
+    """
+    for k, v in pub.items():
+        with suppress(KeyError, TypeError):
+            if math.isnan(v):
+                pub[k] = None
+    return pub
+
+def load_config(configfile):
+    import toml
+    config = toml.load(configfile)
+    return(config)
 
 
 def get_random_hash(length=16):
@@ -172,3 +266,17 @@ def escape_characters_for_latex(pub):
         if field in pub and hasattr(pub[field], 'replace'):
             pub[field] = pub[field].replace(r' &', r' \&') # noqa
     return(pub)
+
+
+def abbrev_authorname(author: str):
+    """
+    abbreviate the author name - replace first/middle names with initials
+    assmes the author name is in the format "last, first middle"
+    """
+
+    # fix for authors with multiple last names e.g Zeynep Enkavi
+    lastname, firstnames = author.split(',')
+    if len(lastname.split(' ')) > 1:
+        lastname = lastname.split(' ')[-1]
+        firstnames += lastname.split(' ')[0]
+    return lastname + ' ' + ''.join([i[0] for i in firstnames.split()])

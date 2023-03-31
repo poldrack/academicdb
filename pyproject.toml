@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "academicdb"
+description = "Database for CV creation"
+dynamic = ["version"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+pythonpath = [
+  ".", "src"
+]
+
+[tool.hatch.version]
+path = "src/academicdb/__about__.py"
