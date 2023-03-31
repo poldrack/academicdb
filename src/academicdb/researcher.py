@@ -11,6 +11,7 @@ import logging
 import pandas as pd
 from contextlib import suppress
 import math
+from pybliometrics.scopus import AuthorRetrieval
 
 from crossref.restful import Works
 try:
@@ -271,8 +272,11 @@ class Researcher:
 
     def get_coauthors(self):
 
+        if self.publications is None:
+            logging.warning('No publications found. Cannot get coauthors.')
+            return
         self.coauthors = {}
-        for pub in self.publications:
+        for doi, pub in self.publications.items():
             if 'scopus_coauthor_ids' in pub:
                 for coauthor in pub['scopus_coauthor_ids']:
                     if coauthor not in self.coauthors:
@@ -312,7 +316,7 @@ class Researcher:
             elif isinstance(table_value, dict):
                 table_value = list(table_value.values())
             if table_value is not None:
-                logging.info(f'adding {table} to database')
+                logging.info(f'adding {table} to database ({len(table_value)} records)')
                 db.add(table, table_value)
             else:
                 logging.warning(f'Table {table} is None')
