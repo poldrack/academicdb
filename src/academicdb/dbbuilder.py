@@ -198,7 +198,8 @@ def main():
     if os.path.exists(bad_doi_file):
         bad_dois = pd.read_csv(bad_doi_file)
         for doi in bad_dois['doi']:
-            del r.publications[doi]
+            if doi in r.publications:
+                del r.publications[doi]
 
     r.publications = drop_empty_pubs(r.publications)
 
@@ -249,6 +250,6 @@ def main():
     r.publications = add_citations(r.publications)
 
     r.get_coauthors()
-    
+
     if not args.nodb:
         r.to_database(db)
