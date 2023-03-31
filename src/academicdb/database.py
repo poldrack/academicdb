@@ -37,7 +37,10 @@ class AbstractDatabase(ABC):
     @abstractmethod
     def get_collection(self, collection_name: str, **kwargs):
         pass
-
+    
+    @abstractmethod
+    def drop_collection(self, collection_name: str, **kwargs):
+        pass
 
 class MongoDatabase(AbstractDatabase):
     def __init__(self, dbname: str ='academicdb', 
@@ -123,6 +126,9 @@ class MongoDatabase(AbstractDatabase):
                 item['$set']
                 for item in self.client[self.dbname][collection_name].find({})
             ]
+    
+    def drop_collection(self, collection_name: str, **kwargs):
+        self.client[self.dbname].drop_collection(collection_name)
 
 # dependency inversion
 class Database():
@@ -147,3 +153,6 @@ class Database():
     
     def get_collection(self, collection_name: str, **kwargs):
         return self.db.get_collection(collection_name, **kwargs)
+    
+    def drop_collection(self, collection_name: str, **kwargs):
+        return self.db.drop_collection(collection_name, **kwargs)
