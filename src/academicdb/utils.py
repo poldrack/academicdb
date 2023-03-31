@@ -12,6 +12,56 @@ import scholarly
 from contextlib import suppress
 import math
 from Bio import Entrez
+import subprocess
+
+def serialize_pubs_to_json(pubs, outfile):
+    """
+    save a list of publications to json
+
+    parameters:
+    -----------
+    pubs: a list of Publication objects
+    outfile: string, filename to save to
+    """
+
+    # first combine into a single dictionary
+    pubdict = {}
+    for p in pubs:
+        if p.hash in pubdict:
+            print('WARNING: hash collision')
+            p.hash = p.hash + get_random_hash(4)
+        pubdict[p.hash] = vars(p)
+    with open(outfile, 'w') as f:
+        json.dump(pubdict, f)
+    return(pubdict)
+
+
+def shorten_authorlist(authors, maxlen=10, n_to_show=3):
+    authors_split = authors.split(',')
+    if len(authors_split) > maxlen:
+        authors = ','.join(authors_split[:n_to_show]) + ' et al.'
+    return authors
+
+
+def load_pubs_from_json(infile):
+    pubdict = {}
+    with open(infile) as f:
+        pubdict = json.load(f)
+    return(pubdict)
+
+def run_shell_cmd(cmd,cwd=[]):
+    """ run a command in the shell using Popen
+    """
+    stdout_holder=[]
+    if cwd:
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,cwd=cwd)
+    else:
+        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    for line in process.stdout:
+             print(line.strip())
+             stdout_holder.append(line.strip())
+    process.wait()
+    return stdout_holder
 
 
 def get_pmcid_from_pmid(pmid: str, email: str):
