@@ -1,5 +1,3 @@
-## render as markdown
-
 import pymongo
 import datetime
 from contextlib import suppress
@@ -316,13 +314,6 @@ def parse_args():
         default=os.path.join(os.path.expanduser('~'), '.academicdb')
     )
     parser.add_argument(
-        '-b',
-        '--basedir',
-        type=str,
-        help='base directory',
-        default='.'
-    )
-    parser.add_argument(
         '-f',
         '--format',
         type=str,
@@ -344,16 +335,14 @@ def parse_args():
         default='cv'
     )
     parser.add_argument(
-        '-r',
-        '--render',
+        '--no_render',
         action='store_true',
         help='render the output file',
     )
     return parser.parse_args()
 
 
-if __name__ == "__main__":
-
+def main():
 
     args = parse_args()
     print(args)
@@ -427,7 +416,7 @@ if __name__ == "__main__":
         f.write(doc)
 
     # render latex
-    if args.render:
+    if not args.no_render:
         result = run_shell_cmd(f"xelatex -halt-on-error {args.outfile}.{args.format}", cwd=args.outdir)
         success = False
         for line in result:
