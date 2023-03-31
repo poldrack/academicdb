@@ -15,11 +15,16 @@ def get_crossref_records(dois):
             crossref_records[doi] = r
         else:
             print('missing crossref record for', doi)
-    return(crossref_records)
+    return crossref_records
 
 
-def parse_crossref_record(record, verbose=False, exclude_preprints=True,
-                          exclude_books=True, exclude_translations=True):
+def parse_crossref_record(
+    record,
+    verbose=False,
+    exclude_preprints=True,
+    exclude_books=True,
+    exclude_translations=True,
+):
     """
     extract fields from record
     do this here because these records span multiple publication types
@@ -27,25 +32,25 @@ def parse_crossref_record(record, verbose=False, exclude_preprints=True,
     if 'DOI' not in record:
         print('no DOI found in crossref record - skipping')
         print(record)
-        return(None)
+        return None
     pub = {'DOI': record['DOI']}
     if exclude_preprints and record['type'] == 'posted-content':
         if verbose:
             print('skipping preprint:', record['DOI'])
-        return(None)
+        return None
     # books seem to be goofy with crossref
     if exclude_books and record['type'] == 'book':
         if verbose:
             print('skipping book:', record['DOI'])
-        return(None)
+        return None
     if 'author' not in record:  # can happen for errata
         if verbose:
             print('skipping due to missing author:', record['DOI'])
-        return(None)
+        return None
     if 'translator' in record:
         if verbose:
             print('skipping translation:', record['DOI'])
-        return(None)
+        return None
 
     if isinstance(record['title'], list):
         record['title'] = record['title'][0]
@@ -53,7 +58,7 @@ def parse_crossref_record(record, verbose=False, exclude_preprints=True,
     if record['title'].find('Corrigend') > -1:
         if verbose:
             print('skipping corrigendum:', record['DOI'])
-        return(None)
+        return None
 
     # don't replace pubmed info if it already exists
     for field in ['title', 'volume', 'page', 'type', 'publisher']:
@@ -82,12 +87,12 @@ def parse_crossref_record(record, verbose=False, exclude_preprints=True,
             year = journal_issue['published-online']['date-parts'][0][0]
         else:
             print('problem getting year for:', pub)
-            return(None)
+            return None
     elif 'published-online' in record:
         year = record['published-online']['date-parts'][0][0]
     else:
         print('problem getting year for:', pub)
-        return(None)
+        return None
 
     pub['year'] = int(year)
 
@@ -105,15 +110,23 @@ def parse_crossref_record(record, verbose=False, exclude_preprints=True,
         authors.append(entry)
     pub['authors'] = ', '.join(authors)
     pub['source'] = 'Crossref'
-    return(pub)
+    return pub
 
 
-def process_crossref_records(crossref_records, pubs,
-                             etal_thresh=10, exclude_preprints=True,
-                             exclude_books=True, exclude_translations=True):
+def process_crossref_records(
+    crossref_records,
+    pubs,
+    etal_thresh=10,
+    exclude_preprints=True,
+    exclude_books=True,
+    exclude_translations=True,
+):
     # use DOI as dictionary keys
     for r in crossref_records:
-        if exclude_preprints and crossref_records[r]['type'] == 'posted-content':
+        if (
+            exclude_preprints
+            and crossref_records[r]['type'] == 'posted-content'
+        ):
             continue
         # books seem to be goofy with crossref
         if exclude_books and crossref_records[r]['type'] == 'book':
@@ -141,19 +154,26 @@ def process_crossref_records(crossref_records, pubs,
                 pubs[r][field] = f
 
         # get the title
-        if 'journal' not in pubs[r] and len(crossref_records[r]['container-title']) > 0:
+        if (
+            'journal' not in pubs[r]
+            and len(crossref_records[r]['container-title']) > 0
+        ):
             pubs[r]['journal'] = crossref_records[r]['container-title'][0]
 
         # date can show up in two different places!
         if 'year' not in pubs[r]:
             if 'published-print' in crossref_records[r]:
-                year = crossref_records[r]['published-print']['date-parts'][0][0]
+                year = crossref_records[r]['published-print']['date-parts'][0][
+                    0
+                ]
             elif 'journal-issue' in crossref_records[r]:
                 journal_issue = crossref_records[r]['journal-issue']
                 if 'published-print' in journal_issue:
                     year = journal_issue['published-print']['date-parts'][0][0]
                 else:
-                    year = journal_issue['published-online']['date-parts'][0][0]
+                    year = journal_issue['published-online']['date-parts'][0][
+                        0
+                    ]
 
             pubs[r]['year'] = int(year)
 
@@ -177,4 +197,4 @@ def process_crossref_records(crossref_records, pubs,
         else:
             pubs[r]['authors'] = ', '.join(authors)
         pubs[r]['idType'] = 'DOI'
-    return(pubs)
+    return pubs

@@ -1,16 +1,17 @@
 import datetime
 from contextlib import suppress
 from academicdb.utils import (
-    remove_nans_from_pub, 
+    remove_nans_from_pub,
     escape_characters_for_latex,
     load_config,
-    run_shell_cmd
+    run_shell_cmd,
 )
 import logging
 import argparse
 import os
 from academicdb import database
 import pkgutil
+
 
 def get_education(education):
     output = ''
@@ -35,6 +36,7 @@ def get_employment(employment):
             output += f"\\textit{{{e['start_date']}-{e['end_date']}}}: {e['role']} ({e['dept']}), {e['institution']}\n\n"
     return output
 
+
 def get_distinctions(distinctions):
     output = ''
     if distinctions:
@@ -53,7 +55,8 @@ def get_editorial(editorial):
         'Associate Editor',
         'Contributing Editor',
         'Handling Editor (ad hoc) ',
-        'Editorial board ',]
+        'Editorial board ',
+    ]
     output = """
 \\section*{Editorial duties}
 \\noindent
@@ -62,7 +65,7 @@ def get_editorial(editorial):
         for role in roles:
             role_entries = [e for e in editorial if e['role'] == role]
             if role_entries:
-                output += f"\\textit{{{role}}}: "
+                output += f'\\textit{{{role}}}: '
                 journals = [entry['journal'] for entry in role_entries]
                 output += f"{', '.join(journals)}\n\n"
     return output
@@ -91,7 +94,6 @@ def get_memberships(memberships):
     return output + ', '.join(orgs) + '\n\n'
 
 
-
 def get_conference_years(conferences):
     years = list(set([i['year'] for i in conferences]))
     years.sort(reverse=True)
@@ -108,8 +110,8 @@ def get_conferences(conferences):
 """
     for year in years:
         year_talks = [i for i in conferences if i['year'] == year]
-        #list(db['conferences'].find({'date': {'$regex': f'^{year}'}}).sort("monthnum", pymongo.DESCENDING))
-        output += f"\\subsection*{{{year}}}"
+        # list(db['conferences'].find({'date': {'$regex': f'^{year}'}}).sort("monthnum", pymongo.DESCENDING))
+        output += f'\\subsection*{{{year}}}'
         for talk in year_talks:
             title = talk['title'].rstrip('.').rstrip(' ')
             if title[-1] != '?':
@@ -130,10 +132,10 @@ def get_talks(talks):
 """
     for year in years:
         year_talks = [i for i in talks if i['year'] == year]
-        #list(db['talks'].find({'year': year}))
-        output += f"{year}: "
+        # list(db['talks'].find({'year': year}))
+        output += f'{year}: '
         talk_locations = [talk['place'] for talk in year_talks]
-        output += ', '.join(talk_locations) + "\n\n"
+        output += ', '.join(talk_locations) + '\n\n'
     return output
 
 
@@ -147,16 +149,25 @@ def get_teaching(teaching):
     for level in ['Undergraduate', 'Graduate']:
         level_entries = [e for e in teaching if e['type'] == level]
         if level_entries:
-            output += f"\\textit{{{level}}}: "
+            output += f'\\textit{{{level}}}: '
             courses = [entry['name'] for entry in level_entries]
             output += f"{', '.join(courses)}\\vspace{{2mm}}\n\n"
     return output
 
+
 def get_funding(funding):
-    "use data from file since ORCID doesn't yet show role in API"
+    """use data from file since ORCID doesn't yet show role in API"""
     current_year = datetime.datetime.now().year
-    active_funding = [remove_nans_from_pub(f) for f in funding if int(f['end_date']) >= current_year]
-    completed_funding = [remove_nans_from_pub(f) for f in funding if int(f['end_date']) < current_year]
+    active_funding = [
+        remove_nans_from_pub(f)
+        for f in funding
+        if int(f['end_date']) >= current_year
+    ]
+    completed_funding = [
+        remove_nans_from_pub(f)
+        for f in funding
+        if int(f['end_date']) < current_year
+    ]
 
     output = ''
     if funding:
@@ -169,14 +180,18 @@ def get_funding(funding):
         for e in active_funding:
             linkstring = ''
             if 'url' in e and e['url']:
-                linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+                linkstring = (
+                    f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+                )
             output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
 
-        output += "\\subsection*{Completed:}"
+        output += '\\subsection*{Completed:}'
         for e in completed_funding:
             linkstring = ''
             if 'url' in e and e['url']:
-                linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+                linkstring = (
+                    f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+                )
             output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
     return output
 
@@ -190,7 +205,7 @@ def get_publication_years(publications):
 def mk_author_string(authors, maxlen=10, n_to_show=3):
     authors = [i.lstrip(' ').rstrip(' ') for i in authors]
     if len(authors) > maxlen:
-        return(', '.join(authors[:n_to_show]) + ' et al.')
+        return ', '.join(authors[:n_to_show]) + ' et al.'
     else:
         return ', '.join(authors) + '. '
 
@@ -207,10 +222,10 @@ def get_publication_outlet(pub):
             volstring = f", {pub['volume']}"
         if 'page' in pub and pub['page'] is not None:
             pagestring = f", {pub['page']}"
-        #elif 'article_number' in pub and pub['article_number'] is not None:
+        # elif 'article_number' in pub and pub['article_number'] is not None:
         #    pagestring = f", {pub['article_number']}"
         return f" \\textit{{{pub['journal']}{volstring}}}{pagestring}. "
-    elif pub['type'] == 'book-chapter' :
+    elif pub['type'] == 'book-chapter':
         if 'volume' in pub and pub['volume'] is not None:
             volstring = f" (Vol. {pub['volume']})"
         if 'page' in pub and pub['page'] is not None:
@@ -232,9 +247,16 @@ def format_publication(pub, debug=False):
     with suppress(KeyError):
         if pub['PMCID'] is not None:
             output += f" \\href{{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{pub['PMCID']}}}{{OA}}"
-        elif pub['freetoread'] is not None and pub['freetoread'] in ['publisherhybridgold', 'publisherfree2read']:
+        elif pub['freetoread'] is not None and pub['freetoread'] in [
+            'publisherhybridgold',
+            'publisherfree2read',
+        ]:
             output += f" \\href{{https://doi.org/{pub['doi']}}}{{OA}}"
-    if 'DOI' in pub and pub['DOI'] is not None and pub['DOI'].find('nodoi') == -1:
+    if (
+        'DOI' in pub
+        and pub['DOI'] is not None
+        and pub['DOI'].find('nodoi') == -1
+    ):
         output += f" \\href{{https://doi.org/{pub['DOI']}}}{{DOI}}"
     if 'links' in pub:
         if 'Data' in pub['links'] and pub['links']['Data'] is not None:
@@ -246,7 +268,6 @@ def format_publication(pub, debug=False):
 
     output += '\\vspace{2mm}\n\n'
     return output
-
 
 
 def get_publications(publications, exclude_dois=None):
@@ -261,10 +282,14 @@ def get_publications(publications, exclude_dois=None):
     for year in years:
         year_pubs = [i for i in publications if i['year'] == year]
         year_pubs.sort(key=lambda x: x['authors'])
-        #list(db['publications'].find({'year': {'$regex': f'^{year}'}}).sort("firstauthor", pymongo.ASCENDING))
-        output += f"\\subsection*{{{year}}}"
+        # list(db['publications'].find({'year': {'$regex': f'^{year}'}}).sort("firstauthor", pymongo.ASCENDING))
+        output += f'\\subsection*{{{year}}}'
         for pub in year_pubs:
-            if 'Corrigendum' in pub['title'] or "Author Correction" in pub['title'] or "Erratum" in pub['title']:
+            if (
+                'Corrigendum' in pub['title']
+                or 'Author Correction' in pub['title']
+                or 'Erratum' in pub['title']
+            ):
                 continue
             if exclude_dois is not None and pub['doi'] in exclude_dois:
                 continue
@@ -274,11 +299,12 @@ def get_publications(publications, exclude_dois=None):
 
     return output
 
+
 def get_heading(metadata):
 
-    address= ''
+    address = ''
     for addr_line in metadata['address']:
-        address += f"{addr_line}\\\\\n"
+        address += f'{addr_line}\\\\\n'
     heading = f"""
 \\reversemarginpar 
 {{\\LARGE Russell A. Poldrack}}\\\\[4mm] 
@@ -302,7 +328,6 @@ ORCID: \\href{{https://orcid.org/{metadata['orcid']}}}{{{metadata['orcid']}}} \\
     return heading
 
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -310,28 +335,16 @@ def parse_args():
         '--configdir',
         type=str,
         help='directory for config files',
-        default=os.path.join(os.path.expanduser('~'), '.academicdb')
+        default=os.path.join(os.path.expanduser('~'), '.academicdb'),
     )
     parser.add_argument(
-        '-f',
-        '--format',
-        type=str,
-        help='output format',
-        default='tex'
+        '-f', '--format', type=str, help='output format', default='tex'
     )
     parser.add_argument(
-        '-d',
-        '--outdir',
-        type=str,
-        help='output dir',
-        default='./output'
+        '-d', '--outdir', type=str, help='output dir', default='./output'
     )
     parser.add_argument(
-        '-o',
-        '--outfile',
-        type=str,
-        help='output file stem',
-        default='cv'
+        '-o', '--outfile', type=str, help='output file stem', default='cv'
     )
     parser.add_argument(
         '--no_render',
@@ -346,37 +359,49 @@ def main():
     args = parse_args()
     print(args)
     logging.info('Running dbbuilder.py')
-    
+
     # this needs to be configured as package_data
-    datadir = 'src/data'  
+    datadir = 'src/data'
 
     if not os.path.exists(args.configdir):
-        raise FileNotFoundError(f'Config directory {args.configdir} does not exist')
-    
+        raise FileNotFoundError(
+            f'Config directory {args.configdir} does not exist'
+        )
+
     configfile = os.path.join(args.configdir, 'config.toml')
     dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
 
     if os.path.exists(dbconfigfile):
         logging.info(f'Using database config file {dbconfigfile}')
         dbconfig = load_config(dbconfigfile)
-        assert dbconfig['mongo']['CONNECT_STRING'], 'CONNECT_STRING must be specified in dbconfig'
-        db = database.Database(database.MongoDatabase(connect_string = dbconfig['mongo']['CONNECT_STRING']))
+        assert dbconfig['mongo'][
+            'CONNECT_STRING'
+        ], 'CONNECT_STRING must be specified in dbconfig'
+        db = database.Database(
+            database.MongoDatabase(
+                connect_string=dbconfig['mongo']['CONNECT_STRING']
+            )
+        )
     else:
         logging.info(f'Using default localhost database config')
-        db = database.Database(database.MongoDatabase(overwrite=args.overwrite))
-
+        db = database.Database(
+            database.MongoDatabase(overwrite=args.overwrite)
+        )
 
     metadata = db.get_collection('metadata')
-    assert len(metadata) == 1, "There should be only one metadata document"
+    assert len(metadata) == 1, 'There should be only one metadata document'
     metadata = metadata[0]
 
-    header = pkgutil.get_data('academicdb', 'data/latex_header.tex').decode('utf-8')
-    footer = pkgutil.get_data('academicdb', 'data/latex_footer.tex').decode('utf-8')
+    header = pkgutil.get_data('academicdb', 'data/latex_header.tex').decode(
+        'utf-8'
+    )
+    footer = pkgutil.get_data('academicdb', 'data/latex_footer.tex').decode(
+        'utf-8'
+    )
 
     doc = header
 
     doc += get_heading(metadata)
-    
 
     doc += get_education(db.get_collection('education'))
 
@@ -394,7 +419,9 @@ def main():
 
     doc += get_teaching(db.get_collection('teaching'))
 
-    doc += get_publications(db.get_collection('publications'), )
+    doc += get_publications(
+        db.get_collection('publications'),
+    )
 
     doc += get_conferences(db.get_collection('conference'))
 
@@ -402,22 +429,26 @@ def main():
 
     doc += footer
 
-
     # write to file
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
-    outfile = os.path.join(args.outdir, f"{args.outfile}.{args.format}")
+    outfile = os.path.join(args.outdir, f'{args.outfile}.{args.format}')
     with open(outfile, 'w') as f:
         f.write(doc)
 
     # render latex
     if not args.no_render:
-        result = run_shell_cmd(f"xelatex -halt-on-error {args.outfile}.{args.format}", cwd=args.outdir)
+        result = run_shell_cmd(
+            f'xelatex -halt-on-error {args.outfile}.{args.format}',
+            cwd=args.outdir,
+        )
         success = False
         for line in result:
-            if hasattr(line, 'decode') and (line.decode().find("Output written on") > -1):
+            if hasattr(line, 'decode') and (
+                line.decode().find('Output written on') > -1
+            ):
                 success = True
         if not success:
-            raise RuntimeError("Latex failed to compile")
+            raise RuntimeError('Latex failed to compile')
         else:
-            print("Latex compiled successfully")
+            print('Latex compiled successfully')

@@ -6,16 +6,27 @@ import logging
 class AbstractDatabase(ABC):
     def __init__(self, **kwargs):
         self.db = None
-        self.collections = ['coauthors', 'funding', 'conference', 'talks', 
-            'education', 'employment', 'distinctions', 'metadata', 'publications',
-            'memberships', 'service', 'trainees']
+        self.collections = [
+            'coauthors',
+            'funding',
+            'conference',
+            'talks',
+            'education',
+            'employment',
+            'distinctions',
+            'metadata',
+            'publications',
+            'memberships',
+            'service',
+            'trainees',
+        ]
 
     @abstractmethod
-    def setup_db(self,  **kwargs):
+    def setup_db(self, **kwargs):
         pass
 
     @abstractmethod
-    def setup_collections(self,  **kwargs):
+    def setup_collections(self, **kwargs):
         pass
 
     @abstractmethod
@@ -37,15 +48,20 @@ class AbstractDatabase(ABC):
     @abstractmethod
     def get_collection(self, collection_name: str, **kwargs):
         pass
-    
+
     @abstractmethod
     def drop_collection(self, collection_name: str, **kwargs):
         pass
 
+
 class MongoDatabase(AbstractDatabase):
-    def __init__(self, dbname: str ='academicdb', 
-                 connect_string: str = None,
-                 overwrite: bool = False, **kwargs):
+    def __init__(
+        self,
+        dbname: str = 'academicdb',
+        connect_string: str = None,
+        overwrite: bool = False,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.client = None
         self.dbname = dbname
@@ -56,21 +72,24 @@ class MongoDatabase(AbstractDatabase):
         self.setup_db()
         self.setup_collections()
 
-
     def connect(self, **kwargs):
         if self.connect_string is not None:
             self.client = pymongo.MongoClient(self.connect_string)
         else:
-            self.client = pymongo.MongoClient(host="127.0.0.1", port=27017)
+            self.client = pymongo.MongoClient(host='127.0.0.1', port=27017)
 
     def setup_db(self, **kwargs):
         # it exists and overwrite is False, just make sure metadata are ok
-        if self.dbname in self.client.list_database_names() and not self.overwrite:
+        if (
+            self.dbname in self.client.list_database_names()
+            and not self.overwrite
+        ):
             # check to make sure only one metadata record exists
             if len(list(self.client[self.dbname]['metadata'].find())) > 1:
                 raise ValueError(
-                    "more than one metadata record exists in the database - please rerun with overwrite set to True")
-            logging.info("keeping existing database")
+                    'more than one metadata record exists in the database - please rerun with overwrite set to True'
+                )
+            logging.info('keeping existing database')
 
         # otherwise clean everything out and start over
         elif self.dbname in self.client.list_database_names():
@@ -79,7 +98,6 @@ class MongoDatabase(AbstractDatabase):
                 for c in self.collections:
                     self.client[self.dbname].drop_collection(c)
             self.client.drop_database(self.dbname)
-
 
     def setup_collections(self, **kwargs):
         logging.info('setting up collections')
@@ -107,7 +125,8 @@ class MongoDatabase(AbstractDatabase):
             if table == 'publications':
                 if c and 'DOI' in c:
                     self.client[self.dbname][table].update_one(
-                        {'DOI': c['DOI']}, {'$set': c}, upsert=True)
+                        {'DOI': c['DOI']}, {'$set': c}, upsert=True
+                    )
                 else:
                     logging.warning(f'no DOI found in publication: {c}')
             else:
@@ -126,12 +145,13 @@ class MongoDatabase(AbstractDatabase):
                 item['$set']
                 for item in self.client[self.dbname][collection_name].find({})
             ]
-    
+
     def drop_collection(self, collection_name: str, **kwargs):
         self.client[self.dbname].drop_collection(collection_name)
 
+
 # dependency inversion
-class Database():
+class Database:
     def __init__(self, db: AbstractDatabase, **kwargs):
         super().__init__(**kwargs)
         self.db = db
@@ -147,12 +167,12 @@ class Database():
 
     def add(self, table: str, content: list, **kwargs):
         self.db.add(table, content, **kwargs)
-    
+
     def list_collections(self, **kwargs):
         return self.db.list_collections(**kwargs)
-    
+
     def get_collection(self, collection_name: str, **kwargs):
         return self.db.get_collection(collection_name, **kwargs)
-    
+
     def drop_collection(self, collection_name: str, **kwargs):
         return self.db.drop_collection(collection_name, **kwargs)

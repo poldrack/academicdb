@@ -1,9 +1,8 @@
 from . import utils
 
 
-
-
 # older stuff below
+
 
 def serialize_pubs_to_json(pubs, outfile):
     """
@@ -24,7 +23,7 @@ def serialize_pubs_to_json(pubs, outfile):
         pubdict[p.hash] = vars(p)
     with open(outfile, 'w') as f:
         json.dump(pubdict, f)
-    return(pubdict)
+    return pubdict
 
 
 def shorten_authorlist(authors, maxlen=10, n_to_show=3):
@@ -34,9 +33,9 @@ def shorten_authorlist(authors, maxlen=10, n_to_show=3):
     else:
         return ', '.join(authors_split)
 
+
 def load_pubs_from_json(infile):
     pubdict = {}
     with open(infile) as f:
         pubdict = json.load(f)
-    return(pubdict)
-
+    return pubdict

@@ -1,20 +1,14 @@
 import argparse
 import logging
 import os
-from academicdb import (
-    database,
-    researcher,
-    orcid,
-    utils,
-    publication
-)
+from academicdb import database, researcher, orcid, utils, publication
 import pandas as pd
 
 
 # setup logging as global
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 )
 
 
@@ -25,59 +19,49 @@ def parse_args():
         '--configdir',
         type=str,
         help='directory for config files',
-        default=os.path.join(os.path.expanduser('~'), '.academicdb')
+        default=os.path.join(os.path.expanduser('~'), '.academicdb'),
     )
     parser.add_argument(
-        '-b',
-        '--basedir',
-        type=str,
-        help='base directory',
-        required=True
+        '-b', '--basedir', type=str, help='base directory', required=True
     )
     parser.add_argument(
-        '-d',
-        '--debug',
-        action='store_true',
-        help='log debug messages'
+        '-d', '--debug', action='store_true', help='log debug messages'
     )
     parser.add_argument(
         '-o',
         '--overwrite',
         action='store_true',
-        help='overwrite existing database'
+        help='overwrite existing database',
     )
     parser.add_argument(
-        '--no_add_pubs',
-        action='store_true',
-        help='do not get publications'
+        '--no_add_pubs', action='store_true', help='do not get publications'
     )
     parser.add_argument(
         '--no_add_info',
         action='store_true',
-        help='do not add additional information from csv files'
+        help='do not add additional information from csv files',
     )
     parser.add_argument(
-        '--nodb',
-        action='store_true',
-        help='do not write to database'
+        '--nodb', action='store_true', help='do not write to database'
     )
     parser.add_argument(
         '-t',
         '--test',
         action='store_true',
-        help='test mode (limit number of publications)'
+        help='test mode (limit number of publications)',
     )
     parser.add_argument(
         '--bad_dois_file',
         type=str,
         help='file with bad dois to remove',
-        default='bad_dois.csv'
+        default='bad_dois.csv',
     )
     return parser.parse_args()
 
 
 def load_config(configfile):
     import toml
+
     return toml.load(configfile)
 
 
@@ -97,11 +81,12 @@ def add_citations(publications, reftypes=None):
             'journal-article': publication.JournalArticle,
             'proceedings-article': publication.JournalArticle,
             'book-chapter': publication.BookChapter,
-            'book': publication.Book
+            'book': publication.Book,
         }
         pubstruct = pub_func[pub['type']]().from_dict(pub)
         publications[doi]['citation'] = {
-            reftype: pubstruct.format_reference(reftype) for reftype in reftypes
+            reftype: pubstruct.format_reference(reftype)
+            for reftype in reftypes
         }
     return publications
 
@@ -117,10 +102,14 @@ def setup_db(dbconfigfile, overwrite):
     if os.path.exists(dbconfigfile):
         logging.info(f'Using database config file {dbconfigfile}')
         dbconfig = load_config(dbconfigfile)
-        assert dbconfig['mongo']['CONNECT_STRING'], 'CONNECT_STRING must be specified in dbconfig'
-        return database.Database(database.MongoDatabase(
-            overwrite=overwrite, 
-            connect_string=dbconfig['mongo']['CONNECT_STRING'])
+        assert dbconfig['mongo'][
+            'CONNECT_STRING'
+        ], 'CONNECT_STRING must be specified in dbconfig'
+        return database.Database(
+            database.MongoDatabase(
+                overwrite=overwrite,
+                connect_string=dbconfig['mongo']['CONNECT_STRING'],
+            )
         )
     else:
         logging.info('Using default localhost database config')
@@ -132,6 +121,7 @@ def get_affiliation(aff):
         return f'{aff.preferred_name}, {aff.parent_preferred_name}, {aff.city}, {aff.country}'
     else:
         return f'{aff.preferred_name}, {aff.city}, {aff.country}'
+
 
 def get_coauthors(publications):
 
@@ -147,14 +137,19 @@ def get_coauthors(publications):
                         affil = None
                         affil_id = None
                     else:
-                        affil = [get_affiliation(aff) for aff in coauthor_info.affiliation_current]
-                        affil_id = [aff.id for aff in coauthor_info.affiliation_current]
+                        affil = [
+                            get_affiliation(aff)
+                            for aff in coauthor_info.affiliation_current
+                        ]
+                        affil_id = [
+                            aff.id for aff in coauthor_info.affiliation_current
+                        ]
                     coauthors[coauthor] = {
                         'scopus_id': coauthor,
                         'name': coauthor_info.indexed_name,
                         'affiliation': affil,
                         'affiliation_id': affil_id,
-                        'year': pub['year']
+                        'year': pub['year'],
                     }
                 else:
                     if pub['year'] > coauthors[coauthor]['year']:
@@ -163,16 +158,18 @@ def get_coauthors(publications):
 
 
 def main():
-    
+
     args = parse_args()
     print(args)
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     logging.info('Running dbbuilder.py')
-    
+
     if not os.path.exists(args.configdir):
-        raise FileNotFoundError(f'Config directory {args.configdir} does not exist')
-    
+        raise FileNotFoundError(
+            f'Config directory {args.configdir} does not exist'
+        )
+
     dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
     db = setup_db(dbconfigfile, args.overwrite)
 
@@ -187,13 +184,21 @@ def main():
         r.get_publications(maxret=maxret)
         print(f'Found {len(r.publications)} publications')
 
-        additional_pubs_file = os.path.join(args.basedir, 'additional_pubs.csv')
+        additional_pubs_file = os.path.join(
+            args.basedir, 'additional_pubs.csv'
+        )
         if os.path.exists(additional_pubs_file):
             r.get_additional_pubs_from_file(additional_pubs_file)
-            print(f'Total of {len(r.publications)} publications after addition')
+            print(
+                f'Total of {len(r.publications)} publications after addition'
+            )
 
     # drop bad dois
-    bad_doi_file = args.bad_dois_file if os.path.exists(args.bad_dois_file) else os.path.join(args.basedir, 'bad_dois.csv')
+    bad_doi_file = (
+        args.bad_dois_file
+        if os.path.exists(args.bad_dois_file)
+        else os.path.join(args.basedir, 'bad_dois.csv')
+    )
 
     if os.path.exists(bad_doi_file):
         bad_dois = pd.read_csv(bad_doi_file)
@@ -209,7 +214,7 @@ def main():
             'talks.csv',
             'conference.csv',
             'teaching.csv',
-            'funding.csv'
+            'funding.csv',
         ]
 
         for f in additional_files:
@@ -225,7 +230,6 @@ def main():
                     items.append(line_dict)
 
                 setattr(r, target, items)
-
 
         education_df = orcid.get_orcid_education(r.orcid_data)
         setattr(r, 'education', df_to_dicts(education_df))
