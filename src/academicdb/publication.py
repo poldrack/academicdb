@@ -50,11 +50,7 @@ class JournalArticle(Publication):
             print('reference must be loaded before formatting')
             return
         self.title = self.title.strip(' ').strip('.')
-        print(self.DOI)
-        print(self.authors)
         authors_shortened = publication_utils.shorten_authorlist(self.authors, self.etalthresh, etalnum)
-        print(authors_shortened)
-        print()
         # make sure title has a period at the end
         if self.title[-1] != '.':
             self.title += '.'
