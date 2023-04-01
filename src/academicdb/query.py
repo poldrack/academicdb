@@ -26,16 +26,9 @@ class AbstractQuery(ABC):
 class PubmedQuery(AbstractQuery):
     """ """
 
-    def __init__(self, email=None, **kwargs):
+    def __init__(self, email, **kwargs):
         super().__init__(**kwargs)
         # an email address is required for Entrez queries
-        if email is None:
-            with open('config.toml', 'rb') as f:
-                config = tomllib.load(f)
-            email = config['researcher']['email']
-            assert (
-                email is not None
-            ), 'No email provided for Entrez query (in congig.toml or as argument)'
         Entrez.email = email
 
     def query(self, query_string, max_results=1000):
