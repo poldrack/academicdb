@@ -137,3 +137,7 @@ optional arguments:
                         output file stem
   --no_render           do not render the output file (only create .tex)
 ```
+
+## Creating the NSF collaborators spreadsheet
+
+The database builder script will create a database collection called `coauthors` that contains the relevant information.  The script to convert these to a spreadsheet is currently TBD; PR's welcome!
