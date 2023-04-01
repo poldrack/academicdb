@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "academicdb"
-version = "0.1.0"
+version = "0.1.1a0"
 description = "Database for an academic CV"
 authors = ["Russ Poldrack <poldrack@gmail.com>"]
 license = "MIT"
@@ -14,6 +14,7 @@ biopython = "^1.81"
 scholarly = "^1.7.11"
 crossrefapi = "^1.5.0"
 toml = "^0.10.2"
+tomli = { version = "^2.0.1", python = "<3.11" }
 pybliometrics = "^3.4.0"
 pymongo = "^4.3.3"
 orcid = "^1.0.3"
