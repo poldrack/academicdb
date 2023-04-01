@@ -124,5 +124,3 @@ optional arguments:
                         output file stem
   --no_render           do not render the output file (only create .tex)
 ```
-
-*NOTE*: Currently the 
