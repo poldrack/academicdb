@@ -18,7 +18,7 @@ from src.test.required_fields import required_fields
 
 @pytest.fixture
 def pubmed_record():
-    pubmed_search = PubmedQuery()
+    pubmed_search = PubmedQuery(email='nobody@nowhere.edu')
     query_string = '31452104'  # PubMed ID known to return a single record
     results = pubmed_search.query(query_string, max_results=1)
     assert len(results) == 1
@@ -42,14 +42,7 @@ def crossref_record():
 
 @pytest.fixture
 def email():
-    if os.path.exists('config.toml'):
-        configfile = 'config.toml'
-    elif os.path.exists('../../config.toml'):
-        configfile = '../../config.toml'
-    else:
-        raise FileNotFoundError('config.toml not found in . or ../..')
-    config = load_config(configfile)
-    return config['researcher']['email']
+    return 'nobody@nowhere.edu'
 
 
 # smoke test for AbstractRecordConverter
