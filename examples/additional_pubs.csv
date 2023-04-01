@@ -1,0 +1,9 @@
+type,year,authors,title,journal,volume,page,DOI,publisher,ISBN,editors
+proceedings-article,2022,"Ciric R, Thomas AW, Esteban O, Poldrack RA",Differentiable programming for functional connectomics.,"Proceedings of the 2nd Machine Learning for Health symposium, PMLR ",193,419-455,,,,
+proceedings-article,2022,"Thomas AW, Ré C, Poldrack RA",Self-Supervised Learning of Brain Dynamics from Broad Neuroimaging Data.,Advances in Neural Information Processing Systems 35 (NeurIPS 2022),,,,,,
+book,2021,Poldrack RA,Hard To Break: Why Our Brains Make Habits Stick,,,,,"Princeton, NJ: Princeton University Press",978-0691194325,
+book,2018,Poldrack RA,The New Mind Readers: What Neuroimaging Can and Cannot Reveal about our Thoughts.,,,,,"Princeton, NJ: Princeton University Press",978-0-69-117861-5,
+book,2011,"Poldrack RA, Mumford JA, Nichols TE",Handbook of Functional MRI Data Analysis,,,,,Cambridge: Cambridge University Press ,9780000000000,
+book-chapter,2018,"White C, Poldrack RA ",Methods for fMRI analysis.,"The Stevens’ Handbook of Experimental Psychology and Cognitive Neuroscience, Fourth Edition (Volume 5)",,,10.1002/9781119170174.epcn515,Wiley,,EJ Wagenmakers
+book-chapter,2013,"Fox CR, Poldrack RA ",Prospect theory and the brain.,Neuroeconomics: Decision Making and the Brain (2nd Edition),,,,Elsevier,9780000000000,P Glimcher et al. 
+book-chapter,2010,Poldrack RA,Subtraction and beyond: The logic of experimental designs for neuroimaging.,Foundational Issues in Human Brain Mapping,,147-160,10.7551/mitpress/9780262014021.001.0001,"Cambridge, MA: MIT Press",,"SJ Hanson, M Bunzl"

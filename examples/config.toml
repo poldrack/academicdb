@@ -1,0 +1,20 @@
+[researcher]
+lastname = "poldrack"
+middlename = "alan"
+firstname = "russell"
+email = "russ@nowhere.edu"
+orcid = "0000-0001-6755-0259"
+query = "poldrack-r"
+url = "http://poldrack.github.io"
+twitter = "@russpoldrack"
+github = "http://github.com/poldrack"
+phone = "650-497-8488"
+scholar_id = "RbmLvDIAAAAJi"
+scopus_id = "7004739390"
+address = [
+    "Stanford University",
+    "Department of Psychology",
+    "Building 420",
+    "450 Jane Stanford Way",
+    "Stanford, CA, 94305-2130",
+]
