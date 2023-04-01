@@ -98,22 +98,20 @@ def drop_empty_pubs(publications):
     return publications
 
 
-def setup_db(dbconfigfile, overwrite):
-    if os.path.exists(dbconfigfile):
-        logging.info(f'Using database config file {dbconfigfile}')
-        dbconfig = load_config(dbconfigfile)
-        assert dbconfig['mongo'][
-            'CONNECT_STRING'
-        ], 'CONNECT_STRING must be specified in dbconfig'
+def setup_db(configfile, overwrite=False):
+    logging.info(f'Using database config from {configfile}')
+    config = load_config(configfile)
+    if config is not None and 'mongo' in config and 'CONNECT_STRING' in config['mongo']:
+        logging.info('Using custom mongodb config')
         return database.Database(
             database.MongoDatabase(
                 overwrite=overwrite,
-                connect_string=dbconfig['mongo']['CONNECT_STRING'],
+                connect_string=config['mongo']['CONNECT_STRING'],
             )
         )
-    else:
-        logging.info('Using default localhost database config')
-        return database.Database(database.MongoDatabase(overwrite=overwrite))
+    logging.info('Using default localhost database config')
+    return database.Database(
+        database.MongoDatabase(overwrite=overwrite))
 
 
 def get_affiliation(aff):
@@ -170,10 +168,14 @@ def main():
             f'Config directory {args.configdir} does not exist'
         )
 
-    dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
-    db = setup_db(dbconfigfile, args.overwrite)
-
     configfile = os.path.join(args.configdir, 'config.toml')
+    if not os.path.exists(configfile):
+        raise FileNotFoundError(
+            f'You must first set up the config.toml file in {args.configdir}'
+        )
+
+    db = setup_db(configfile, args.overwrite)
+
     r = researcher.Researcher(configfile)
     r.get_orcid_data()
     r.get_google_scholar_data()
