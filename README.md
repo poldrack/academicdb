@@ -15,6 +15,8 @@ In addition to the Python packages required by academicdb (which should be autom
 - [Install MongoDB](https://www.mongodb.com/docs/manual/installation/) on your own system. 
 - Create a free cloud MongoDB instance [here](https://www.mongodb.com/cloud).
 
+The former is easier, but I prefer the latter because it allows the database to accessed from any system. 
+
 Rendering the CV after building the database requires that LaTeX be installed on your system and available from the command line.  There are various LaTeX distributions depending on your operating system.
 
 ### Configuring academicdb
@@ -49,6 +51,17 @@ Most of this should be self-explanatory. There are several identifiers that you 
 - **ORCID**: This is a unique identifier for researchers.  If you don't already have an ORCID you can get one [here](http://orcid.org).  You will need to enter information about your education, employment, invited position and distinctions, and memberships and service into your ORCID account since that is where academicdb looks for that information.
 - **Google Scholar**: You will also need to retrieve your Google Scholar ID.  Once you have set up your profile, go to the "My Profile" page.  The URL from that page contains your id: for example, my URL is *https://scholar.google.com/citations?user=RbmLvDIAAAAJ&hl=en* and the ID is *RbmLvDIAAAAJ*.  
 - **Scopus**: Scopus is a service run by Elsevier.  I know that they are the bad guys, but Scopus provides a service that is not available from anywhere else: For each reference it provides a set of unique identifiers for the coauthors, which can be used to retreive their affilation information.  This is essential for generating the NSF collaborators spreadsheet.
+
+### cloud MongoDB setup
+
+If you are going to use a cloud MongoDB server, you will need to add the following lines to your `config.toml`:
+
+```
+[mongo]
+CONNECT_STRING = 'mongodb+srv://<username>:<password>@<server>'
+```
+
+The cloud provider should provide you with the connection string that you can paste into this variable.
 
 ## Obtaining an API key for Scopus
 
