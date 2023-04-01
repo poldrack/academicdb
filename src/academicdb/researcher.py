@@ -82,7 +82,7 @@ class ResearcherMetadata:
 
 
 class Researcher:
-    def __init__(self, param_file='config.toml', basedir=None):
+    def __init__(self, param_file, basedir=None):
         self.param_file = param_file
         self.basedir = (
             os.path.dirname(param_file) if basedir is None else basedir
