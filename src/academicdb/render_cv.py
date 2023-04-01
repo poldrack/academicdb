@@ -6,6 +6,7 @@ from academicdb.utils import (
     load_config,
     run_shell_cmd,
 )
+from academicdb.dbbuilder import setup_db
 import logging
 import argparse
 import os
@@ -338,9 +339,6 @@ def parse_args():
         default=os.path.join(os.path.expanduser('~'), '.academicdb'),
     )
     parser.add_argument(
-        '-f', '--format', type=str, help='output format', default='tex'
-    )
-    parser.add_argument(
         '-d', '--outdir', type=str, help='output dir', default='./output'
     )
     parser.add_argument(
@@ -349,7 +347,7 @@ def parse_args():
     parser.add_argument(
         '--no_render',
         action='store_true',
-        help='render the output file',
+        help='do not render the output file (only create .tex)',
     )
     return parser.parse_args()
 
@@ -369,24 +367,11 @@ def main():
         )
 
     configfile = os.path.join(args.configdir, 'config.toml')
-    dbconfigfile = os.path.join(args.configdir, 'dbconfig.toml')
-
-    if os.path.exists(dbconfigfile):
-        logging.info(f'Using database config file {dbconfigfile}')
-        dbconfig = load_config(dbconfigfile)
-        assert dbconfig['mongo'][
-            'CONNECT_STRING'
-        ], 'CONNECT_STRING must be specified in dbconfig'
-        db = database.Database(
-            database.MongoDatabase(
-                connect_string=dbconfig['mongo']['CONNECT_STRING']
-            )
+    if not os.path.exists(configfile):
+        raise FileNotFoundError(
+            f'You must first set up the config.toml file in {args.configdir}'
         )
-    else:
-        logging.info(f'Using default localhost database config')
-        db = database.Database(
-            database.MongoDatabase(overwrite=args.overwrite)
-        )
+    db = setup_db(configfile)
 
     metadata = db.get_collection('metadata')
     assert len(metadata) == 1, 'There should be only one metadata document'
@@ -432,14 +417,14 @@ def main():
     # write to file
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
-    outfile = os.path.join(args.outdir, f'{args.outfile}.{args.format}')
+    outfile = os.path.join(args.outdir, f'{args.outfile}.tex')
     with open(outfile, 'w') as f:
         f.write(doc)
 
     # render latex
     if not args.no_render:
         result = run_shell_cmd(
-            f'xelatex -halt-on-error {args.outfile}.{args.format}',
+            f'xelatex -halt-on-error {args.outfile}.tex',
             cwd=args.outdir,
         )
         success = False
