@@ -65,9 +65,9 @@ The cloud provider should provide you with the connection string that you can pa
 
 ## Obtaining an API key for Scopus
 
-  You will need to obtain an API key to access the Scopus database, which you can obtain from [http://dev.elsevier.com/myapikey.html](http://dev.elsevier.com/myapikey.html).  This is used by the [pybliometrics](https://pybliometrics.readthedocs.io/en/stable/) package to access the APIs; note that there are [weekly limits](https://dev.elsevier.com/api_key_settings.html) on the number of records one can access from these APIs without a subscription. If your institution has a subscription and you are on the institution's network, you may be able to bypass these. 
+  You will need to obtain an API key to access the Scopus database, which you can obtain from [http://dev.elsevier.com/myapikey.html](http://dev.elsevier.com/myapikey.html).  This is used by the [pybliometrics](https://pybliometrics.readthedocs.io/en/stable/) package to access the APIs. Note that this key will only work if you are on your institution's network and the institution has the appropriate license with Elsevier.  You can also request an institutional token from Elsevier if you wish to use the APIs from outside of your institution's network.
 
-  The first time you use the package, you will be asked by pybliometrics to enter your API key, which will be stored in `~/.pybliometrics/config.ini` for reuse.
+  The first time you use the package, you will be asked by pybliometrics to enter your API key (and InstToken if you have one), which will be stored in `~/.pybliometrics/config.ini` for reuse.
 
 ## specifying additional information
 
