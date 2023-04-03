@@ -50,7 +50,7 @@ Most of this should be self-explanatory. There are several identifiers that you 
 
 - **ORCID**: This is a unique identifier for researchers.  If you don't already have an ORCID you can get one [here](http://orcid.org).  You will need to enter information about your education, employment, invited position and distinctions, and memberships and service into your ORCID account since that is where academicdb looks for that information.
 - **Google Scholar**: You will also need to retrieve your Google Scholar ID.  Once you have set up your profile, go to the "My Profile" page.  The URL from that page contains your id: for example, my URL is *https://scholar.google.com/citations?user=RbmLvDIAAAAJ&hl=en* and the ID is *RbmLvDIAAAAJ*.  
-- **Scopus**: Scopus is a service run by Elsevier.  I know that they are the bad guys, but Scopus provides a service that is not available from anywhere else: For each reference it provides a set of unique identifiers for the coauthors, which can be used to retreive their affilation information.  This is essential for generating the NSF collaborators spreadsheet.
+- **Scopus**: Scopus is a service run by Elsevier. It provides a service that is not available from anywhere else: For each reference it provides a set of unique identifiers for the coauthors, which can be used to retreive their affilation information.  This is essential for generating the NSF collaborators spreadsheet.
 
 ### cloud MongoDB setup
 
