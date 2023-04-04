@@ -19,8 +19,6 @@ pybliometrics = "^3.4.0"
 pymongo = "^4.3.3"
 orcid = "^1.0.3"
 tomli-w = "^1.0.0"
-
-[tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"
 
 [tool.poetry.scripts]
