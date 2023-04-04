@@ -67,7 +67,8 @@ def parse_crossref_record(
             if isinstance(f, list):
                 f = f[0]
             pub[field] = f
-
+    if 'published' in record and 'date-parts' in record['published']:
+        pub['publication-date'] = '-'.join([str(i) for i in record['published']['date-parts'][0]])
     # filter out pages with n/a
     if 'page' in pub and pub['page'].find('n/a') > -1:
         del pub['page']
