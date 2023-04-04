@@ -308,7 +308,7 @@ def get_heading(metadata):
         address += f'{addr_line}\\\\\n'
     heading = f"""
 \\reversemarginpar 
-{{\\LARGE Russell A. Poldrack}}\\\\[4mm] 
+{{\\LARGE {metadata['firstname'].capitalize()} {metadata['middlename'][0].capitalize()}. {metadata['lastname'].capitalize()}}}\\\\[4mm] 
 \\vspace{{-1cm}} 
 
 \\begin{{multicols}}{{2}} 
