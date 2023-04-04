@@ -356,13 +356,16 @@ class Researcher:
                             'name': coauthor_info.indexed_name,
                             'affiliation': affil,
                             'affiliation_id': affil_id,
-                            'latest_year': pub['year'],
+                            'dates': [pub['publication-date']],
                             'num_pubs': 1,
                         }
                     else:
-                        if pub['year'] > self.coauthors[coauthor]['latest_year']:
-                            self.coauthors[coauthor]['latest_year'] = pub['year']
                         self.coauthors[coauthor]['num_pubs'] += 1
+                        self.coauthors[coauthor]['dates'].append(
+                            pub['publication-date']
+                        )
+                        self.coauthors[coauthor]['dates'].sort()
+
 
     def to_database(self, db: database.Database):
         """
