@@ -3,7 +3,7 @@ functions to work with pubmed data
 """
 
 from Bio import Entrez
-
+from datetime import datetime
 
 def get_pubmed_data(query, email, retmax=1000):
     Entrez.email = email
@@ -133,6 +133,39 @@ def get_pubmed_abstract(record):
             )
     return abstract
 
+def convert_to_datestring(datestruct):
+    # convert date structure to string YYYY-MM-DD
+    # convert month to number
+    if 'Month' in datestruct:
+        try:
+            int(datestruct['Month'])
+        except:
+            datestruct['Month'] = str(datetime.strptime(datestruct['Month'], '%b').month)
+    else:
+        datestruct['Month'] = '12'
+    
+    if 'Day'  not in datestruct:
+        datestruct['Day'] = '31'
+    return '%s-%s-%s' % (
+        f"{int(datestruct['Year']):02}",
+        f"{int(datestruct['Month']):02}",
+        f"{int(datestruct['Day']):02}",
+    )
+
+    
+def get_pubmed_date(record):
+    # get full date as string YYYY-MM-DD
+    if 'ArticleDate' in record['MedlineCitation']['Article'] and \
+        len(record['MedlineCitation']['Article']['ArticleDate']) > 0:
+        return convert_to_datestring(record['MedlineCitation']['Article']['ArticleDate'][0])
+    elif 'Journal' in record['MedlineCitation']['Article'] and \
+        'JournalIssue' in record['MedlineCitation']['Article']['Journal'] and \
+        'PubDate' in record['MedlineCitation']['Article']['Journal']['JournalIssue'] and \
+        'Year' in record['MedlineCitation']['Article']['Journal']['JournalIssue']['PubDate']:
+        return convert_to_datestring(record['MedlineCitation']['Article']['Journal']['JournalIssue']['PubDate'])
+        
+
+    return None
 
 def parse_pubmed_record(record):
 
@@ -144,6 +177,7 @@ def parse_pubmed_record(record):
         'type': 'journal-article',
         'journal': get_pubmed_journal_name(record),
         'year': get_pubmed_year(record),
+        'publication-date': get_pubmed_date(record),
         'volume': get_pubmed_volume(record),
         'title': get_pubmed_title(record),
         'page': get_pubmed_pages(record),
