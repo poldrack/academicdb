@@ -138,13 +138,14 @@ class MongoDatabase(AbstractDatabase):
     def get_collection(self, collection_name: str, **kwargs):
         # deal with some tables that don't use $set
         testitem = self.client[self.dbname][collection_name].find_one({})
-        if '$set' not in testitem:
-            return list(self.client[self.dbname][collection_name].find({}))
-        else:
-            return [
-                item['$set']
-                for item in self.client[self.dbname][collection_name].find({})
-            ]
+        if testitem is not None:
+            if '$set' not in testitem:
+                return list(self.client[self.dbname][collection_name].find({}))
+            else:
+                return [
+                    item['$set']
+                    for item in self.client[self.dbname][collection_name].find({})
+                ]
 
     def drop_collection(self, collection_name: str, **kwargs):
         self.client[self.dbname].drop_collection(collection_name)

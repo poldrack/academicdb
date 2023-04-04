@@ -308,7 +308,7 @@ def get_heading(metadata):
         address += f'{addr_line}\\\\\n'
     heading = f"""
 \\reversemarginpar 
-{{\\LARGE Russell A. Poldrack}}\\\\[4mm] 
+{{\\LARGE {metadata['firstname'].capitalize()} {metadata['middlename'][0].capitalize()}. {metadata['lastname'].capitalize()}}}\\\\[4mm] 
 \\vspace{{-1cm}} 
 
 \\begin{{multicols}}{{2}} 
@@ -376,6 +376,15 @@ def main():
     metadata = db.get_collection('metadata')
     assert len(metadata) == 1, 'There should be only one metadata document'
     metadata = metadata[0]
+
+    parsed_twitter_handle = ""
+    for char in metadata['twitter']:
+        # handle parsing of underscores from twitter handles in latex
+        if char == "_":
+            parsed_twitter_handle += "\char`" + char
+        else:
+            parsed_twitter_handle += char
+    metadata['twitter'] = parsed_twitter_handle
 
     header = pkgutil.get_data('academicdb', 'data/latex_header.tex').decode(
         'utf-8'

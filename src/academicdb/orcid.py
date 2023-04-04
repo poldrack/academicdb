@@ -61,7 +61,10 @@ def parse_orcid_affiliation_record(record):
         + record['organization']['address']['region']
     )
     start_date = record['start-date']['year']['value']
-    end_date = record['end-date']['year']['value']
+    if record['end-date'] is not None:
+        end_date = record['end-date']['year']['value']
+    else:
+        end_date = 'present'
     degree = record['role-title']
     dept = record['department-name']
     return [institution, degree, dept, city, start_date, end_date]
