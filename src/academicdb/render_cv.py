@@ -377,6 +377,15 @@ def main():
     assert len(metadata) == 1, 'There should be only one metadata document'
     metadata = metadata[0]
 
+    parsed_twitter_handle = ""
+    for char in metadata['twitter']:
+        # handle parsing of underscores from twitter handles in latex
+        if char == "_":
+            parsed_twitter_handle += "\char`" + char
+        else:
+            parsed_twitter_handle += char
+    metadata['twitter'] = parsed_twitter_handle
+
     header = pkgutil.get_data('academicdb', 'data/latex_header.tex').decode(
         'utf-8'
     )
