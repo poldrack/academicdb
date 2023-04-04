@@ -19,6 +19,12 @@ The former is easier, but I prefer the latter because it allows the database to 
 
 Rendering the CV after building the database requires that LaTeX be installed on your system and available from the command line.  There are various LaTeX distributions depending on your operating system.
 
+_Note: If you get an error that the font Tex Gyre Termes is not installed when executing `render_cv`, you can install it using Homebrew like so:_
+```{bash}
+$ brew tap homebrew/cask-fonts
+$ brew install --cask font-tex-gyre-termes
+```
+
 ### Configuring academicdb
 
 To use academicdb, you must first set up some configuration files, which will reside in `~/.academicdb`.  The most important is `config.toml`, which contains all of the details about you that are used to retrieve your information.  Here are the contents of mine as an example:
