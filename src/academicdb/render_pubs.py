@@ -58,18 +58,18 @@ def format_publication(pub, debug=False):
 
     with suppress(KeyError):
         if pub['PMCID'] is not None:
-            output += f" [OA](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{pub['PMCID']})"
+            output += f" [OA](https://www.ncbi.nlm.nih.gov/pmc/articles/{pub['PMCID']})"
         elif pub['freetoread'] is not None and pub['freetoread'] in [
             'publisherhybridgold',
             'publisherfree2read',
         ]:
-            output += f" [OA](https://doi.org/{pub['doi']}"
+            output += f" [OA](https://doi.org/{pub['doi']})"
     if (
         'DOI' in pub
         and pub['DOI'] is not None
         and pub['DOI'].find('nodoi') == -1
     ):
-        output += f" [DOI](https://doi.org/{pub['DOI']}"
+        output += f" [DOI](https://doi.org/{pub['DOI']})"
     if 'links' in pub:
         if 'Data' in pub['links'] and pub['links']['Data'] is not None:
             output += f" [Data]({pub['links']['Data']})"
