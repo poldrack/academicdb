@@ -49,24 +49,33 @@ def get_coauthors(publications):
     return coauthors
 
 
-if os.path.exists(dbconfigfile):
-    dbconfig = load_config(dbconfigfile)
-    assert dbconfig['mongo'][
+if os.path.exists(configfile):
+    config = load_config(configfile)
+    assert config['mongo'][
         'CONNECT_STRING'
     ], 'CONNECT_STRING must be specified in dbconfig'
     db = database.Database(
         database.MongoDatabase(
-            connect_string=dbconfig['mongo']['CONNECT_STRING']
+            connect_string=config['mongo']['CONNECT_STRING']
         )
     )
 else:
-    db = database.Database(database.MongoDatabase(overwrite=args.overwrite))
-
-if db.get_collection('coauthors') is not None:
-    db.drop_collection('coauthors')
+    db = database.Database(database.MongoDatabase(overwrite=False))
 
 publications = db.get_collection('publications')
 
-coauthors = get_coauthors(publications)
+#coauthors = get_coauthors(publications)
 
-db.add('coauthors', list(coauthors.values()))
+#db.add('coauthors', list(coauthors.values()))
+
+dois = [i['DOI'] for i in publications if i['DOI'].find('nodoi') == -1]
+recs = [Works().doi(doi) for doi in dois]
+print(len(recs))
+goodrecs = [rec for rec in recs if rec is not None]
+print(len(goodrecs))
+
+dep_ctr = 0
+for rec in goodrecs:
+    if 'published' in rec:
+        dep_ctr += 1
+print(dep_ctr)
