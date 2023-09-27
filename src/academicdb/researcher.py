@@ -3,7 +3,6 @@ class for a researcher
 """
 
 import os
-import json
 import requests
 import scholarly
 from scholarly import MaxTriesExceededException
@@ -244,6 +243,9 @@ class Researcher:
             self.publications[doi]['PMCID'] = utils.get_pmcid_from_pmid(
                 scopus_record.pubmed_id, email=self.metadata.email
             )
+            
+            # fix date format
+            self.publications[doi]['publication-date'] = utils.get_valid_date(self.publications[doi])
 
         # check for additional pubmed dois that are not on scopus
         logging.info('checking for additional pubmed dois')
@@ -260,6 +262,12 @@ class Researcher:
                     del p['PMC']
                 logging.info(f"adding additional pubmed record {p['DOI']}")
                 self.publications[p['DOI']] = p
+                try:
+                    self.publications[p]['publication-date'] = utils.get_valid_date(
+                        self.publications[p['DOI']])
+                except TypeError:
+                    print('problem with date:', self.publications[p['DOI']])
+                    continue
 
     def get_additional_pubs_from_file(self, pubfile):
         """
