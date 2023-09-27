@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "academicdb"
-version = "0.1.1a0"
+version = "0.1.3"
 description = "Database for an academic CV"
 authors = ["Russ Poldrack <poldrack@gmail.com>"]
 license = "MIT"
@@ -23,6 +23,7 @@ pytest = "^7.2.2"
 
 [tool.poetry.scripts]
 dbbuilder = "academicdb.dbbuilder:main"
+get_collaborators = "academicdb.get_collaborators:main"
 render_cv = "academicdb.render_cv:main"
 
 [build-system]

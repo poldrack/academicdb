@@ -3,6 +3,7 @@ import logging
 import os
 from academicdb import database, researcher, orcid, utils, publication
 import pandas as pd
+from pybliometrics.scopus import AuthorRetrieval
 
 
 # setup logging as global
@@ -142,16 +143,32 @@ def get_coauthors(publications):
                         affil_id = [
                             aff.id for aff in coauthor_info.affiliation_current
                         ]
+                    if 'publication-date' in pub:
+                        date = pub['publication-date']
+                    elif 'coverDate' in pub:
+                        date = pub['coverDate']
+                    elif 'year' in pub:
+                        date = f'{pub["year"]}-01-01'
+                    try:
+                        datetime = pd.to_datetime(date)
+                    except:
+                        date = f'{pub["year"]}-01-01'
                     coauthors[coauthor] = {
                         'scopus_id': coauthor,
-                        'name': coauthor_info.indexed_name,
+                        'name': f'{coauthor_info.surname}, {coauthor_info.given_name} ',
                         'affiliation': affil,
                         'affiliation_id': affil_id,
-                        'year': pub['year'],
+                        'date': date,
+                        'year': int(date.split('-')[0]),
                     }
                 else:
-                    if pub['year'] > coauthors[coauthor]['year']:
-                        coauthors[coauthor]['year'] = pub['year']
+                    try:
+                        datetime = pd.to_datetime(date)
+                    except:
+                        date = f'{pub["year"]}-01-01'
+                        datetime = pd.to_datetime(date)
+                    if datetime > pd.to_datetime(coauthors[coauthor]['date']):
+                        coauthors[coauthor]['date'] = date
     return coauthors
 
 
