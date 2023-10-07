@@ -146,4 +146,4 @@ optional arguments:
 
 ## Creating the NSF collaborators spreadsheet
 
-To create a list of collaborators from the last 4 years and their affiliations, as needed for NSF grant submissions, simply type `get_collaborators` once the database has been built.  This will create a file called `nsf_collaborators.csv`.  You will still need to complete the remainder of the [NSF COA template](https://www.nsf.gov/bfa/dias/policy/coa/coa_template.xlsx) and then paste the contents of the created file into Table 4 in that template.
+To create a list of collaborators from the last 4 years and their affiliations, as needed for NSF grant submissions, simply type `get_collaborators` once the database has been built.  This will create a file called `nsf_collaborators.csv`.  You will still need to complete the remainder of the [NSF COA template](https://www.nsf.gov/bfa/dias/policy/coa/coa_template.xlsx) and then paste the contents of the created file into Table 4 in that template.  *NOTE:* Please closely doublecheck the output to make sure that it has worked properly, as this feature has not been extensively tested.
