@@ -60,5 +60,8 @@ class CrossrefRecordConverter(AbstractRecordConverter):
 
     def convert(self):
         """ """
-        self.pub = crossref_utils.parse_crossref_record(self.record)
-        return self.pub
+        try:
+            self.pub = crossref_utils.parse_crossref_record(self.record)
+            return self.pub
+        except ValueError:
+            return None
