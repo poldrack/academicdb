@@ -29,6 +29,8 @@ def parse_crossref_record(
     extract fields from record
     do this here because these records span multiple publication types
     """
+    if record is None:
+        raise ValueError('record is None')
     if 'DOI' not in record:
         print('no DOI found in crossref record - skipping')
         print(record)
@@ -110,6 +112,10 @@ def parse_crossref_record(
         entry = '%s %s' % (author['family'], initials)
         authors.append(entry)
     pub['authors'] = ', '.join(authors)
+    pub['author_records'] = record['author']
+
+    # TODO: add affiliations
+
     pub['source'] = 'Crossref'
     return pub
 
