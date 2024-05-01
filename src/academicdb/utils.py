@@ -15,6 +15,20 @@ from Bio import Entrez
 import subprocess
 
 
+def get_valid_date(pub):
+    if 'publication-date' in pub:
+        date = pub['publication-date']
+    elif 'coverDate' in pub:
+        date = pub['coverDate']
+    elif 'year' in pub:
+        date = f'{pub["year"]}-01-01'
+    try:
+        datetime = pd.to_datetime(date)
+        return datetime.strftime("%Y-%m-%d")
+    except:
+        return f'{pub["year"]}-01-01'
+
+
 def serialize_pubs_to_json(pubs, outfile):
     """
     save a list of publications to json
