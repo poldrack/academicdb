@@ -126,49 +126,51 @@ def get_coauthors(publications):
 
     coauthors = {}
     for pub in publications:
-        if 'scopus_coauthor_ids' in pub:
-            for coauthor in pub['scopus_coauthor_ids']:
-                if coauthor not in coauthors:
-                    coauthor_info = AuthorRetrieval(coauthor)
-                    if coauthor_info.indexed_name is None:
-                        continue
-                    if coauthor_info.affiliation_current is None:
-                        affil = None
-                        affil_id = None
-                    else:
-                        affil = [
-                            get_affiliation(aff)
-                            for aff in coauthor_info.affiliation_current
-                        ]
-                        affil_id = [
-                            aff.id for aff in coauthor_info.affiliation_current
-                        ]
-                    if 'publication-date' in pub:
-                        date = pub['publication-date']
-                    elif 'coverDate' in pub:
-                        date = pub['coverDate']
-                    elif 'year' in pub:
-                        date = f'{pub["year"]}-01-01'
-                    try:
-                        datetime = pd.to_datetime(date)
-                    except:
-                        date = f'{pub["year"]}-01-01'
-                    coauthors[coauthor] = {
-                        'scopus_id': coauthor,
-                        'name': f'{coauthor_info.surname}, {coauthor_info.given_name} ',
-                        'affiliation': affil,
-                        'affiliation_id': affil_id,
-                        'date': date,
-                        'year': int(date.split('-')[0]),
-                    }
+        if 'scopus_coauthor_ids' not in pub:
+            print(f'No coauthors for {pub}')
+            continue
+        for coauthor in pub['scopus_coauthor_ids']:
+            if coauthor not in coauthors:
+                coauthor_info = AuthorRetrieval(coauthor)
+                if coauthor_info.indexed_name is None:
+                    continue
+                if coauthor_info.affiliation_current is None:
+                    affil = None
+                    affil_id = None
                 else:
-                    try:
-                        datetime = pd.to_datetime(date)
-                    except:
-                        date = f'{pub["year"]}-01-01'
-                        datetime = pd.to_datetime(date)
-                    if datetime > pd.to_datetime(coauthors[coauthor]['date']):
-                        coauthors[coauthor]['date'] = date
+                    affil = [
+                        get_affiliation(aff)
+                        for aff in coauthor_info.affiliation_current
+                    ]
+                    affil_id = [
+                        aff.id for aff in coauthor_info.affiliation_current
+                    ]
+                if 'publication-date' in pub:
+                    date = pub['publication-date']
+                elif 'coverDate' in pub:
+                    date = pub['coverDate']
+                elif 'year' in pub:
+                    date = f'{pub["year"]}-01-01'
+                try:
+                    datetime = pd.to_datetime(date)
+                except:
+                    date = f'{pub["year"]}-01-01'
+                coauthors[coauthor] = {
+                    'scopus_id': coauthor,
+                    'name': f'{coauthor_info.surname}, {coauthor_info.given_name} ',
+                    'affiliation': affil,
+                    'affiliation_id': affil_id,
+                    'date': date,
+                    'year': int(date.split('-')[0]),
+                }
+            else:
+                try:
+                    datetime = pd.to_datetime(date)
+                except:
+                    date = f'{pub["year"]}-01-01'
+                    datetime = pd.to_datetime(date)
+                if datetime > pd.to_datetime(coauthors[coauthor]['date']):
+                    coauthors[coauthor]['date'] = date
     return coauthors
 
 
