@@ -53,10 +53,11 @@ def get_distinctions(distinctions):
 def get_editorial(editorial):
     roles = [
         'Founding Co-Editor-in-Chief',
+        'Senior Editor',
         'Associate Editor',
         'Contributing Editor',
-        'Handling Editor (ad hoc) ',
-        'Editorial board ',
+        'Handling Editor (ad hoc)',
+        'Editorial board',
     ]
     output = """
 \\section*{Editorial duties}
