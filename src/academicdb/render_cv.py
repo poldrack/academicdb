@@ -51,18 +51,15 @@ def get_distinctions(distinctions):
 
 
 def get_editorial(editorial):
-    roles = [
-        'Founding Co-Editor-in-Chief',
-        'Senior Editor',
-        'Associate Editor',
-        'Contributing Editor',
-        'Handling Editor (ad hoc)',
-        'Editorial board',
-    ]
     output = """
 \\section*{Editorial duties}
 \\noindent
 """
+    # do this to keep roles in the same order as in the csv
+    roles = []
+    for e in editorial:
+        if e['role'] not in roles:
+            roles.append(e['role'])
     if editorial:
         for role in roles:
             role_entries = [e for e in editorial if e['role'] == role]
