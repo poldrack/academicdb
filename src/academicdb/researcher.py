@@ -10,7 +10,7 @@ import logging
 import pandas as pd
 from contextlib import suppress
 import math
-from pybliometrics.scopus import AuthorRetrieval
+from pybliometrics.scopus import AuthorRetrieval, ScopusSearch
 
 from crossref.restful import Works
 
@@ -57,6 +57,63 @@ def get_affiliation(aff):
     else:
         return f'{aff.preferred_name}, {aff.city}, {aff.country}'
 
+
+def process_scopus_record(scopus_record, r):
+    if utils.has_skip_strings(scopus_record.title):
+        logging.info(
+            f'Skipping record with title: {scopus_record.title}'
+        )
+        return None
+
+    doi = (
+        scopus_record.doi
+        if scopus_record.doi is not None
+        else scopus_record.eid
+    )
+    if doi is None:
+        logging.warning(
+            f'Could not get DOI for record {scopus_record.title}'
+        )
+        return None
+    try:
+        record = recordConverter.ScopusRecordConverter(
+            scopus_record, r.metadata.email
+        ).convert()
+        if record is None:
+            logging.warning(f'Empty record {doi}')
+            return None
+    except RuntimeError:
+        logging.warning(f'Runtome error converting record {doi}')
+        return None
+
+    # remove funky _id object that messes with serialization
+    if '_id' in record:
+        del record['_id']
+
+    # save authors and affiliations from scopus
+    try:
+        record[
+            'author_ids'
+        ] = scopus_record.author_ids.split(';')
+        record[
+            'affiliation_ids'
+        ] = scopus_record.author_afids.split(';')
+    except AttributeError:
+        logging.warning(
+            f'Could not get author_ids or affiliation_ids for record {doi}'
+        )
+
+    # get pmid and pmcid if available
+    record['PMID'] = scopus_record.pubmed_id
+    record['PMCID'] = utils.get_pmcid_from_pmid(
+        scopus_record.pubmed_id, email=r.metadata.email
+    )
+    
+    # fix date format
+    record['publication-date'] = utils.get_valid_date(
+        record)
+
+    return record
 
 class ResearcherMetadata:
     def __init__(self):
@@ -185,67 +242,21 @@ class Researcher:
         maxret : int
             maximum number of publications to return
         """
+        self.publications = {}
+        
+        # first look at scopus records
         scopus_records = query.ScopusQuery().author_query(
             self.metadata.scopus_id
         )
-        self.publications = {}
+
         if maxret is not None:
             scopus_records = scopus_records[:maxret]
 
         for scopus_record in scopus_records:
+            record = process_scopus_record(scopus_record, self)
+            if record is not None:
+                self.publications[record['DOI']] = record
 
-            if utils.has_skip_strings(scopus_record.title):
-                logging.info(
-                    f'Skipping record with title: {scopus_record.title}'
-                )
-                continue
-
-            doi = (
-                scopus_record.doi
-                if scopus_record.doi is not None
-                else scopus_record.eid
-            )
-            if doi is None:
-                logging.warning(
-                    f'Could not get DOI for record {scopus_record.title}'
-                )
-                continue
-            try:
-                self.publications[doi] = recordConverter.ScopusRecordConverter(
-                    scopus_record, self.metadata.email
-                ).convert()
-                if self.publications[doi] is None:
-                    logging.warning(f'Problem converting record {doi}')
-                    continue
-            except RuntimeError:
-                logging.warning(f'Could not convert record {doi}')
-                continue
-
-            # remove funky _id object that messes with serialization
-            if '_id' in self.publications[doi]:
-                del self.publications[doi]['_id']
-
-            # save authors and affiliations from scopus
-            try:
-                self.publications[doi][
-                    'author_ids'
-                ] = scopus_record.author_ids.split(';')
-                self.publications[doi][
-                    'affiliation_ids'
-                ] = scopus_record.author_afids.split(';')
-            except AttributeError:
-                logging.warning(
-                    f'Could not get author_ids or affiliation_ids for record {doi}'
-                )
-
-            # get pmid and pmcid if available
-            self.publications[doi]['PMID'] = scopus_record.pubmed_id
-            self.publications[doi]['PMCID'] = utils.get_pmcid_from_pmid(
-                scopus_record.pubmed_id, email=self.metadata.email
-            )
-            
-            # fix date format
-            self.publications[doi]['publication-date'] = utils.get_valid_date(self.publications[doi])
 
         # check for additional pubmed dois that are not on scopus
         logging.info('checking for additional pubmed dois')
@@ -257,6 +268,13 @@ class Researcher:
                 break
             p = recordConverter.PubmedRecordConverter(rec).convert()
             if p['DOI'] not in self.publications:
+                # first try to use scopus
+                scopus_search_result = ScopusSearch(f'DOI({p["DOI"]})')
+                if scopus_search_result is not None and scopus_search_result.results is not None and len(scopus_search_result.results) > 0:
+                    self.publications[p['DOI']] = process_scopus_record(
+                        scopus_search_result.results[0], self
+                    )
+                    continue
                 if 'PMC' in p:
                     p['PMCID'] = p['PMC']
                     del p['PMC']
