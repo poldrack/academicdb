@@ -245,6 +245,7 @@ def format_publication(pub, debug=False):
 
     with suppress(KeyError):
         if pub['PMCID'] is not None:
+            pub['PMCID'] = pub['PMCID'].replace('PMC', '')
             output += f" \\href{{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{pub['PMCID']}}}{{OA}}"
         elif pub['freetoread'] is not None and pub['freetoread'] in [
             'publisherhybridgold',
