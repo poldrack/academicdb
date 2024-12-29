@@ -134,6 +134,8 @@ def get_orcid_employment(orcid_data):
 
 def parse_orcid_employment_record(record):
     institution = record['organization']['name']
+    if record['organization']['address']['region'] is None:
+        record['organization']['address']['region'] = ''
     city = (
         record['organization']['address']['city']
         + ', '
