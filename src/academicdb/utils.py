@@ -98,6 +98,7 @@ def get_pmcid_from_pmid(pmid: str, email: str):
 
     try:
         pmcid = record[0]['LinkSetDb'][0]['Link'][0]['Id']
+        pmcid = pmcid.replace('PMC', '')
     except Exception:
         pmcid = None
     return pmcid
