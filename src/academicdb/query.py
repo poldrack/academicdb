@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from Bio import Entrez
 from pybliometrics.scopus import AuthorRetrieval
+import pybliometrics
 
 # tomllib is included in standard library in Python 3.11+
 try:
@@ -57,6 +58,7 @@ class ScopusQuery(AbstractQuery):
     """ """
 
     def __init__(self, **kwargs):
+        pybliometrics.scopus.init()
         super().__init__(**kwargs)
 
     def query(self, query_string):

@@ -4,7 +4,7 @@ import os
 from academicdb import database, researcher, orcid, utils, publication
 import pandas as pd
 from pybliometrics.scopus import AuthorRetrieval
-
+import pybliometrics
 
 # setup logging as global
 logging.basicConfig(
@@ -192,6 +192,8 @@ def main():
         raise FileNotFoundError(
             f'You must first set up the config.toml file in {args.configdir}'
         )
+
+    pybliometrics.scopus.init()
 
     db = setup_db(configfile, args.overwrite)
 

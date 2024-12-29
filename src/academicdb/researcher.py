@@ -11,7 +11,7 @@ import pandas as pd
 from contextlib import suppress
 import math
 from pybliometrics.scopus import AuthorRetrieval, ScopusSearch
-
+import pybliometrics
 from crossref.restful import Works
 
 try:
@@ -139,6 +139,7 @@ class ResearcherMetadata:
 
 class Researcher:
     def __init__(self, param_file, basedir=None):
+        pybliometrics.scopus.init()
         self.param_file = param_file
         self.basedir = (
             os.path.dirname(param_file) if basedir is None else basedir
