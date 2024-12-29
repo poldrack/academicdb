@@ -52,10 +52,10 @@ def parse_args():
         help='test mode (limit number of publications)',
     )
     parser.add_argument(
-        '--bad_dois_file',
+        '--bad_ids_file',
         type=str,
-        help='file with bad dois to remove',
-        default='bad_dois.csv',
+        help='file with bad ids to remove',
+        default='bad_ids.csv',
     )
     return parser.parse_args()
 
@@ -175,7 +175,6 @@ def get_coauthors(publications):
 
 
 def main():
-
     args = parse_args()
     print(args)
     if args.debug:
@@ -215,20 +214,40 @@ def main():
             print(
                 f'Total of {len(r.publications)} publications after addition'
             )
+    else:
+        logging.warning('Loading pubs from database')
+        r.publications = db.get_collection('publications')
 
     # drop bad dois
-    bad_doi_file = (
-        args.bad_dois_file
-        if os.path.exists(args.bad_dois_file)
-        else os.path.join(args.basedir, 'bad_dois.csv')
+    bad_ids_file = (
+        args.bad_ids_file
+        if os.path.exists(args.bad_ids_file)
+        else os.path.join(args.basedir, 'bad_ids.csv')
     )
 
-    if os.path.exists(bad_doi_file):
-        bad_dois = pd.read_csv(bad_doi_file)
-        for doi in bad_dois['doi']:
-            if doi in r.publications:
-                del r.publications[doi]
-
+    if os.path.exists(bad_ids_file):
+        bad_ids = pd.read_csv(bad_ids_file)
+        # get list of all pmids for checking
+        logging.info(f'Dropping excluded publications')
+        all_pmids = [str(pub['PMID']) for pub in r.publications.values() if pub is not None and 'PMID' in pub and pub['PMID'] is not None]
+        for idx in bad_ids.index:
+            id = bad_ids.loc[idx, 'idval'].strip()
+            idtype = bad_ids.loc[idx, 'idtype'].strip()
+            if idtype == 'doi':
+                if id in r.publications:
+                    del r.publications[id]
+                    logging.info(f'Dropping excluded publication {id}')
+                else:
+                    logging.warning(f'Excluded doi {id} not found')
+            elif idtype == 'pmid':
+                if id in all_pmids:
+                    del_id = [k for k, v in r.publications.items() if v is not None and 'PMID' in v and str(v['PMID']) == id]
+                    if len(del_id) > 0:
+                        del r.publications[del_id[0]]
+                        logging.info(f'Dropping excluded publication {id}')
+                else:
+                    logging.warning(f'Excluded pmid {id} not found')
+       
     r.publications = drop_empty_pubs(r.publications)
 
     if not args.no_add_info:

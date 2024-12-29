@@ -1,6 +1,6 @@
 [project]
 name = "academicdb"
-version = "0.2.0"
+version = "0.2.1"
 description = "Database for an academic CV"
 authors = [
   {name = "Russ Poldrack", email = "poldrack@gmail.com"}
