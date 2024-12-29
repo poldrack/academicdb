@@ -23,7 +23,7 @@ def parse_args():
         default=os.path.join(os.path.expanduser('~'), '.academicdb'),
     )
     parser.add_argument(
-        '-b', '--basedir', type=str, help='base directory', required=True
+        '-b', '--basedir', type=str, help='base directory', default='.'
     )
     parser.add_argument(
         '-d', '--debug', action='store_true', help='log debug messages'
