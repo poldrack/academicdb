@@ -83,7 +83,7 @@ def process_scopus_record(scopus_record, r):
             logging.warning(f'Empty record {doi}')
             return None
     except RuntimeError:
-        logging.warning(f'Runtome error converting record {doi}')
+        logging.warning(f'Runtime error converting record {doi}')
         return None
 
     # remove funky _id object that messes with serialization
