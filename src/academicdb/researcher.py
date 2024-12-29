@@ -281,6 +281,10 @@ class Researcher:
                     del p['PMC']
                 logging.info(f"adding additional pubmed record {p['DOI']}")
                 self.publications[p['DOI']] = p
+                # convert pmid to int
+                if p['PMID'] is not None:
+                    p['PMID'] = int(p['PMID'])
+
                 try:
                     self.publications[p]['publication-date'] = utils.get_valid_date(
                         self.publications[p['DOI']])
