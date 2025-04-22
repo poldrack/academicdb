@@ -367,8 +367,12 @@ class Researcher:
             if 'scopus_coauthor_ids' in pub:
                 for coauthor in pub['scopus_coauthor_ids']:
                     if coauthor not in self.coauthors:
-                        coauthor_info = AuthorRetrieval(coauthor)
-                        if coauthor_info.indexed_name is None:
+                        try:
+                            coauthor_info = AuthorRetrieval(coauthor)
+                            if coauthor_info.indexed_name is None:
+                                continue
+                        except Exception as e:
+                            logging.warning(f'Error getting coauthor info for {coauthor}: {e}')
                             continue
                         if coauthor_info.affiliation_current is None:
                             affil = None
