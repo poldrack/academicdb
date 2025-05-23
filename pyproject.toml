@@ -22,12 +22,14 @@ dependencies = [
     "toml>=0.10.2",
     "ipython>=8.31.0",
     "matplotlib>=3.10.0",
+    "flask>=3.0.0",
 ]
 
 [project.scripts]
 dbbuilder = "academicdb.dbbuilder:main"
 get_collaborators = "academicdb.get_collaborators:main"
 render_cv = "academicdb.render_cv:main"
+academicdb-web = "academicdb.webinterface:main"
 
 [build-system]
 requires = ["hatchling"]
