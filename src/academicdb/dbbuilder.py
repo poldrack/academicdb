@@ -198,7 +198,7 @@ def main():
 
     r = researcher.Researcher(configfile)
     r.get_orcid_data()
-    r.get_google_scholar_data()
+    # r.get_google_scholar_data()
 
     if not args.no_add_pubs:
         logging.info('Getting publications')
