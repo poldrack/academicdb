@@ -147,3 +147,30 @@ optional arguments:
 ## Creating the NSF collaborators spreadsheet
 
 To create a list of collaborators from the last 4 years and their affiliations, as needed for NSF grant submissions, simply type `get_collaborators` once the database has been built.  This will create a file called `nsf_collaborators.csv`.  You will still need to complete the remainder of the [NSF COA template](https://www.nsf.gov/bfa/dias/policy/coa/coa_template.xlsx) and then paste the contents of the created file into Table 4 in that template.  *NOTE:* Please closely doublecheck the output to make sure that it has worked properly, as this feature has not been extensively tested.
+
+## Web Interface
+
+Academicdb now includes a web interface for viewing and managing your database. To start the web interface, run:
+
+```
+academicdb-web
+```
+
+By default, this will start a web server on port 5000. You can access it by opening http://localhost:5000 in your web browser.
+
+The web interface allows you to:
+
+1. View all collections in the database
+2. Search within collections by content
+3. Reload the database with various options
+
+### Command line options
+
+```
+academicdb-web [-c CONFIG_DIR] [-b BASE_DIR] [-p PORT] [-d]
+```
+
+- `-c, --configdir`: Directory for config files (default: ~/.academicdb)
+- `-b, --basedir`: Base directory for additional files (default: current directory)
+- `-p, --port`: Port to run the server on (default: 5000)
+- `-d, --debug`: Run in debug mode
