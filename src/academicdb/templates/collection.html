@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="display-5">{{ name|capitalize }} Collection</h1>
+        <p class="lead">Viewing all entries in the {{ name }} collection.</p>
+    </div>
+    <div class="col-md-4">
+        <form class="d-flex" action="{{ url_for('view_collection', name=name) }}" method="get">
+            <input class="form-control me-2" type="search" name="search" value="{{ search_term }}" placeholder="Search in {{ name }}...">
+            <button class="btn btn-outline-primary" type="submit">Search</button>
+        </form>
+    </div>
+</div>
+
+{% if data %}
+<div class="table-container">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                {% for key in data[0].keys() %}
+                <th>{{ key }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data %}
+            <tr>
+                {% for key, value in item.items() %}
+                <td>
+                    {% if value is mapping %}
+                        <pre>{{ value|tojson(indent=2) }}</pre>
+                    {% elif value is iterable and value is not string %}
+                        <pre>{{ value|tojson(indent=2) }}</pre>
+                    {% else %}
+                        {{ value }}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    {% if search_term %}
+    <p>No matching entries found for "{{ search_term }}" in the {{ name }} collection.</p>
+    {% else %}
+    <p>The {{ name }} collection is empty.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<a href="{{ url_for('index') }}" class="btn btn-outline-secondary mt-3">Back to Collections</a>
+{% endblock %}

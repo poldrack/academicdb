@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="display-5 mb-4">Reload Database</h1>
+        <p class="lead">Use this form to reload your academic database from sources.</p>
+
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="{{ url_for('reload_database') }}">
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="overwrite" name="overwrite">
+                        <label class="form-check-label" for="overwrite">Overwrite existing database</label>
+                        <div class="form-text">Warning: This will delete all existing data and rebuild from scratch.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="add_pubs" name="add_pubs" checked>
+                        <label class="form-check-label" for="add_pubs">Add publications</label>
+                        <div class="form-text">Fetch publication data from external APIs.</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="add_info" name="add_info" checked>
+                        <label class="form-check-label" for="add_info">Add additional information</label>
+                        <div class="form-text">Load additional information from CSV files (editorial, talks, etc.).</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="test_mode" name="test_mode">
+                        <label class="form-check-label" for="test_mode">Test mode</label>
+                        <div class="form-text">Limits the number of publications for testing purposes.</div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h5>Important Note:</h5>
+                        <p>Reloading the database may take several minutes, especially when fetching publications. The page will appear to hang until the process completes.</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Reload Database</button>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

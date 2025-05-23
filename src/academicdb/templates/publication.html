@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="display-5">Publications</h1>
+        <p class="lead">Viewing publications organized by year</p>
+    </div>
+    <div class="col-md-4">
+        <form class="d-flex" action="{{ url_for('view_publications') }}" method="get">
+            <input class="form-control me-2" type="search" name="search" value="{{ search_term }}" placeholder="Search publications...">
+            <button class="btn btn-outline-primary" type="submit">Search</button>
+        </form>
+    </div>
+</div>
+
+{% if years %}
+    {% for year in years %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">{{ year }}</h3>
+        </div>
+        <div class="card-body">
+            {% for pub in publications_by_year[year] %}
+            <div class="publication-entry mb-4">
+                <h5 class="pub-title">{{ pub.title }}</h5>
+                <div class="pub-authors text-muted">
+                    {{ pub.authors }}
+                </div>
+                <div class="pub-journal">
+                    {% if pub.type == 'journal-article' %}
+                        <em>{{ pub.journal }}</em>{% if pub.volume %}, {{ pub.volume }}{% endif %}{% if pub.page %}, {{ pub.page }}{% endif %} ({{ pub.year }})
+                    {% elif pub.type == 'book-chapter' %}
+                        In: <em>{{ pub.journal }}</em>{% if pub.editors %} ({{ pub.editors }}, Ed.){% endif %}{% if pub.page %}, p. {{ pub.page }}{% endif %}. {{ pub.publisher }} ({{ pub.year }})
+                    {% elif pub.type == 'book' %}
+                        <em>{{ pub.title }}</em>. {{ pub.publisher }} ({{ pub.year }})
+                    {% else %}
+                        {{ pub.year }}
+                    {% endif %}
+                </div>
+                <div class="pub-links mt-1">
+                    {% if pub.DOI %}
+                        <a href="https://doi.org/{{ pub.DOI }}" class="badge bg-secondary text-decoration-none me-1" target="_blank">DOI</a>
+                    {% endif %}
+                    {% if pub.PMCID %}
+                        <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/{{ pub.PMCID }}" class="badge bg-success text-decoration-none me-1" target="_blank">PMC</a>
+                    {% endif %}
+                    {% if pub.PMID %}
+                        <a href="https://pubmed.ncbi.nlm.nih.gov/{{ pub.PMID }}" class="badge bg-info text-decoration-none me-1" target="_blank">PubMed</a>
+                    {% endif %}
+                    {% if pub.links %}
+                        {% if pub.links.Data %}
+                            <a href="{{ pub.links.Data }}" class="badge bg-warning text-dark text-decoration-none me-1" target="_blank">Data</a>
+                        {% endif %}
+                        {% if pub.links.Code %}
+                            <a href="{{ pub.links.Code }}" class="badge bg-dark text-decoration-none me-1" target="_blank">Code</a>
+                        {% endif %}
+                        {% if pub.links.OSF %}
+                            <a href="{{ pub.links.OSF }}" class="badge bg-primary text-decoration-none me-1" target="_blank">OSF</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% if pub.abstract %}
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" 
+                            data-bs-target="#abstract-{{ loop.index }}-{{ year }}" aria-expanded="false">
+                        Abstract
+                    </button>
+                    <div class="collapse mt-2" id="abstract-{{ loop.index }}-{{ year }}">
+                        <div class="card card-body">
+                            {{ pub.abstract }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <hr>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="alert alert-info">
+    {% if search_term %}
+    <p>No matching publications found for "{{ search_term }}".</p>
+    {% else %}
+    <p>No publications available.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<a href="{{ url_for('index') }}" class="btn btn-outline-secondary mt-3">Back to Collections</a>
+{% endblock %}

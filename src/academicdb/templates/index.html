@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="display-4 mb-4">Academic Database</h1>
+        <p class="lead">View and manage your academic database. Select a collection below to explore its contents.</p>
+        <div class="alert alert-primary">
+            <strong>Publications</strong>: View publications in a more reader-friendly format, similar to PubMed. 
+            <a href="{{ url_for('view_publications') }}" class="btn btn-primary btn-sm ms-2">View Publications</a>
+        </div>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-3 g-4 mt-3">
+    {% for collection in collections %}
+    <div class="col">
+        <div class="card h-100 collection-card">
+            <div class="card-body">
+                <h5 class="card-title">{{ collection }}</h5>
+                <p class="card-text">
+                    <span class="badge bg-primary rounded-pill">{{ collection_stats[collection] }} entries</span>
+                </p>
+                <a href="{{ url_for('view_collection', name=collection) }}" class="btn btn-outline-primary">View Contents</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Database Management</h5>
+            </div>
+            <div class="card-body">
+                <p>Need to update your database? Use the reload function to rebuild it.</p>
+                <a href="{{ url_for('reload_database') }}" class="btn btn-primary">Reload Database</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
