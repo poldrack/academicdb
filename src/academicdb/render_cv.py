@@ -34,7 +34,8 @@ def get_employment(employment):
 \\noindent
 """
         for e in employment:
-            output += f"\\textit{{{e['start_date']}-{e['end_date']}}}: {e['role']} ({e['dept']}), {e['institution']}\n\n"
+            dept_string = f" ({e['dept']})" if e['dept'] else ''
+            output += f"\\textit{{{e['start_date']}-{e['end_date']}}}: {e['role']}{dept_string}, {e['institution']}\n\n"
     return output
 
 
