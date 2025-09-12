@@ -17,4 +17,7 @@ urlpatterns = [
     
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),
+    
+    # ORCID sync endpoint
+    path('sync/orcid/', views.OrcidSyncView.as_view(), name='orcid_sync'),
 ]

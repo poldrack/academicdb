@@ -65,7 +65,13 @@
                         ORCID ID: <code>{{ user.orcid_id }}</code><br>
                         Last sync: {{ user.last_orcid_sync|default:"Never" }}
                     </div>
-                    <a href="#" class="btn btn-outline-primary">Sync Now</a>
+                    <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="profile">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-sync"></i> Sync Now
+                        </button>
+                    </form>
                     <a href="#" class="btn btn-outline-danger">Disconnect</a>
                 {% else %}
                     <p>Connect your ORCID account to automatically sync your publications and profile information.</p>

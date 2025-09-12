@@ -1,10 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView
+from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.contrib import messages
 from django.urls import reverse_lazy
+from django.core.management import call_command
+from django.utils import timezone
+import logging
 from .models import Publication
+
+logger = logging.getLogger(__name__)
 
 
 class HomeView(TemplateView):
@@ -162,3 +167,63 @@ class PublicationUpdateView(LoginRequiredMixin, UpdateView):
             return redirect(self.success_url)
         
         return super().form_valid(form)
+
+
+class OrcidSyncView(LoginRequiredMixin, View):
+    """
+    Handle ORCID synchronization requests
+    """
+    login_url = '/accounts/login/'
+    
+    def post(self, request):
+        """Handle sync request"""
+        user = request.user
+        
+        # Check if user has ORCID connection
+        if not user.is_orcid_connected:
+            messages.error(request, 'ORCID account not connected. Please connect your ORCID account first.')
+            return redirect('academic:profile')
+        
+        try:
+            # Call the sync management command for this specific user
+            messages.info(request, 'Starting ORCID sync...')
+            
+            # Use call_command to run the sync_orcid management command
+            # We'll capture the output and show it to the user
+            from io import StringIO
+            import sys
+            
+            # Capture output
+            old_stdout = sys.stdout
+            sys.stdout = captured_output = StringIO()
+            
+            try:
+                call_command('sync_orcid', user_id=user.id, verbosity=1)
+                output = captured_output.getvalue()
+                
+                # Check if sync was successful based on output
+                if 'Synced' in output and 'publications' in output:
+                    messages.success(request, 'ORCID sync completed successfully! Check your publications.')
+                elif 'No publications' in output or 'Found 0 publications' in output:
+                    messages.warning(request, 'ORCID sync completed, but no new publications were found.')
+                else:
+                    messages.info(request, 'ORCID sync completed.')
+                
+                logger.info(f"ORCID sync for user {user.id}: {output}")
+                
+            except Exception as e:
+                messages.error(request, f'ORCID sync failed: {str(e)}')
+                logger.error(f"ORCID sync error for user {user.id}: {str(e)}")
+            finally:
+                sys.stdout = old_stdout
+        
+        except Exception as e:
+            messages.error(request, f'Failed to start ORCID sync: {str(e)}')
+            logger.error(f"Failed to start ORCID sync for user {user.id}: {str(e)}")
+        
+        # Redirect back to the appropriate page
+        next_page = request.POST.get('next', 'academic:profile')
+        if 'publication' in next_page:
+            return redirect('academic:publication_list')
+        else:
+            return redirect('academic:profile')

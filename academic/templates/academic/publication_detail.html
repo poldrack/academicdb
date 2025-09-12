@@ -1,0 +1,146 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <h1>Publication Details</h1>
+            <div>
+                <a href="{% url 'academic:publication_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Publications
+                </a>
+                <a href="{% url 'academic:publication_update' publication.pk %}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ publication.title }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <!-- Basic Information -->
+                        <h6>Basic Information</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="150">Year:</th>
+                                <td>{{ publication.year }}</td>
+                            </tr>
+                            <tr>
+                                <th>Type:</th>
+                                <td>{{ publication.get_publication_type_display }}</td>
+                            </tr>
+                            <tr>
+                                <th>Source:</th>
+                                <td>
+                                    <span class="badge bg-secondary">{{ publication.get_source_display }}</span>
+                                </td>
+                            </tr>
+                            {% if publication.publication_date %}
+                            <tr>
+                                <th>Publication Date:</th>
+                                <td>{{ publication.publication_date }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if publication.publication_name %}
+                            <tr>
+                                <th>Published In:</th>
+                                <td>{{ publication.publication_name }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if publication.doi %}
+                            <tr>
+                                <th>DOI:</th>
+                                <td>
+                                    <a href="https://doi.org/{{ publication.doi }}" target="_blank" class="text-decoration-none">
+                                        {{ publication.doi }}
+                                        <i class="fas fa-external-link-alt ms-1" style="font-size: 0.8em;"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </table>
+
+                        <!-- Authors -->
+                        {% if publication.authors %}
+                        <h6 class="mt-4">Authors</h6>
+                        <div class="mb-3">
+                            {% for author in publication.authors %}
+                                <span class="badge bg-light text-dark me-2 mb-1">
+                                    {% if author.name %}
+                                        {{ author.name }}
+                                    {% else %}
+                                        {{ author }}
+                                    {% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- External Identifiers -->
+                        {% if publication.identifiers %}
+                        <h6 class="mt-4">External Identifiers</h6>
+                        <table class="table table-borderless">
+                            {% for key, value in publication.identifiers.items %}
+                            <tr>
+                                <th width="150">{{ key|upper }}:</th>
+                                <td>{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </table>
+                        {% endif %}
+
+                        <!-- Links -->
+                        {% if publication.links %}
+                        <h6 class="mt-4">Links</h6>
+                        <div class="mb-3">
+                            {% for link_type, url in publication.links.items %}
+                                <a href="{{ url }}" target="_blank" class="btn btn-outline-primary btn-sm me-2 mb-1">
+                                    <i class="fas fa-link"></i> {{ link_type|title }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-4">
+                        <!-- Metadata and Status -->
+                        <h6>Status & History</h6>
+                        <div class="small text-muted">
+                            <p><strong>Created:</strong> {{ publication.created_at|date:"M d, Y H:i" }}</p>
+                            <p><strong>Updated:</strong> {{ publication.updated_at|date:"M d, Y H:i" }}</p>
+                            {% if publication.last_api_sync %}
+                            <p><strong>Last API Sync:</strong> {{ publication.last_api_sync|date:"M d, Y H:i" }}</p>
+                            {% endif %}
+                            {% if publication.manually_edited_at %}
+                            <p><strong>Last Manual Edit:</strong> {{ publication.manually_edited_at|date:"M d, Y H:i" }}</p>
+                            {% endif %}
+                        </div>
+
+                        {% if publication.has_manual_edits %}
+                        <div class="alert alert-info mt-3">
+                            <small>
+                                <strong>Manual Edits Made</strong><br>
+                                This publication has been manually edited and changes will be preserved during API synchronization.
+                            </small>
+                        </div>
+                        {% endif %}
+
+                        <!-- Raw Metadata (if available) -->
+                        {% if publication.metadata %}
+                        <h6 class="mt-4">Technical Details</h6>
+                        <details class="mt-2">
+                            <summary class="btn btn-outline-secondary btn-sm">View Raw Metadata</summary>
+                            <pre class="mt-2 p-2 bg-light small" style="max-height: 200px; overflow-y: auto;">{{ publication.metadata|pprint }}</pre>
+                        </details>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

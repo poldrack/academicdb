@@ -9,9 +9,13 @@
                 <a href="{% url 'academic:publication_create' %}" class="btn btn-primary">
                     <i class="fas fa-plus"></i> Add Publication
                 </a>
-                <button class="btn btn-success ms-2">
-                    <i class="fas fa-sync"></i> Sync from ORCID
-                </button>
+                <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="publications">
+                    <button type="submit" class="btn btn-success ms-2">
+                        <i class="fas fa-sync"></i> Sync from ORCID
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -104,7 +108,11 @@
                 <p class="mb-0">
                     <a href="{% url 'academic:publication_create' %}" class="btn btn-primary">Add your first publication</a>
                     or
-                    <button class="btn btn-success">Sync from ORCID</button>
+                    <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="publications">
+                        <button type="submit" class="btn btn-success">Sync from ORCID</button>
+                    </form>
                 </p>
             </div>
         {% endif %}
