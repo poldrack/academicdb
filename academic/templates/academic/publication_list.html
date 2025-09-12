@@ -9,31 +9,65 @@
                 <a href="{% url 'academic:publication_create' %}" class="btn btn-primary">
                     <i class="fas fa-plus"></i> Add Publication
                 </a>
-                <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="publications">
-                    <button type="submit" class="btn btn-success ms-2">
-                        <i class="fas fa-sync"></i> Sync from ORCID
-                    </button>
-                </form>
-                {% if user.has_scopus_id %}
-                <form method="post" action="{% url 'academic:scopus_sync' %}" style="display: inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="publications">
-                    <button type="submit" class="btn btn-info ms-2">
-                        <i class="fas fa-sync"></i> Sync from Scopus
-                    </button>
-                </form>
+                
+                <!-- Comprehensive Sync Button -->
+                {% if user.is_orcid_connected or user.has_pubmed_query or user.has_scopus_id %}
+                    <form method="post" action="{% url 'academic:comprehensive_sync' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success ms-2" title="Sync from all configured sources">
+                            <i class="fas fa-sync-alt"></i> Sync All
+                        </button>
+                    </form>
                 {% endif %}
-                {% if user.has_pubmed_query %}
-                <form method="post" action="{% url 'academic:pubmed_sync' %}" style="display: inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="publications">
-                    <button type="submit" class="btn btn-warning ms-2">
-                        <i class="fas fa-sync"></i> Sync from PubMed
+                
+                <!-- Clear All Button (only show if publications exist) -->
+                {% if publication_count > 0 %}
+                    <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#clearPublicationsModal" title="Clear all publications">
+                        <i class="fas fa-trash-alt"></i> Clear All
                     </button>
-                </form>
                 {% endif %}
+                
+                <!-- Individual sync buttons in dropdown -->
+                <div class="btn-group ms-2">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="Individual sync options">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% if user.is_orcid_connected %}
+                            <li>
+                                <form method="post" action="{% url 'academic:orcid_sync' %}" style="margin: 0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="publications">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="fab fa-orcid text-success"></i> Sync ORCID Only
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+                        {% if user.has_scopus_id %}
+                            <li>
+                                <form method="post" action="{% url 'academic:scopus_sync' %}" style="margin: 0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="publications">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="fas fa-microscope text-info"></i> Sync Scopus Only
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+                        {% if user.has_pubmed_query %}
+                            <li>
+                                <form method="post" action="{% url 'academic:pubmed_sync' %}" style="margin: 0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="publications">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="fas fa-notes-medical text-warning"></i> Sync PubMed Only
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -152,4 +186,112 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Clear Publications Confirmation Modal (reused from dashboard) -->
+<div class="modal fade" id="clearPublicationsModal" tabindex="-1" aria-labelledby="clearPublicationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="clearPublicationsModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Clear All Publications
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>⚠️ Warning:</strong> This will permanently delete <strong>all {{ publication_count }} publications</strong> from your database.
+                </div>
+                
+                <p><strong>This action cannot be undone.</strong> All publication data, including:</p>
+                <ul>
+                    <li>Publication metadata and abstracts</li>
+                    <li>Author information and affiliations</li>
+                    <li>Citation data and identifiers</li>
+                    <li>Manual edits and customizations</li>
+                </ul>
+                <p>will be permanently removed from your account.</p>
+                
+                <p>You can re-sync publications from your external sources (ORCID, PubMed, Scopus) after clearing, but any manual edits will be lost.</p>
+                
+                <hr>
+                
+                <form method="post" action="{% url 'academic:clear_publications' %}" id="clearPublicationsForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="confirmationInput" class="form-label">
+                            <strong>To confirm, type "delete all publications" exactly:</strong>
+                        </label>
+                        <input type="text" class="form-control" id="confirmationInput" name="confirmation" 
+                               placeholder="Type here to confirm..." autocomplete="off">
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                            <i class="fas fa-trash-alt"></i> Delete All Publications
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle clear publications confirmation (same as dashboard)
+    const confirmationInput = document.getElementById('confirmationInput');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const clearPublicationsForm = document.getElementById('clearPublicationsForm');
+    
+    if (confirmationInput && confirmDeleteBtn) {
+        confirmationInput.addEventListener('input', function() {
+            const expectedText = 'delete all publications';
+            const inputText = this.value.toLowerCase().trim();
+            
+            if (inputText === expectedText) {
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.classList.remove('disabled');
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                confirmDeleteBtn.disabled = true;
+                confirmDeleteBtn.classList.add('disabled');
+                this.classList.remove('is-valid');
+                if (inputText.length > 0) {
+                    this.classList.add('is-invalid');
+                }
+            }
+        });
+        
+        // Handle form submission
+        clearPublicationsForm.addEventListener('submit', function(e) {
+            const inputText = confirmationInput.value.toLowerCase().trim();
+            if (inputText !== 'delete all publications') {
+                e.preventDefault();
+                confirmationInput.classList.add('is-invalid');
+                return false;
+            }
+            
+            // Show loading state
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        });
+        
+        // Reset form when modal is hidden
+        const clearModal = document.getElementById('clearPublicationsModal');
+        clearModal.addEventListener('hidden.bs.modal', function() {
+            confirmationInput.value = '';
+            confirmationInput.classList.remove('is-valid', 'is-invalid');
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.classList.add('disabled');
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All Publications';
+        });
+    }
+});
+</script>
 {% endblock %}

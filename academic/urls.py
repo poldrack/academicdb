@@ -22,4 +22,7 @@ urlpatterns = [
     path('sync/orcid/', views.OrcidSyncView.as_view(), name='orcid_sync'),
     path('sync/scopus/', views.ScopusSyncView.as_view(), name='scopus_sync'),
     path('sync/pubmed/', views.PubMedSyncView.as_view(), name='pubmed_sync'),
+    path('sync/comprehensive/', views.ComprehensiveSyncView.as_view(), name='comprehensive_sync'),
+    path('sync/status/', views.SyncStatusView.as_view(), name='sync_status'),
+    path('publications/clear/', views.ClearPublicationsView.as_view(), name='clear_publications'),
 ]

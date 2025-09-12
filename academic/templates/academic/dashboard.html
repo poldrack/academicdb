@@ -6,16 +6,134 @@
         <h1>Dashboard</h1>
         <p>Welcome to your academic database, {{ user.display_name }}!</p>
         
-        {% if user.is_orcid_connected %}
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i> ORCID connected: {{ user.orcid_id }}
+        <!-- Sync Status and Actions -->
+        <div class="card bg-light mb-4">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-sync-alt"></i> Database Synchronization</h5>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        {% if user.is_orcid_connected %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>ORCID: {{ user.orcid_id }}</span>
+                            </div>
+                        {% else %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-times-circle text-warning me-2"></i>
+                                <span>ORCID: Not connected</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-4">
+                        {% if user.has_pubmed_query %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>PubMed: Query configured</span>
+                            </div>
+                        {% else %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-times-circle text-warning me-2"></i>
+                                <span>PubMed: No query set</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-4">
+                        {% if user.has_scopus_id %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <span>Scopus: {{ user.scopus_id }}</span>
+                            </div>
+                        {% else %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-times-circle text-warning me-2"></i>
+                                <span>Scopus: No ID set</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Sync Actions -->
+                <div class="row">
+                    <div class="col-md-8">
+                        {% if user.is_orcid_connected or user.has_pubmed_query or user.has_scopus_id %}
+                            <form method="post" action="{% url 'academic:comprehensive_sync' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-lg me-3" id="comprehensive-sync-btn">
+                                    <i class="fas fa-sync-alt"></i> Sync All Databases
+                                </button>
+                            </form>
+                            <small class="text-muted">
+                                This will sync publications from all configured sources and enrich them with metadata.
+                                {% if user.last_orcid_sync %}
+                                    <br>Last sync: {{ user.last_orcid_sync|timesince }} ago
+                                {% endif %}
+                            </small>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                No sync sources configured. <a href="{% url 'academic:profile' %}" class="alert-link">Set up your profile</a> 
+                                to enable automatic database synchronization.
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-4 text-end">
+                        {% if user.publications.count > 0 %}
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#clearPublicationsModal">
+                                <i class="fas fa-trash-alt"></i> Clear All Publications
+                            </button>
+                            <br><small class="text-muted">Remove all publications from database</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Individual Sync Options (collapsed by default) -->
+                <div class="accordion mt-3" id="individualSyncAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#individualSyncOptions">
+                                Individual Sync Options
+                            </button>
+                        </h2>
+                        <div id="individualSyncOptions" class="accordion-collapse collapse" data-bs-parent="#individualSyncAccordion">
+                            <div class="accordion-body">
+                                <div class="btn-group-vertical d-grid gap-2">
+                                    {% if user.is_orcid_connected %}
+                                        <form method="post" action="{% url 'academic:orcid_sync' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-primary">
+                                                <i class="fab fa-orcid"></i> Sync ORCID Only
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    
+                                    {% if user.has_pubmed_query %}
+                                        <form method="post" action="{% url 'academic:pubmed_sync' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-success">
+                                                <i class="fas fa-notes-medical"></i> Sync PubMed Only
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    
+                                    {% if user.has_scopus_id %}
+                                        <form method="post" action="{% url 'academic:scopus_sync' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-info">
+                                                <i class="fas fa-microscope"></i> Sync Scopus Only
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        {% else %}
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i> 
-                ORCID not connected. <a href="/accounts/orcid/login/" class="alert-link">Connect your ORCID account</a> to sync your publications.
-            </div>
-        {% endif %}
+        </div>
     </div>
 </div>
 
@@ -75,4 +193,200 @@
         </div>
     </div>
 </div>
+
+<!-- Clear Publications Confirmation Modal -->
+<div class="modal fade" id="clearPublicationsModal" tabindex="-1" aria-labelledby="clearPublicationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="clearPublicationsModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Clear All Publications
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>⚠️ Warning:</strong> This will permanently delete <strong>all {{ user.publications.count }} publications</strong> from your database.
+                </div>
+                
+                <p><strong>This action cannot be undone.</strong> All publication data, including:</p>
+                <ul>
+                    <li>Publication metadata and abstracts</li>
+                    <li>Author information and affiliations</li>
+                    <li>Citation data and identifiers</li>
+                    <li>Manual edits and customizations</li>
+                </ul>
+                <p>will be permanently removed from your account.</p>
+                
+                <p>You can re-sync publications from your external sources (ORCID, PubMed, Scopus) after clearing, but any manual edits will be lost.</p>
+                
+                <hr>
+                
+                <form method="post" action="{% url 'academic:clear_publications' %}" id="clearPublicationsForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="confirmationInput" class="form-label">
+                            <strong>To confirm, type "delete all publications" exactly:</strong>
+                        </label>
+                        <input type="text" class="form-control" id="confirmationInput" name="confirmation" 
+                               placeholder="Type here to confirm..." autocomplete="off">
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                            <i class="fas fa-trash-alt"></i> Delete All Publications
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle comprehensive sync button
+    const syncBtn = document.getElementById('comprehensive-sync-btn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', function(e) {
+            // Show loading state
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            
+            // Show progress message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-info mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-info-circle"></i>
+                <strong>Sync in progress...</strong><br>
+                <div class="progress mt-2">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                </div>
+                <small class="text-muted">This may take several minutes. Please don't close this page.</small>
+            `;
+            
+            // Insert progress message after the sync button
+            this.closest('.card-body').appendChild(alertDiv);
+            
+            // Allow form submission to continue
+            return true;
+        });
+    }
+    
+    // Handle individual sync buttons
+    const individualSyncBtns = document.querySelectorAll('button[type="submit"]:not(#comprehensive-sync-btn)');
+    individualSyncBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            
+            // Re-enable after a delay if something goes wrong
+            setTimeout(() => {
+                if (this.disabled) {
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                }
+            }, 30000); // 30 seconds timeout
+        });
+    });
+    
+    // Auto-refresh sync status (optional)
+    function refreshSyncStatus() {
+        fetch('{% url "academic:sync_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Update publication count if it changed
+                const pubCountElement = document.querySelector('.text-primary h2');
+                if (pubCountElement && data.publication_count !== undefined) {
+                    pubCountElement.textContent = data.publication_count;
+                }
+                
+                // Update last sync time if available
+                if (data.last_sync) {
+                    const lastSyncElement = document.querySelector('.text-muted small');
+                    if (lastSyncElement) {
+                        const lastSyncDate = new Date(data.last_sync);
+                        const now = new Date();
+                        const timeDiff = Math.floor((now - lastSyncDate) / 1000 / 60); // minutes ago
+                        
+                        let timeAgoText = '';
+                        if (timeDiff < 1) {
+                            timeAgoText = 'just now';
+                        } else if (timeDiff < 60) {
+                            timeAgoText = `${timeDiff} minute${timeDiff === 1 ? '' : 's'} ago`;
+                        } else {
+                            const hours = Math.floor(timeDiff / 60);
+                            timeAgoText = `${hours} hour${hours === 1 ? '' : 's'} ago`;
+                        }
+                        
+                        lastSyncElement.innerHTML = lastSyncElement.innerHTML.replace(
+                            /Last sync: [^<]*/,
+                            `Last sync: ${timeAgoText}`
+                        );
+                    }
+                }
+            })
+            .catch(error => console.log('Sync status update failed:', error));
+    }
+    
+    // Refresh sync status every 30 seconds
+    setInterval(refreshSyncStatus, 30000);
+    
+    // Handle clear publications confirmation
+    const confirmationInput = document.getElementById('confirmationInput');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const clearPublicationsForm = document.getElementById('clearPublicationsForm');
+    
+    if (confirmationInput && confirmDeleteBtn) {
+        confirmationInput.addEventListener('input', function() {
+            const expectedText = 'delete all publications';
+            const inputText = this.value.toLowerCase().trim();
+            
+            if (inputText === expectedText) {
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.classList.remove('disabled');
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                confirmDeleteBtn.disabled = true;
+                confirmDeleteBtn.classList.add('disabled');
+                this.classList.remove('is-valid');
+                if (inputText.length > 0) {
+                    this.classList.add('is-invalid');
+                }
+            }
+        });
+        
+        // Handle form submission
+        clearPublicationsForm.addEventListener('submit', function(e) {
+            const inputText = confirmationInput.value.toLowerCase().trim();
+            if (inputText !== 'delete all publications') {
+                e.preventDefault();
+                confirmationInput.classList.add('is-invalid');
+                return false;
+            }
+            
+            // Show loading state
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        });
+        
+        // Reset form when modal is hidden
+        const clearModal = document.getElementById('clearPublicationsModal');
+        clearModal.addEventListener('hidden.bs.modal', function() {
+            confirmationInput.value = '';
+            confirmationInput.classList.remove('is-valid', 'is-invalid');
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.classList.add('disabled');
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All Publications';
+        });
+    }
+});
+</script>
 {% endblock %}
