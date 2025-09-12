@@ -50,6 +50,37 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         context['title'] = 'Profile'
         context['user'] = self.request.user
         return context
+    
+    def post(self, request, *args, **kwargs):
+        """Handle profile update form submission"""
+        user = request.user
+        
+        # Update basic profile fields
+        user.first_name = request.POST.get('first_name', '')
+        user.last_name = request.POST.get('last_name', '')
+        user.institution = request.POST.get('institution', '')
+        user.department = request.POST.get('department', '')
+        user.scopus_id = request.POST.get('scopus_id', '')
+        user.pubmed_query = request.POST.get('pubmed_query', '')
+        
+        # Handle research areas (comma-separated string to list)
+        research_areas_str = request.POST.get('research_areas', '')
+        if research_areas_str:
+            user.research_areas = [area.strip() for area in research_areas_str.split(',') if area.strip()]
+        else:
+            user.research_areas = []
+        
+        # Handle settings
+        user.preferred_citation_style = request.POST.get('citation_style', 'apa')
+        user.email_notifications = 'email_notifications' in request.POST
+        
+        try:
+            user.save()
+            messages.success(request, 'Profile updated successfully!')
+        except Exception as e:
+            messages.error(request, f'Failed to update profile: {str(e)}')
+        
+        return redirect('academic:profile')
 
 
 class OrcidConnectedView(LoginRequiredMixin, TemplateView):
@@ -227,3 +258,122 @@ class OrcidSyncView(LoginRequiredMixin, View):
             return redirect('academic:publication_list')
         else:
             return redirect('academic:profile')
+
+
+class ScopusSyncView(LoginRequiredMixin, View):
+    """
+    Handle Scopus synchronization requests
+    """
+    login_url = '/accounts/login/'
+    
+    def post(self, request):
+        """Handle Scopus sync request"""
+        user = request.user
+        
+        # Check if user has Scopus ID
+        if not user.has_scopus_id:
+            messages.error(request, 'Scopus ID not set. Please set your Scopus ID in your profile first.')
+            return redirect('academic:profile')
+        
+        try:
+            # Call the sync management command for this specific user
+            messages.info(request, 'Starting Scopus sync...')
+            
+            # Use call_command to run the sync_scopus management command
+            from io import StringIO
+            import sys
+            
+            # Capture output
+            old_stdout = sys.stdout
+            sys.stdout = captured_output = StringIO()
+            
+            try:
+                call_command('sync_scopus', user_id=user.id, verbosity=1)
+                output = captured_output.getvalue()
+                
+                # Check if sync was successful based on output
+                if 'completed successfully' in output:
+                    messages.success(request, 'Scopus sync completed successfully! Check your publications.')
+                elif 'No publications found' in output:
+                    messages.warning(request, 'Scopus sync completed, but no publications were found.')
+                else:
+                    messages.info(request, 'Scopus sync completed.')
+                
+                logger.info(f"Scopus sync for user {user.id}: {output}")
+                
+            except Exception as e:
+                messages.error(request, f'Scopus sync failed: {str(e)}')
+                logger.error(f"Scopus sync error for user {user.id}: {str(e)}")
+            finally:
+                sys.stdout = old_stdout
+        
+        except Exception as e:
+            messages.error(request, f'Failed to start Scopus sync: {str(e)}')
+            logger.error(f"Failed to start Scopus sync for user {user.id}: {str(e)}")
+        
+        # Redirect back to the appropriate page
+        next_page = request.POST.get('next', 'academic:profile')
+        if 'publication' in next_page:
+            return redirect('academic:publication_list')
+        else:
+            return redirect('academic:profile')
+
+
+class PubMedSyncView(LoginRequiredMixin, View):
+    """
+    Handle PubMed synchronization requests
+    """
+    login_url = "/accounts/login/"
+    
+    def post(self, request):
+        """Handle PubMed sync request"""
+        user = request.user
+        
+        # Check if user has PubMed query
+        if not user.has_pubmed_query:
+            messages.error(request, "PubMed query not set. Please set your PubMed query in your profile first.")
+            return redirect("academic:profile")
+        
+        try:
+            # Call the sync management command for this specific user
+            messages.info(request, "Starting PubMed sync...")
+            
+            # Use call_command to run the sync_pubmed management command
+            from io import StringIO
+            import sys
+            
+            # Capture output
+            old_stdout = sys.stdout
+            sys.stdout = captured_output = StringIO()
+            
+            try:
+                call_command("sync_pubmed", user_id=user.id, verbosity=1)
+                output = captured_output.getvalue()
+                
+                # Check if sync was successful based on output
+                if "completed successfully" in output:
+                    messages.success(request, "PubMed sync completed successfully! Check your publications.")
+                elif "No publications found" in output:
+                    messages.warning(request, "PubMed sync completed, but no publications were found.")
+                else:
+                    messages.info(request, "PubMed sync completed.")
+                
+                logger.info(f"PubMed sync for user {user.id}: {output}")
+                
+            except Exception as e:
+                messages.error(request, f"PubMed sync failed: {str(e)}")
+                logger.error(f"PubMed sync error for user {user.id}: {str(e)}")
+            finally:
+                sys.stdout = old_stdout
+        
+        except Exception as e:
+            messages.error(request, f"Failed to start PubMed sync: {str(e)}")
+            logger.error(f"Failed to start PubMed sync for user {user.id}: {str(e)}")
+        
+        # Redirect back to the appropriate page
+        next_page = request.POST.get("next", "academic:profile")
+        if "publication" in next_page:
+            return redirect("academic:publication_list")
+        else:
+            return redirect("academic:profile")
+

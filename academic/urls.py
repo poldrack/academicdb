@@ -18,6 +18,8 @@ urlpatterns = [
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),
     
-    # ORCID sync endpoint
+    # Sync endpoints
     path('sync/orcid/', views.OrcidSyncView.as_view(), name='orcid_sync'),
+    path('sync/scopus/', views.ScopusSyncView.as_view(), name='scopus_sync'),
+    path('sync/pubmed/', views.PubMedSyncView.as_view(), name='pubmed_sync'),
 ]

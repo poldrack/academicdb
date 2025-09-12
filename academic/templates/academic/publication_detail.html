@@ -72,11 +72,24 @@
                                 <span class="badge bg-light text-dark me-2 mb-1">
                                     {% if author.name %}
                                         {{ author.name }}
+                                        {% if author.scopus_id %}
+                                            <small class="text-muted">(Scopus: {{ author.scopus_id }})</small>
+                                        {% endif %}
                                     {% else %}
                                         {{ author }}
                                     {% endif %}
                                 </span>
                             {% endfor %}
+                        </div>
+                        
+                        <!-- Author count info -->
+                        <div class="small text-muted">
+                            Total authors: {{ publication.author_count }}
+                            {% if publication.has_scopus_authors %}
+                            | Authors with Scopus IDs: <span class="text-success">{{ publication.scopus_author_count }}</span>
+                            {% else %}
+                            | <span class="text-warning">No Scopus IDs available</span>
+                            {% endif %}
                         </div>
                         {% endif %}
 
@@ -94,16 +107,31 @@
                         {% endif %}
 
                         <!-- Links -->
-                        {% if publication.links %}
                         <h6 class="mt-4">Links</h6>
                         <div class="mb-3">
-                            {% for link_type, url in publication.links.items %}
-                                <a href="{{ url }}" target="_blank" class="btn btn-outline-primary btn-sm me-2 mb-1">
-                                    <i class="fas fa-link"></i> {{ link_type|title }}
+                            {% if publication.doi %}
+                                <a href="https://doi.org/{{ publication.doi }}" target="_blank" class="btn btn-outline-primary btn-sm me-2 mb-1">
+                                    <i class="fas fa-external-link-alt"></i> DOI
                                 </a>
-                            {% endfor %}
+                            {% endif %}
+                            {% if publication.identifiers.pmcid %}
+                                <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/{{ publication.identifiers.pmcid }}/" target="_blank" class="btn btn-outline-success btn-sm me-2 mb-1">
+                                    <i class="fas fa-unlock"></i> PMC Full Text
+                                </a>
+                            {% endif %}
+                            {% if publication.identifiers.pmid %}
+                                <a href="https://pubmed.ncbi.nlm.nih.gov/{{ publication.identifiers.pmid }}/" target="_blank" class="btn btn-outline-info btn-sm me-2 mb-1">
+                                    <i class="fas fa-book-medical"></i> PubMed
+                                </a>
+                            {% endif %}
+                            {% if publication.links %}
+                                {% for link_type, url in publication.links.items %}
+                                    <a href="{{ url }}" target="_blank" class="btn btn-outline-secondary btn-sm me-2 mb-1">
+                                        <i class="fas fa-link"></i> {{ link_type|title }}
+                                    </a>
+                                {% endfor %}
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </div>
 
                     <div class="col-md-4">

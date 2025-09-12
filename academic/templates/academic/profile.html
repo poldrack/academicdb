@@ -47,6 +47,25 @@
                         <div class="form-text">Comma-separated list of your research areas</div>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="scopus_id" class="form-label">Scopus Author ID</label>
+                        <input type="text" class="form-control" id="scopus_id" name="scopus_id" 
+                               value="{{ user.scopus_id }}" placeholder="e.g., 7004212771">
+                        <div class="form-text">Your Scopus Author ID for publication synchronization</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="pubmed_query" class="form-label">PubMed Search Query</label>
+                        <textarea class="form-control" id="pubmed_query" name="pubmed_query" 
+                                  rows="3" placeholder="e.g., Smith J[Author] AND Stanford[Affiliation]">{{ user.pubmed_query }}</textarea>
+                        <div class="form-text">
+                            PubMed query to find additional publications. 
+                            <a href="https://pubmed.ncbi.nlm.nih.gov/help/" target="_blank" class="text-decoration-none">
+                                <small>Query syntax help</small>
+                            </a>
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </form>
             </div>
@@ -76,6 +95,68 @@
                 {% else %}
                     <p>Connect your ORCID account to automatically sync your publications and profile information.</p>
                     <a href="/accounts/orcid/login/" class="btn btn-primary">Connect ORCID</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Scopus Integration</h5>
+            </div>
+            <div class="card-body">
+                {% if user.has_scopus_id %}
+                    <div class="alert alert-info">
+                        <strong>Configured</strong><br>
+                        Scopus ID: <code>{{ user.scopus_id }}</code>
+                    </div>
+                    <form method="post" action="{% url 'academic:scopus_sync' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="profile">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-sync"></i> Sync from Scopus
+                        </button>
+                    </form>
+                {% else %}
+                    <p>Set your Scopus Author ID in the form above to sync publications with detailed coauthor information.</p>
+                    <div class="alert alert-info">
+                        <small>
+                            <strong>How to find your Scopus ID:</strong><br>
+                            1. Search for your publications on Scopus<br>
+                            2. Click on your author name<br>
+                            3. Your Scopus Author ID will be in the URL (e.g., 7004212771)
+                        </small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>PubMed Integration</h5>
+            </div>
+            <div class="card-body">
+                {% if user.has_pubmed_query %}
+                    <div class="alert alert-success">
+                        <strong>Configured</strong><br>
+                        Query: <code>{{ user.pubmed_query|truncatewords:10 }}</code>
+                    </div>
+                    <form method="post" action="{% url 'academic:pubmed_sync' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="profile">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-sync"></i> Sync from PubMed
+                        </button>
+                    </form>
+                {% else %}
+                    <p>Set your PubMed search query above to find additional publications and PMC links.</p>
+                    <div class="alert alert-info">
+                        <small>
+                            <strong>Example queries:</strong><br>
+                            • <code>Smith J[Author] AND Stanford[Affiliation]</code><br>
+                            • <code>(Smith JA[Author] OR Smith John[Author]) AND neuroscience</code><br>
+                            • <code>"Smith, John"[Author]</code>
+                        </small>
+                    </div>
                 {% endif %}
             </div>
         </div>

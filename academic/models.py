@@ -26,6 +26,21 @@ class AcademicUser(AbstractUser):
         help_text="OAuth token for ORCID API access"
     )
     
+    # Scopus Integration
+    scopus_id = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Scopus Author ID"
+    )
+    
+    # PubMed Integration
+    pubmed_query = models.TextField(
+        null=True,
+        blank=True,
+        help_text="PubMed search query to find your publications (e.g., 'Smith J[Author] AND Stanford[Affiliation]')"
+    )
+    
     # Academic Profile
     institution = models.CharField(max_length=200, blank=True)
     department = models.CharField(max_length=200, blank=True)
@@ -66,6 +81,16 @@ class AcademicUser(AbstractUser):
     def is_orcid_connected(self):
         """Check if user has valid ORCID connection"""
         return bool(self.orcid_id and self.orcid_token)
+    
+    @property
+    def has_scopus_id(self):
+        """Check if user has Scopus ID"""
+        return bool(self.scopus_id)
+    
+    @property
+    def has_pubmed_query(self):
+        """Check if user has PubMed query"""
+        return bool(self.pubmed_query and self.pubmed_query.strip())
 
 
 class Publication(models.Model):
@@ -284,6 +309,19 @@ class Publication(models.Model):
     def author_count(self):
         """Get the number of authors"""
         return len(self.authors) if self.authors else 0
+    
+    @property
+    def scopus_author_count(self):
+        """Get the number of authors with Scopus IDs"""
+        if not self.authors:
+            return 0
+        return sum(1 for author in self.authors 
+                  if isinstance(author, dict) and author.get('scopus_id'))
+    
+    @property
+    def has_scopus_authors(self):
+        """Check if publication has any authors with Scopus IDs"""
+        return self.scopus_author_count > 0
     
     @property
     def has_manual_edits(self):
