@@ -1,0 +1,638 @@
+openapi: 3.0.3
+info:
+  title: Academic Database API
+  version: 1.0.0
+  description: Django REST API for academic database management with ORCID authentication
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - orcid_oauth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/login/:
+    post:
+      tags: [Authentication]
+      summary: Login with ORCID
+      responses:
+        '302':
+          description: Redirect to ORCID OAuth
+        '400':
+          description: Invalid request
+
+  /auth/callback/:
+    get:
+      tags: [Authentication]
+      summary: ORCID OAuth callback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  # Publication Management
+  /publications/:
+    get:
+      tags: [Publications]
+      summary: List user publications
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of publications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationListResponse'
+        '401':
+          description: Unauthorized
+
+    post:
+      tags: [Publications]
+      summary: Create new publication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicationCreate'
+      responses:
+        '201':
+          description: Publication created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Publication'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /publications/{id}/:
+    get:
+      tags: [Publications]
+      summary: Get publication by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Publication details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Publication'
+        '404':
+          description: Publication not found
+
+    put:
+      tags: [Publications]
+      summary: Update publication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicationUpdate'
+      responses:
+        '200':
+          description: Publication updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Publication'
+        '400':
+          description: Validation error
+        '404':
+          description: Publication not found
+
+    delete:
+      tags: [Publications]
+      summary: Delete publication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Publication deleted
+        '404':
+          description: Publication not found
+
+  # External API Sync
+  /publications/sync/:
+    post:
+      tags: [Publications]
+      summary: Sync publications from external APIs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sources:
+                  type: array
+                  items:
+                    type: string
+                    enum: [orcid, scopus, pubmed, crossref]
+                preserve_edits:
+                  type: boolean
+                  default: true
+      responses:
+        '202':
+          description: Sync initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+                  status:
+                    type: string
+                  message:
+                    type: string
+
+  # Collaboration Management
+  /coauthors/:
+    get:
+      tags: [Coauthors]
+      summary: List collaborators
+      parameters:
+        - name: years_back
+          in: query
+          schema:
+            type: integer
+            default: 4
+      responses:
+        '200':
+          description: List of collaborators
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoauthorListResponse'
+
+  /coauthors/{id}/:
+    get:
+      tags: [Coauthors]
+      summary: Get collaborator details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Collaborator details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coauthor'
+
+    put:
+      tags: [Coauthors]
+      summary: Update collaborator information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoauthorUpdate'
+      responses:
+        '200':
+          description: Collaborator updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coauthor'
+
+  # CV Generation
+  /cv/export/:
+    post:
+      tags: [CV Export]
+      summary: Generate CV in specified format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [latex, pdf, json]
+                sections:
+                  type: array
+                  items:
+                    type: string
+                    enum: [publications, education, employment, funding, talks, service]
+      responses:
+        '200':
+          description: CV generated
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # Data Management
+  /data/backup/:
+    post:
+      tags: [Data Management]
+      summary: Create data backup
+      responses:
+        '202':
+          description: Backup initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backup_id:
+                    type: string
+                  status:
+                    type: string
+
+  # Additional Collection Endpoints (following same patterns)
+  /funding/:
+    get:
+      tags: [Funding]
+      summary: List funding records
+      responses:
+        '200':
+          description: List of funding records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundingListResponse'
+
+  /talks/:
+    get:
+      tags: [Talks]
+      summary: List presentations and talks
+      responses:
+        '200':
+          description: List of talks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TalkListResponse'
+
+components:
+  securitySchemes:
+    orcid_oauth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://orcid.org/oauth/authorize
+          tokenUrl: https://orcid.org/oauth/token
+          scopes:
+            openid: Basic profile access
+
+  schemas:
+    # Authentication Schemas
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        orcid_id:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        orcid_id:
+          type: string
+        institution:
+          type: string
+        research_areas:
+          type: array
+          items:
+            type: string
+
+    # Publication Schemas
+    Publication:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        doi:
+          type: string
+          pattern: '^10\.\d{4,}/.*'
+        title:
+          type: string
+          minLength: 10
+        year:
+          type: integer
+          minimum: 1900
+          maximum: 2030
+        publication_date:
+          type: string
+          format: date
+        publication_name:
+          type: string
+        publication_type:
+          type: string
+          enum: [journal-article, book-chapter, book, conference-paper, preprint]
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Author'
+        metadata:
+          type: object
+          additionalProperties: true
+        identifiers:
+          type: object
+          properties:
+            pmid:
+              type: string
+            pmcid:
+              type: string
+            scopus_id:
+              type: string
+        links:
+          type: object
+          properties:
+            pdf_url:
+              type: string
+              format: uri
+            code_url:
+              type: string
+              format: uri
+            data_url:
+              type: string
+              format: uri
+        source:
+          type: string
+          enum: [scopus, pubmed, crossref, orcid, manual]
+        manual_edits:
+          type: object
+          additionalProperties:
+            type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [doi, title, year]
+
+    PublicationCreate:
+      type: object
+      properties:
+        doi:
+          type: string
+          pattern: '^10\.\d{4,}/.*'
+        title:
+          type: string
+          minLength: 10
+        year:
+          type: integer
+          minimum: 1900
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Author'
+          minItems: 1
+        publication_name:
+          type: string
+        publication_type:
+          type: string
+          enum: [journal-article, book-chapter, book, conference-paper, preprint]
+          default: journal-article
+      required: [doi, title, year, authors]
+
+    PublicationUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 10
+        year:
+          type: integer
+          minimum: 1900
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Author'
+        publication_name:
+          type: string
+        links:
+          type: object
+        metadata:
+          type: object
+
+    PublicationListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        next:
+          type: string
+          format: uri
+        previous:
+          type: string
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Publication'
+
+    # Author Schema
+    Author:
+      type: object
+      properties:
+        name:
+          type: string
+        affiliation:
+          type: string
+        scopus_id:
+          type: string
+        orcid:
+          type: string
+          pattern: '^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$'
+        order:
+          type: integer
+      required: [name]
+
+    # Coauthor Schemas
+    Coauthor:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        scopus_id:
+          type: string
+        orcid_id:
+          type: string
+        name:
+          type: string
+        affiliations:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              id:
+                type: string
+              years:
+                type: array
+                items:
+                  type: integer
+        num_collaborations:
+          type: integer
+        first_collaboration:
+          type: string
+          format: date
+        last_collaboration:
+          type: string
+          format: date
+        institution_current:
+          type: string
+        email:
+          type: string
+          format: email
+
+    CoauthorUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        institution_current:
+          type: string
+
+    CoauthorListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coauthor'
+
+    # Funding Schemas
+    FundingListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              agency:
+                type: string
+              amount:
+                type: number
+              start_date:
+                type: string
+                format: date
+              end_date:
+                type: string
+                format: date
+              role:
+                type: string
+
+    # Talk Schemas
+    TalkListResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              venue:
+                type: string
+              date:
+                type: string
+                format: date
+              talk_type:
+                type: string
+
+    # Error Schema
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
