@@ -28,6 +28,7 @@ dependencies = [
     "django-allauth>=0.57.0",
     "django-extensions>=3.2.0",
     "djangorestframework>=3.14.0",
+    "python-dotenv>=1.1.0",
 ]
 
 [project.scripts]

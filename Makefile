@@ -3,3 +3,6 @@ test:
 
 run:
 	uv run python manage.py runserver
+
+kill:
+	pkill -f "python manage.py runserver"

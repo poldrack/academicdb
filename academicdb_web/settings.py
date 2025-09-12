@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,7 +49,7 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    'allauth.socialaccount.providers.orcid',
+    'allauth.socialaccount.providers.orcid',  # Add ORCID back
     'django_extensions',
     
     # Local apps
@@ -158,12 +162,16 @@ AUTH_USER_MODEL = 'academic.AcademicUser'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'UNAUTHENTICATED_USER': None,
+    'UNAUTHENTICATED_TOKEN': None,
+    'EXCEPTION_HANDLER': 'academic.api_views.custom_exception_handler',
 }
 
 # Django Allauth Configuration
@@ -174,20 +182,16 @@ AUTHENTICATION_BACKENDS = [
 
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Changed from 'mandatory' to avoid ORCID issues
 
-# ORCID OAuth Configuration
-SOCIALACCOUNT_PROVIDERS = {
-    'orcid': {
-        'APP': {
-            'client_id': os.getenv('ORCID_CLIENT_ID', ''),
-            'secret': os.getenv('ORCID_CLIENT_SECRET', ''),
-            'key': '',
-        },
-        'SCOPE': ['openid'],
-        'BASE_DOMAIN': 'orcid.org',  # Use 'sandbox.orcid.org' for development
-    }
-}
+# ORCID configuration is handled via SocialApp in database
+# No SOCIALACCOUNT_PROVIDERS configuration needed
+
+# Additional social account settings
+SOCIALACCOUNT_STORE_TOKENS = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
 
 # Login/Logout URLs
 LOGIN_REDIRECT_URL = '/dashboard/'

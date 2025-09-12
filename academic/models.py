@@ -104,6 +104,7 @@ class Publication(models.Model):
     doi = models.CharField(
         max_length=255,
         blank=True,
+        null=True,
         db_index=True,
         help_text="Digital Object Identifier (DOI)"
     )
