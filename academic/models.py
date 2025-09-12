@@ -62,6 +62,7 @@ class AcademicUser(AbstractUser):
         """Return the best available display name"""
         return self.get_full_name() or self.username
     
+    @property
     def is_orcid_connected(self):
         """Check if user has valid ORCID connection"""
         return bool(self.orcid_id and self.orcid_token)

@@ -60,7 +60,7 @@ class OrcidConnectedView(LoginRequiredMixin, TemplateView):
         context['user'] = self.request.user
         
         # Check if user has ORCID connection
-        if self.request.user.is_orcid_connected():
+        if self.request.user.is_orcid_connected:
             messages.success(self.request, 'Your ORCID account is successfully connected!')
         else:
             messages.warning(self.request, 'ORCID connection not complete. Please try again.')
