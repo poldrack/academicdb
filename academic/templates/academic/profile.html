@@ -1,0 +1,103 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <h1>Profile</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5>Personal Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" readonly>
+                        <div class="form-text">Email cannot be changed. Contact support if needed.</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="institution" class="form-label">Institution</label>
+                            <input type="text" class="form-control" id="institution" name="institution" value="{{ user.institution }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="department" class="form-label">Department</label>
+                            <input type="text" class="form-control" id="department" name="department" value="{{ user.department }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="research_areas" class="form-label">Research Areas</label>
+                        <input type="text" class="form-control" id="research_areas" name="research_areas" 
+                               placeholder="e.g., Neuroscience, Data Science, Psychology">
+                        <div class="form-text">Comma-separated list of your research areas</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>ORCID Integration</h5>
+            </div>
+            <div class="card-body">
+                {% if user.is_orcid_connected %}
+                    <div class="alert alert-success">
+                        <strong>Connected</strong><br>
+                        ORCID ID: <code>{{ user.orcid_id }}</code><br>
+                        Last sync: {{ user.last_orcid_sync|default:"Never" }}
+                    </div>
+                    <a href="#" class="btn btn-outline-primary">Sync Now</a>
+                    <a href="#" class="btn btn-outline-danger">Disconnect</a>
+                {% else %}
+                    <p>Connect your ORCID account to automatically sync your publications and profile information.</p>
+                    <a href="/accounts/orcid/login/" class="btn btn-primary">Connect ORCID</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="citation_style" class="form-label">Preferred Citation Style</label>
+                    <select class="form-select" id="citation_style" name="citation_style">
+                        <option value="apa" {% if user.preferred_citation_style == 'apa' %}selected{% endif %}>APA</option>
+                        <option value="mla" {% if user.preferred_citation_style == 'mla' %}selected{% endif %}>MLA</option>
+                        <option value="chicago" {% if user.preferred_citation_style == 'chicago' %}selected{% endif %}>Chicago</option>
+                        <option value="ieee" {% if user.preferred_citation_style == 'ieee' %}selected{% endif %}>IEEE</option>
+                    </select>
+                </div>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="email_notifications" 
+                           name="email_notifications" {% if user.email_notifications %}checked{% endif %}>
+                    <label class="form-check-label" for="email_notifications">
+                        Email notifications
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

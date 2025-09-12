@@ -1,0 +1,39 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="text-center">
+            <h1 class="display-4">Academic Database</h1>
+            <p class="lead">Manage your academic publications, collaborations, and CV with ORCID integration</p>
+            
+            {% if not user.is_authenticated %}
+                <div class="mt-4">
+                    <a href="{% url 'account_login' %}" class="btn btn-primary btn-lg me-3">Login with ORCID</a>
+                    <a href="{% url 'account_signup' %}" class="btn btn-outline-primary btn-lg">Sign Up</a>
+                </div>
+            {% else %}
+                <div class="mt-4">
+                    <p>Welcome back, {{ user.display_name }}!</p>
+                    <a href="{% url 'academic:dashboard' %}" class="btn btn-primary btn-lg">Go to Dashboard</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-md-4">
+                <h3>Publications</h3>
+                <p>Import and manage your publications from multiple academic databases while preserving manual edits.</p>
+            </div>
+            <div class="col-md-4">
+                <h3>Collaborations</h3>
+                <p>Track coauthors and collaborations for NSF reporting and academic networking.</p>
+            </div>
+            <div class="col-md-4">
+                <h3>CV Generation</h3>
+                <p>Generate professional CVs in multiple formats from your curated academic data.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

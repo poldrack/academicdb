@@ -1,0 +1,78 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1>Dashboard</h1>
+        <p>Welcome to your academic database, {{ user.display_name }}!</p>
+        
+        {% if user.is_orcid_connected %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> ORCID connected: {{ user.orcid_id }}
+            </div>
+        {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 
+                ORCID not connected. <a href="/accounts/orcid/login/" class="alert-link">Connect your ORCID account</a> to sync your publications.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Publications</h5>
+                <h2 class="text-primary">{{ user.publications.count|default:"0" }}</h2>
+                <p class="card-text">Total publications in database</p>
+                <a href="{% url 'academic:publication_list' %}" class="btn btn-primary">Manage Publications</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Collaborators</h5>
+                <h2 class="text-success">0</h2>
+                <p class="card-text">Unique coauthors</p>
+                <a href="#" class="btn btn-success">View Network</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Funding</h5>
+                <h2 class="text-info">0</h2>
+                <p class="card-text">Grants and awards</p>
+                <a href="#" class="btn btn-info">Manage Funding</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">CV Export</h5>
+                <h2 class="text-warning">📄</h2>
+                <p class="card-text">Generate CV</p>
+                <a href="#" class="btn btn-warning">Export CV</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <h3>Recent Activity</h3>
+        <div class="card">
+            <div class="card-body">
+                <p class="text-muted">No recent activity. Start by connecting your ORCID account or adding publications manually.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

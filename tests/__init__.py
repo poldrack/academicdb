@@ -1,0 +1,1 @@
+# Test package for academicdb_web Django project

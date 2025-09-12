@@ -1,0 +1,33 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto text-center">
+        <h1>ORCID Connection</h1>
+        
+        {% if user.is_orcid_connected %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle fa-3x mb-3"></i>
+                <h4>Successfully Connected!</h4>
+                <p>Your ORCID account ({{ user.orcid_id }}) is now connected to your Academic Database profile.</p>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'academic:dashboard' %}" class="btn btn-primary btn-lg">Go to Dashboard</a>
+                <a href="{% url 'academic:profile' %}" class="btn btn-outline-primary btn-lg ms-3">View Profile</a>
+            </div>
+        {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                <h4>Connection Not Complete</h4>
+                <p>There was an issue connecting your ORCID account. Please try again.</p>
+            </div>
+            
+            <div class="mt-4">
+                <a href="/accounts/orcid/login/" class="btn btn-primary btn-lg">Try Again</a>
+                <a href="{% url 'academic:home' %}" class="btn btn-outline-secondary btn-lg ms-3">Back to Home</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
