@@ -305,6 +305,14 @@ class Command(BaseCommand):
                 self.stdout.write(f'  ✗ {description} failed: {str(e)}')
                 continue
 
+        # Enrich with Scopus author IDs
+        try:
+            self.stdout.write(f'  🔍 Enriching publications with Scopus author IDs...')
+            self.run_command_with_capture('enrich_author_scopus_ids', user_id=user.id, max_publications=50, verbosity=0)
+            self.stdout.write(f'  ✓ Scopus author ID enrichment completed')
+        except Exception as e:
+            self.stdout.write(f'  ⚠️  Scopus author ID enrichment failed: {str(e)}')
+
         # Extract coauthors (optional, doesn't fail the sync)
         try:
             self.stdout.write(f'  🤝 Extracting coauthor data...')

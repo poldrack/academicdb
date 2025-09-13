@@ -494,6 +494,7 @@ def run_comprehensive_sync_background(user_id):
         
         postprocessing_tasks = [
             ('lookup_pmc_ids', 'PMC ID lookup'),
+            ('enrich_author_scopus_ids', 'Scopus author ID enrichment'),
             ('lookup_author_scopus_ids', 'Author Scopus ID lookup'),
         ]
         
