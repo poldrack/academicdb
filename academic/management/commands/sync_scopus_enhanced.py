@@ -10,7 +10,7 @@ from pybliometrics.scopus import AuthorRetrieval, AbstractRetrieval
 import pybliometrics
 import time
 
-from academic.models import Publication
+from academic.models import Publication, AuthorCache
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +154,21 @@ class Command(BaseCommand):
                         author_dict['affiliation'] = author.affiliation
                         
                     authors.append(author_dict)
+                    
+                    # Cache this author for future lookups
+                    affiliations = []
+                    if hasattr(author, 'affiliation') and author.affiliation:
+                        affiliations = [author.affiliation]
+                    
+                    AuthorCache.cache_author(
+                        name=author_dict['name'],
+                        scopus_id=author.auid,
+                        given_name=author.given_name,
+                        surname=author.surname,
+                        affiliations=affiliations,
+                        source='scopus',
+                        confidence_score=1.0
+                    )
             
             return {
                 'authors': authors,

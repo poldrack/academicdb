@@ -2,8 +2,9 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils import timezone
 import json
-from .models import AcademicUser, Publication
+from .models import AcademicUser, Publication, AuthorCache
 
 
 @admin.register(AcademicUser)
@@ -233,3 +234,89 @@ class PublicationAdmin(admin.ModelAdmin):
             )
         else:
             super().save_model(request, obj, form, change)
+
+
+@admin.register(AuthorCache)
+class AuthorCacheAdmin(admin.ModelAdmin):
+    """
+    Admin interface for AuthorCache model
+    """
+    list_display = [
+        'normalized_name',
+        'scopus_id',
+        'orcid_id',
+        'source',
+        'confidence_score',
+        'lookup_count',
+        'last_verified',
+        'created_at'
+    ]
+    
+    list_filter = [
+        'source',
+        'confidence_score',
+        ('scopus_id', admin.EmptyFieldListFilter),
+        ('orcid_id', admin.EmptyFieldListFilter),
+        'created_at',
+        'last_verified'
+    ]
+    
+    search_fields = [
+        'normalized_name',
+        'scopus_id',
+        'orcid_id',
+        'given_name',
+        'surname',
+        'name_variations'
+    ]
+    
+    readonly_fields = [
+        'lookup_count',
+        'created_at',
+        'updated_at'
+    ]
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('normalized_name', 'given_name', 'surname')
+        }),
+        ('External Identifiers', {
+            'fields': ('scopus_id', 'orcid_id')
+        }),
+        ('Metadata', {
+            'fields': ('source', 'confidence_score', 'verification_method')
+        }),
+        ('Name Variations & Affiliations', {
+            'fields': ('name_variations', 'affiliations'),
+            'classes': ('collapse',)
+        }),
+        ('Usage Statistics', {
+            'fields': ('lookup_count', 'last_verified', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        qs = super().get_queryset(request)
+        return qs.order_by('-confidence_score', '-lookup_count', '-updated_at')
+    
+    actions = ['verify_authors', 'clear_verification']
+    
+    def verify_authors(self, request, queryset):
+        """Mark selected authors as verified"""
+        updated = queryset.update(
+            last_verified=timezone.now(),
+            verification_method='admin_verification'
+        )
+        self.message_user(request, f'{updated} authors marked as verified.')
+    verify_authors.short_description = "Mark selected authors as verified"
+    
+    def clear_verification(self, request, queryset):
+        """Clear verification status"""
+        updated = queryset.update(
+            last_verified=None,
+            verification_method=''
+        )
+        self.message_user(request, f'{updated} authors verification status cleared.')
+    clear_verification.short_description = "Clear verification status"

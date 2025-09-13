@@ -10,7 +10,7 @@ from pybliometrics.scopus import AbstractRetrieval, ScopusSearch
 import pybliometrics
 from crossref.restful import Works
 
-from academic.models import Publication
+from academic.models import Publication, AuthorCache
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,9 @@ class Command(BaseCommand):
             'no_doi_eid': 0,
             'not_found': 0,
             'errors': 0,
-            'authors_added': 0
+            'authors_added': 0,
+            'cache_hits': 0,
+            'cache_misses': 0
         }
 
         for i, pub in enumerate(publications):
@@ -137,6 +139,10 @@ class Command(BaseCommand):
             stats[result['status']] += 1
             if 'authors_added' in result:
                 stats['authors_added'] += result['authors_added']
+            if 'cache_hits' in result:
+                stats['cache_hits'] += result['cache_hits']
+            if 'cache_misses' in result:
+                stats['cache_misses'] += result['cache_misses']
             
             # Show progress message
             if result['status'] == 'enriched':
@@ -162,7 +168,9 @@ class Command(BaseCommand):
                 f"No DOI/EID: {stats['no_doi_eid']}\n"
                 f"Not found in Scopus: {stats['not_found']}\n"
                 f"Errors: {stats['errors']}\n"
-                f"Total author IDs added: {stats['authors_added']}"
+                f"Total author IDs added: {stats['authors_added']}\n"
+                f"Cache hits: {stats['cache_hits']}\n"
+                f"Cache misses: {stats['cache_misses']}"
             )
         )
         
@@ -203,7 +211,7 @@ class Command(BaseCommand):
         
         # Enrich authors with Scopus IDs
         try:
-            enriched_authors, authors_added = self.merge_author_data(
+            enriched_authors, authors_added, cache_hits, cache_misses = self.merge_author_data(
                 publication.authors or [],
                 scopus_data['authors']
             )
@@ -226,7 +234,9 @@ class Command(BaseCommand):
                 
             return {
                 'status': 'enriched' if authors_added > 0 else 'already_complete',
-                'authors_added': authors_added
+                'authors_added': authors_added,
+                'cache_hits': cache_hits,
+                'cache_misses': cache_misses
             }
             
         except Exception as e:
@@ -314,26 +324,27 @@ class Command(BaseCommand):
             return None
 
     def merge_author_data(self, existing_authors, scopus_authors):
-        """Merge Scopus author data with existing authors"""
+        """Merge Scopus author data with existing authors using cache"""
         enriched_authors = []
         authors_added = 0
+        cache_hits = 0
+        cache_misses = 0
         
-        # Create a mapping of normalized names for matching
-        def normalize_name(name):
-            """Normalize author name for matching"""
-            if not name:
-                return ""
-            # Remove extra spaces, convert to lowercase
-            name = ' '.join(name.split()).lower()
-            # Remove punctuation
-            name = name.replace(',', '').replace('.', '').replace('-', ' ')
-            return name
-        
-        # Build Scopus author lookup
+        # Build Scopus author lookup by normalized name
         scopus_lookup = {}
         for s_author in scopus_authors:
-            normalized = normalize_name(s_author['name'])
+            normalized = AuthorCache.normalize_name(s_author['name'])
             scopus_lookup[normalized] = s_author
+            
+            # Cache this Scopus author for future lookups
+            AuthorCache.cache_author(
+                name=s_author['name'],
+                scopus_id=s_author.get('scopus_id'),
+                given_name=s_author.get('given_name'),
+                surname=s_author.get('surname'),
+                source='scopus',
+                confidence_score=1.0
+            )
         
         # Process existing authors
         for e_author in existing_authors:
@@ -346,30 +357,44 @@ class Command(BaseCommand):
             
             # If no Scopus ID, try to find match
             if not enriched.get('scopus_id'):
-                normalized = normalize_name(e_author.get('name', ''))
+                author_name = e_author.get('name', '')
                 
-                if normalized in scopus_lookup:
-                    # Found a match!
-                    scopus_match = scopus_lookup[normalized]
-                    enriched['scopus_id'] = scopus_match['scopus_id']
-                    if scopus_match.get('given_name'):
-                        enriched['given_name'] = scopus_match['given_name']
-                    if scopus_match.get('surname'):
-                        enriched['surname'] = scopus_match['surname']
+                # First try cache lookup
+                cached_author = AuthorCache.find_cached_author(author_name, fuzzy=True)
+                
+                if cached_author and cached_author.scopus_id:
+                    # Cache hit!
+                    enriched['scopus_id'] = cached_author.scopus_id
+                    if cached_author.given_name:
+                        enriched['given_name'] = cached_author.given_name
+                    if cached_author.surname:
+                        enriched['surname'] = cached_author.surname
                     authors_added += 1
+                    cache_hits += 1
+                else:
+                    # Cache miss, try direct Scopus lookup
+                    normalized = AuthorCache.normalize_name(author_name)
+                    if normalized in scopus_lookup:
+                        scopus_match = scopus_lookup[normalized]
+                        enriched['scopus_id'] = scopus_match['scopus_id']
+                        if scopus_match.get('given_name'):
+                            enriched['given_name'] = scopus_match['given_name']
+                        if scopus_match.get('surname'):
+                            enriched['surname'] = scopus_match['surname']
+                        authors_added += 1
+                    cache_misses += 1
             
             enriched_authors.append(enriched)
         
         # If we have more Scopus authors than existing, they might be missing
         if len(scopus_authors) > len(existing_authors):
-            # Add any Scopus authors not already in the list
-            existing_normalized = set(normalize_name(a.get('name', '')) 
+            existing_normalized = set(AuthorCache.normalize_name(a.get('name', '')) 
                                     for a in existing_authors 
                                     if isinstance(a, dict))
             
             for s_author in scopus_authors:
-                if normalize_name(s_author['name']) not in existing_normalized:
+                if AuthorCache.normalize_name(s_author['name']) not in existing_normalized:
                     enriched_authors.append(s_author)
                     authors_added += 1
         
-        return enriched_authors, authors_added
+        return enriched_authors, authors_added, cache_hits, cache_misses
