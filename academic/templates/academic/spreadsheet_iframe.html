@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Academic Spreadsheet</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Luckysheet CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/css/pluginsCss.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/plugins.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/css/luckysheet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/assets/iconfont/iconfont.css" />
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #luckysheet-container {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .status-bar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+            z-index: 10000;
+            border-radius: 0 0 0 5px;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 10001;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-bar" id="status">Initializing...</div>
+    <div class="loading" id="loading">Loading spreadsheet...</div>
+    <div id="luckysheet-container"></div>
+
+    <!-- Luckysheet JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/luckysheet.umd.js"></script>
+
+    <script>
+        // Get configuration from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const config = JSON.parse(decodeURIComponent(urlParams.get('config') || '{}'));
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+            console.log('Status:', message);
+        }
+
+        function hideLoading() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.style.display = 'none';
+        }
+
+        async function loadData() {
+            updateStatus('Loading data...');
+
+            try {
+                // Use the same host and port as the current page
+                const baseUrl = `${window.location.protocol}//${window.location.host}`;
+                const fullEndpoint = baseUrl + config.endpoint;
+
+                const response = await fetch(fullEndpoint, {
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const responseData = await response.json();
+                return responseData.results || responseData || [];
+            } catch (error) {
+                console.error('Load data error:', error);
+                updateStatus('Error: ' + error.message);
+                return [];
+            }
+        }
+
+        function createCellData(data, columns) {
+            const cellData = [];
+
+            // Headers
+            columns.forEach((col, colIndex) => {
+                cellData.push({
+                    r: 0,
+                    c: colIndex,
+                    v: {
+                        v: col.title || col.data,
+                        ct: { t: 's' },
+                        bg: '#f0f0f0',
+                        bl: 1
+                    }
+                });
+            });
+
+            // Data rows
+            data.forEach((row, rowIndex) => {
+                columns.forEach((col, colIndex) => {
+                    const value = row[col.data];
+                    if (value !== null && value !== undefined && value !== '') {
+                        cellData.push({
+                            r: rowIndex + 1,
+                            c: colIndex,
+                            v: {
+                                v: String(value),
+                                ct: { t: 's' }
+                            }
+                        });
+                    }
+                });
+            });
+
+            return cellData;
+        }
+
+        async function initSpreadsheet() {
+            updateStatus('Initializing spreadsheet...');
+
+            if (typeof luckysheet === 'undefined') {
+                updateStatus('Error: Luckysheet not loaded');
+                return;
+            }
+
+            const data = await loadData();
+            const cellData = createCellData(data, config.columns || []);
+
+            const sheetData = {
+                name: config.modelName || 'Sheet1',
+                index: 0,
+                order: 0,
+                status: 1,
+                celldata: cellData,
+                config: {},
+                row: Math.max(data.length + 10, 20),
+                column: (config.columns || []).length
+            };
+
+            try {
+                luckysheet.create({
+                    container: 'luckysheet-container',
+                    showinfobar: false,
+                    showsheetbar: false,
+                    showstatisticBar: false,
+                    showToolbar: true,
+                    showFormulaBar: true,
+                    allowEdit: true,
+                    allowDelete: true,
+                    allowCopy: true,
+                    data: [sheetData],
+                    hook: {
+                        cellUpdated: (r, c, oldValue, newValue, isRefresh) => {
+                            if (!isRefresh && r > 0) {
+                                updateStatus(`Cell [${r},${c}] modified`);
+                                // Notify parent window of changes
+                                if (window.parent !== window) {
+                                    window.parent.postMessage({
+                                        type: 'cellUpdated',
+                                        row: r,
+                                        col: c,
+                                        oldValue: oldValue,
+                                        newValue: newValue
+                                    }, '*');
+                                }
+                            }
+                        }
+                    }
+                });
+
+                setTimeout(() => {
+                    hideLoading();
+                    updateStatus('Ready');
+                }, 1000);
+
+            } catch (error) {
+                console.error('Luckysheet error:', error);
+                updateStatus('Error: ' + error.message);
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initSpreadsheet);
+
+        // Listen for messages from parent window
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'refresh') {
+                location.reload();
+            }
+        });
+    </script>
+</body>
+</html>

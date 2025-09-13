@@ -1158,6 +1158,58 @@ class ConferenceUpdateView(LoginRequiredMixin, UpdateView):
             obj.save()
             messages.success(self.request, 'Conference presentation updated successfully!')
             return redirect(self.success_url)
-        
+
         return super().form_valid(form)
+
+
+# Spreadsheet Views
+class TeachingSpreadsheetView(LoginRequiredMixin, TemplateView):
+    """Teaching spreadsheet view"""
+    template_name = 'academic/teaching_spreadsheet.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['model_name'] = 'Teaching'
+        context['container_id'] = 'teaching-spreadsheet-container'
+        context['list_view_url'] = 'academic:teaching_list'
+        return context
+
+
+class TeachingSpreadsheetIframeView(LoginRequiredMixin, TemplateView):
+    """Teaching spreadsheet iframe view - isolated from Django CSS"""
+    template_name = 'academic/spreadsheet_iframe.html'
+    login_url = '/accounts/login/'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Allow this view to be displayed in an iframe from the same origin
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+
+
+class TalksSpreadsheetView(LoginRequiredMixin, TemplateView):
+    """Talks spreadsheet view"""
+    template_name = 'academic/talks_spreadsheet.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['model_name'] = 'Talks'
+        context['container_id'] = 'talks-spreadsheet-container'
+        context['list_view_url'] = 'academic:talk_list'
+        return context
+
+
+class ConferencesSpreadsheetView(LoginRequiredMixin, TemplateView):
+    """Conferences spreadsheet view"""
+    template_name = 'academic/conferences_spreadsheet.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['model_name'] = 'Conferences'
+        context['container_id'] = 'conferences-spreadsheet-container'
+        context['list_view_url'] = 'academic:conference_list'
+        return context
 

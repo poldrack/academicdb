@@ -1,0 +1,153 @@
+{% extends "academic/base.html" %}
+{% load static %}
+
+{% block title %}Teaching Spreadsheet{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2>Teaching Management</h2>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="refreshSpreadsheet()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="saveSpreadsheet()">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <a href="{% url 'academic:teaching_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list"></i> List View
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="badge bg-secondary" id="status-badge">Loading...</span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <iframe
+                                id="spreadsheet-iframe"
+                                src=""
+                                style="width: 100%; height: 600px; border: none;"
+                                onload="onIframeLoad()">
+                            </iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Teaching-specific configuration
+    const teachingColumns = [
+        {
+            data: 'name',
+            title: 'Course Name',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'course_number',
+            title: 'Course Number',
+            type: 'text'
+        },
+        {
+            data: 'level',
+            title: 'Level',
+            type: 'text',
+            source: ['undergraduate', 'graduate', 'postdoc', 'professional', 'other']
+        },
+        {
+            data: 'semester',
+            title: 'Semester',
+            type: 'text'
+        },
+        {
+            data: 'year',
+            title: 'Year',
+            type: 'numeric',
+            required: true
+        },
+        {
+            data: 'institution',
+            title: 'Institution',
+            type: 'text'
+        },
+        {
+            data: 'enrollment',
+            title: 'Enrollment',
+            type: 'numeric'
+        }
+    ];
+
+    const config = {
+        endpoint: '/api/v1/teaching/',
+        columns: teachingColumns,
+        modelName: 'Teaching'
+    };
+
+    // Set iframe source with configuration
+    const iframe = document.getElementById('spreadsheet-iframe');
+    const configParam = encodeURIComponent(JSON.stringify(config));
+    const iframeUrl = `{% url 'academic:teaching_spreadsheet_iframe' %}?config=${configParam}`;
+
+    console.log('Setting iframe URL to:', iframeUrl);
+    iframe.src = iframeUrl;
+
+    updateStatus('Loading spreadsheet...');
+});
+
+function updateStatus(message) {
+    const statusBadge = document.getElementById('status-badge');
+    if (statusBadge) {
+        statusBadge.textContent = message;
+        statusBadge.className = `badge ${getStatusColor(message)}`;
+    }
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'Ready': 'bg-success',
+        'Loading...': 'bg-primary',
+        'Modified': 'bg-warning text-dark',
+        'Saving...': 'bg-info',
+        'Saved': 'bg-success',
+        'Error': 'bg-danger'
+    };
+    return colors[status] || 'bg-secondary';
+}
+
+function onIframeLoad() {
+    updateStatus('Ready');
+}
+
+function refreshSpreadsheet() {
+    const iframe = document.getElementById('spreadsheet-iframe');
+    if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({type: 'refresh'}, '*');
+        updateStatus('Refreshing...');
+    }
+}
+
+function saveSpreadsheet() {
+    updateStatus('Save functionality coming soon...');
+}
+
+// Listen for messages from iframe
+window.addEventListener('message', function(event) {
+    if (event.data.type === 'cellUpdated') {
+        updateStatus('Modified');
+    }
+});
+</script>
+{% endblock %}
