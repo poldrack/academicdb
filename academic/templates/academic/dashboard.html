@@ -71,6 +71,38 @@
                                     <br>Last sync: {{ user.last_orcid_sync|timesince }} ago
                                 {% endif %}
                             </small>
+                            
+                            <!-- Progress Tracking Container (initially hidden) -->
+                            <div id="sync-progress-container" class="mt-3" style="display: none;">
+                                <div class="alert alert-info">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-sync-alt fa-spin me-2"></i>
+                                        <strong id="sync-phase">Starting sync...</strong>
+                                    </div>
+                                    
+                                    <div class="progress mb-2" style="height: 25px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             id="sync-progress-bar" role="progressbar" 
+                                             style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                            <span id="sync-progress-text">0%</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="sync-current-step" class="small text-muted">
+                                        Initializing...
+                                    </div>
+                                    
+                                    <!-- Progress Messages -->
+                                    <div id="sync-messages" class="mt-2" style="display: none;">
+                                        <ul class="list-unstyled small mb-0" id="sync-messages-list">
+                                        </ul>
+                                    </div>
+                                    
+                                    <!-- Success/Error Summary -->
+                                    <div id="sync-summary" class="mt-2" style="display: none;">
+                                    </div>
+                                </div>
+                            </div>
                         {% else %}
                             <div class="alert alert-warning">
                                 <i class="fas fa-exclamation-triangle"></i> 
@@ -250,33 +282,259 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let eventSource = null;
+    
     // Handle comprehensive sync button
     const syncBtn = document.getElementById('comprehensive-sync-btn');
+    const progressContainer = document.getElementById('sync-progress-container');
+    
     if (syncBtn) {
         syncBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
             // Show loading state
             this.disabled = true;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
             
-            // Show progress message
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-info mt-3';
-            alertDiv.innerHTML = `
-                <i class="fas fa-info-circle"></i>
-                <strong>Sync in progress...</strong><br>
-                <div class="progress mt-2">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
-                </div>
-                <small class="text-muted">This may take several minutes. Please don't close this page.</small>
-            `;
+            // Submit form and start progress tracking
+            const form = this.closest('form');
+            const formData = new FormData(form);
             
-            // Insert progress message after the sync button
-            this.closest('.card-body').appendChild(alertDiv);
-            
-            // Allow form submission to continue
-            return true;
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                // Parse the response to check if sync started successfully
+                if (html.includes('Started comprehensive sync')) {
+                    // Show progress container
+                    progressContainer.style.display = 'block';
+                    
+                    // Start real-time progress monitoring
+                    startProgressTracking();
+                } else {
+                    // Handle error or redirect
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error starting sync:', error);
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-sync-alt"></i> Sync All Databases';
+                alert('Failed to start sync. Please try again.');
+            });
         });
     }
+    
+    function startProgressTracking() {
+        // Close any existing connection
+        if (eventSource) {
+            eventSource.close();
+        }
+        
+        // Start Server-Sent Events connection
+        eventSource = new EventSource('{% url "academic:sync_progress" %}');
+        
+        const progressBar = document.getElementById('sync-progress-bar');
+        const progressText = document.getElementById('sync-progress-text');
+        const phaseElement = document.getElementById('sync-phase');
+        const currentStepElement = document.getElementById('sync-current-step');
+        const messagesContainer = document.getElementById('sync-messages');
+        const messagesList = document.getElementById('sync-messages-list');
+        const summaryContainer = document.getElementById('sync-summary');
+        
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.error) {
+                    console.error('Progress tracking error:', data.error);
+                    return;
+                }
+                
+                // Update progress bar
+                const progress = Math.max(0, Math.min(100, data.progress || 0));
+                progressBar.style.width = progress + '%';
+                progressBar.setAttribute('aria-valuenow', progress);
+                progressText.textContent = Math.round(progress) + '%';
+                
+                // Update phase and current step
+                if (data.phase) {
+                    phaseElement.textContent = data.phase;
+                }
+                if (data.current_step) {
+                    currentStepElement.textContent = data.current_step;
+                }
+                
+                // Show messages if available
+                if (data.messages && data.messages.length > 0) {
+                    messagesContainer.style.display = 'block';
+                    messagesList.innerHTML = data.messages.map(msg => 
+                        `<li><i class="fas fa-${msg.startsWith('✓') ? 'check text-success' : 'times text-danger'}"></i> ${msg}</li>`
+                    ).join('');
+                }
+                
+                // Handle completion
+                if (data.status === 'completed') {
+                    handleSyncComplete(data, false);
+                } else if (data.status === 'completed_with_errors') {
+                    handleSyncComplete(data, true);
+                } else if (data.status === 'error') {
+                    handleSyncError(data);
+                }
+                
+            } catch (error) {
+                console.error('Error parsing progress data:', error);
+            }
+        };
+        
+        eventSource.onerror = function(event) {
+            console.error('EventSource error:', event);
+            eventSource.close();
+            
+            // Fallback: show generic message and re-enable button after delay
+            setTimeout(() => {
+                if (syncBtn.disabled) {
+                    syncBtn.disabled = false;
+                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync All Databases';
+                    progressContainer.style.display = 'none';
+                }
+            }, 5000);
+        };
+    }
+    
+    function handleSyncComplete(data, hasErrors) {
+        const summaryContainer = document.getElementById('sync-summary');
+        const progressContainer = document.getElementById('sync-progress-container');
+        const alertElement = progressContainer.querySelector('.alert');
+        
+        // Close event source
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        
+        // Update UI to show completion
+        const icon = progressContainer.querySelector('.fa-sync-alt');
+        if (icon) {
+            icon.classList.remove('fa-spin');
+            icon.classList.add(hasErrors ? 'fa-exclamation-triangle' : 'fa-check');
+        }
+        
+        // Change alert style
+        alertElement.classList.remove('alert-info');
+        alertElement.classList.add(hasErrors ? 'alert-warning' : 'alert-success');
+        
+        // Show summary
+        let summaryHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${hasErrors ? 'Sync completed with warnings' : 'Sync completed successfully!'}</strong>
+        `;
+        
+        if (data.publications_added !== undefined) {
+            summaryHTML += `<br><small>Added ${data.publications_added} new publications</small>`;
+        }
+        
+        summaryHTML += `
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-primary" onclick="window.location.reload()">
+                        <i class="fas fa-redo"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        if (data.errors && data.errors.length > 0) {
+            summaryHTML += `
+                <details class="mt-2">
+                    <summary class="small text-muted">View errors (${data.errors.length})</summary>
+                    <ul class="small mb-0 mt-1">
+                        ${data.errors.map(error => `<li class="text-danger">${error}</li>`).join('')}
+                    </ul>
+                </details>
+            `;
+        }
+        
+        summaryContainer.innerHTML = summaryHTML;
+        summaryContainer.style.display = 'block';
+        
+        // Re-enable sync button
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync All Databases';
+        
+        // Auto-refresh page after 5 seconds
+        setTimeout(() => {
+            window.location.reload();
+        }, 5000);
+    }
+    
+    function handleSyncError(data) {
+        const summaryContainer = document.getElementById('sync-summary');
+        const progressContainer = document.getElementById('sync-progress-container');
+        const alertElement = progressContainer.querySelector('.alert');
+        
+        // Close event source
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+        
+        // Update UI to show error
+        const icon = progressContainer.querySelector('.fa-sync-alt');
+        if (icon) {
+            icon.classList.remove('fa-spin');
+            icon.classList.add('fa-times');
+        }
+        
+        // Change alert style
+        alertElement.classList.remove('alert-info');
+        alertElement.classList.add('alert-danger');
+        
+        // Show error summary
+        summaryContainer.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Sync failed</strong>
+                    <br><small>${data.current_step || 'An error occurred during synchronization'}</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-secondary" onclick="window.location.reload()">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
+                </div>
+            </div>
+        `;
+        summaryContainer.style.display = 'block';
+        
+        // Re-enable sync button
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync All Databases';
+    }
+    
+    // Check for active sync on page load
+    function checkActiveSync() {
+        fetch('{% url "academic:sync_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.active_sync && data.active_sync.status in ['starting', 'running']) {
+                    // Show progress container and start tracking
+                    progressContainer.style.display = 'block';
+                    syncBtn.disabled = true;
+                    syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+                    startProgressTracking();
+                }
+            })
+            .catch(error => console.log('Sync status check failed:', error));
+    }
+    
+    // Check for active sync on page load
+    checkActiveSync();
     
     // Handle individual sync buttons
     const individualSyncBtns = document.querySelectorAll('button[type="submit"]:not(#comprehensive-sync-btn)');

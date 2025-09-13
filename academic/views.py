@@ -1,15 +1,21 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.core.management import call_command
 from django.utils import timezone
 import logging
+import threading
+import time
+import json
 from .models import Publication
 
 logger = logging.getLogger(__name__)
+
+# Global progress tracking for sync operations
+sync_progress = {}
 
 
 class HomeView(TemplateView):
@@ -378,6 +384,160 @@ class PubMedSyncView(LoginRequiredMixin, View):
             return redirect("academic:profile")
 
 
+def run_comprehensive_sync_background(user_id):
+    """
+    Run comprehensive sync in background thread with progress tracking
+    """
+    import uuid
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    sync_id = f"sync_{user_id}_{int(time.time())}"
+    
+    # Initialize progress tracking
+    sync_progress[sync_id] = {
+        'status': 'starting',
+        'phase': 'Initialization',
+        'current_step': 'Starting sync...',
+        'progress': 0,
+        'total_steps': 100,
+        'start_time': time.time(),
+        'messages': [],
+        'publications_added': 0,
+        'errors': []
+    }
+    
+    try:
+        user = User.objects.get(id=user_id)
+        progress = sync_progress[sync_id]
+        
+        # Phase 1: Database Synchronization
+        progress.update({
+            'status': 'running',
+            'phase': 'Database Synchronization',
+            'current_step': 'Checking ORCID connection...',
+            'progress': 10
+        })
+        
+        # Check sync sources and estimate steps
+        sources = []
+        if user.is_orcid_connected:
+            sources.append('ORCID')
+        if user.has_pubmed_query:
+            sources.append('PubMed')
+        if user.has_scopus_id:
+            sources.append('Scopus')
+            
+        if not sources:
+            progress.update({
+                'status': 'error',
+                'current_step': 'No sync sources configured',
+                'progress': 100
+            })
+            return sync_id
+        
+        steps_per_source = 30
+        total_estimated_steps = len(sources) * steps_per_source + 40  # +40 for enrichment and post-processing
+        progress['total_steps'] = total_estimated_steps
+        current_step = 10
+        
+        initial_count = user.publications.count()
+        
+        # Run syncs for each source
+        for i, source in enumerate(sources):
+            progress.update({
+                'current_step': f'Syncing {source}...',
+                'progress': current_step
+            })
+            
+            try:
+                if source == 'ORCID':
+                    call_command('sync_orcid', user_id=user.id, verbosity=0)
+                    progress['messages'].append(f'✓ ORCID sync completed')
+                elif source == 'PubMed':
+                    call_command('sync_pubmed', user_id=user.id, verbosity=0)
+                    progress['messages'].append(f'✓ PubMed sync completed')
+                elif source == 'Scopus':
+                    call_command('sync_scopus', user_id=user.id, verbosity=0)
+                    progress['messages'].append(f'✓ Scopus sync completed')
+                    
+                current_step += steps_per_source
+                progress['progress'] = current_step
+                
+            except Exception as e:
+                progress['errors'].append(f'{source} sync failed: {str(e)}')
+                progress['messages'].append(f'✗ {source} sync failed')
+        
+        # Phase 2: Data Enrichment
+        progress.update({
+            'phase': 'Data Enrichment',
+            'current_step': 'Enriching publications with CrossRef...',
+            'progress': current_step
+        })
+        
+        try:
+            call_command('enrich_crossref', user_id=user.id, verbosity=0)
+            progress['messages'].append('✓ CrossRef enrichment completed')
+        except Exception as e:
+            progress['errors'].append(f'CrossRef enrichment failed: {str(e)}')
+            progress['messages'].append('✗ CrossRef enrichment failed')
+            
+        current_step += 20
+        progress['progress'] = current_step
+        
+        # Phase 3: Post-Processing
+        progress.update({
+            'phase': 'Post-Processing',
+            'current_step': 'Running post-processing tasks...',
+            'progress': current_step
+        })
+        
+        postprocessing_tasks = [
+            ('lookup_pmc_ids', 'PMC ID lookup'),
+            ('lookup_author_scopus_ids', 'Author Scopus ID lookup'),
+        ]
+        
+        for command_name, description in postprocessing_tasks:
+            try:
+                progress['current_step'] = f'Running {description}...'
+                call_command(command_name, user_id=user.id, verbosity=0)
+                progress['messages'].append(f'✓ {description} completed')
+            except Exception as e:
+                progress['errors'].append(f'{description} failed: {str(e)}')
+                progress['messages'].append(f'✗ {description} failed')
+        
+        current_step += 15
+        progress['progress'] = current_step
+        
+        # Final statistics
+        final_count = user.publications.count()
+        publications_added = final_count - initial_count
+        progress['publications_added'] = publications_added
+        
+        # Complete
+        progress.update({
+            'status': 'completed',
+            'phase': 'Completed',
+            'current_step': f'Sync completed! Added {publications_added} publications.',
+            'progress': 100,
+            'end_time': time.time()
+        })
+        
+        if progress['errors']:
+            progress['status'] = 'completed_with_errors'
+            
+    except Exception as e:
+        progress.update({
+            'status': 'error',
+            'current_step': f'Sync failed: {str(e)}',
+            'progress': 100,
+            'end_time': time.time()
+        })
+        progress['errors'].append(str(e))
+    
+    return sync_id
+
+
 class ComprehensiveSyncView(LoginRequiredMixin, View):
     """
     Handle comprehensive synchronization requests - one button to sync everything
@@ -385,7 +545,7 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
     login_url = '/accounts/login/'
     
     def post(self, request):
-        """Handle comprehensive sync request"""
+        """Start comprehensive sync in background and return sync ID"""
         user = request.user
         
         # Check if user has at least one sync source configured
@@ -400,95 +560,49 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
             )
             return redirect('academic:profile')
         
-        # Inform user what will be synced
-        sync_sources = []
-        if has_orcid:
-            sync_sources.append('ORCID')
-        if has_pubmed:
-            sync_sources.append('PubMed')
-        if has_scopus:
-            sync_sources.append('Scopus')
+        # Check if user already has a sync running
+        active_syncs = [sid for sid, data in sync_progress.items() 
+                       if str(user.id) in sid and data['status'] in ['starting', 'running']]
         
-        sources_str = ', '.join(sync_sources)
-        messages.info(request, f'Starting comprehensive sync from: {sources_str}')
+        if active_syncs:
+            messages.warning(request, 'A sync is already in progress. Please wait for it to complete.')
+            return redirect('academic:dashboard')
         
+        # Start background sync
         try:
-            # Use call_command to run the comprehensive_sync management command
-            from io import StringIO
-            import sys
+            sync_thread = threading.Thread(
+                target=run_comprehensive_sync_background,
+                args=(user.id,),
+                daemon=True
+            )
+            sync_thread.start()
             
-            # Capture output
-            old_stdout = sys.stdout
-            sys.stdout = captured_output = StringIO()
+            # Store sync info in session for frontend tracking
+            if 'sync_ids' not in request.session:
+                request.session['sync_ids'] = []
             
-            try:
-                # Run comprehensive sync for this user
-                call_command('comprehensive_sync', user_id=user.id, verbosity=1)
-                output = captured_output.getvalue()
-                
-                # Parse results from output
-                success_indicators = [
-                    'All syncs completed successfully',
-                    'User sync completed',
-                    'Comprehensive sync completed'
-                ]
-                
-                warning_indicators = [
-                    'No publications found',
-                    'not connected',
-                    'No PubMed query',
-                    'No Scopus ID'
-                ]
-                
-                error_indicators = [
-                    'failed',
-                    'error',
-                    'Error'
-                ]
-                
-                # Determine result type based on output
-                if any(indicator in output for indicator in success_indicators):
-                    # Extract stats from output if available
-                    import re
-                    pub_match = re.search(r'(\d+) new publications', output)
-                    enriched_match = re.search(r'Enriched: (\d+)', output)
-                    
-                    result_msg = 'Comprehensive sync completed successfully!'
-                    if pub_match:
-                        result_msg += f' Added {pub_match.group(1)} new publications.'
-                    if enriched_match:
-                        result_msg += f' Enriched {enriched_match.group(1)} publications.'
-                    
-                    messages.success(request, result_msg)
-                    
-                elif any(indicator in output for indicator in warning_indicators):
-                    messages.warning(request, 'Sync completed with some warnings. Check your profile settings.')
-                    
-                elif any(indicator in output for indicator in error_indicators):
-                    messages.error(request, 'Sync completed with some errors. Some data may not have been updated.')
-                    
-                else:
-                    messages.info(request, 'Comprehensive sync completed.')
-                
-                # Log detailed output for debugging
-                logger.info(f"Comprehensive sync for user {user.id}: {output}")
-                
-            except Exception as e:
-                error_msg = str(e)
-                if 'not found' in error_msg:
-                    messages.error(request, f'Configuration error: {error_msg}')
-                else:
-                    messages.error(request, f'Sync failed: {error_msg}')
-                logger.error(f"Comprehensive sync error for user {user.id}: {error_msg}")
-            finally:
-                sys.stdout = old_stdout
-        
+            sync_id = f"sync_{user.id}_{int(time.time())}"
+            request.session['sync_ids'].append(sync_id)
+            request.session.modified = True
+            
+            # Inform user what will be synced
+            sync_sources = []
+            if has_orcid:
+                sync_sources.append('ORCID')
+            if has_pubmed:
+                sync_sources.append('PubMed')
+            if has_scopus:
+                sync_sources.append('Scopus')
+            
+            sources_str = ', '.join(sync_sources)
+            messages.success(request, f'Started comprehensive sync from: {sources_str}. Check progress on your dashboard.')
+            
         except Exception as e:
             messages.error(request, f'Failed to start comprehensive sync: {str(e)}')
             logger.error(f"Failed to start comprehensive sync for user {user.id}: {str(e)}")
         
-        # Redirect to publications list to show results
-        return redirect('academic:publication_list')
+        # Redirect to dashboard to show progress
+        return redirect('academic:dashboard')
 
 
 class SyncStatusView(LoginRequiredMixin, View):
@@ -501,14 +615,27 @@ class SyncStatusView(LoginRequiredMixin, View):
         """Return sync status for the current user"""
         user = request.user
         
-        # Check last sync times
+        # Check for active sync progress
+        user_syncs = {sid: data for sid, data in sync_progress.items() 
+                     if str(user.id) in sid}
+        
+        # Find most recent sync
+        active_sync = None
+        if user_syncs:
+            latest_sync_id = max(user_syncs.keys(), 
+                               key=lambda x: user_syncs[x].get('start_time', 0))
+            active_sync = user_syncs[latest_sync_id]
+            active_sync['sync_id'] = latest_sync_id
+        
+        # Check last sync times and general status
         sync_status = {
             'orcid_connected': user.is_orcid_connected,
             'pubmed_configured': user.has_pubmed_query,
             'scopus_configured': user.has_scopus_id,
             'last_sync': user.last_orcid_sync.isoformat() if user.last_orcid_sync else None,
             'publication_count': user.publications.count() if hasattr(user, 'publications') else 0,
-            'sync_sources': []
+            'sync_sources': [],
+            'active_sync': active_sync
         }
         
         # Build list of available sync sources
@@ -520,6 +647,59 @@ class SyncStatusView(LoginRequiredMixin, View):
             sync_status['sync_sources'].append('Scopus')
             
         return JsonResponse(sync_status)
+
+
+class SyncProgressStreamView(LoginRequiredMixin, View):
+    """
+    Server-Sent Events endpoint for real-time sync progress updates
+    """
+    login_url = '/accounts/login/'
+    
+    def get(self, request):
+        """Stream sync progress updates using Server-Sent Events"""
+        user = request.user
+        
+        def event_stream():
+            # Find active sync for this user
+            user_syncs = {sid: data for sid, data in sync_progress.items() 
+                         if str(user.id) in sid}
+            
+            if not user_syncs:
+                yield f"data: {json.dumps({'error': 'No active sync found'})}\n\n"
+                return
+            
+            # Get most recent sync
+            latest_sync_id = max(user_syncs.keys(), 
+                               key=lambda x: user_syncs[x].get('start_time', 0))
+            
+            last_progress = -1
+            while True:
+                if latest_sync_id in sync_progress:
+                    progress_data = sync_progress[latest_sync_id].copy()
+                    current_progress = progress_data.get('progress', 0)
+                    
+                    # Only send update if progress changed
+                    if current_progress != last_progress:
+                        yield f"data: {json.dumps(progress_data)}\n\n"
+                        last_progress = current_progress
+                    
+                    # Stop streaming if completed or failed
+                    if progress_data.get('status') in ['completed', 'completed_with_errors', 'error']:
+                        break
+                        
+                else:
+                    yield f"data: {json.dumps({'error': 'Sync not found'})}\n\n"
+                    break
+                    
+                time.sleep(1)  # Poll every second
+        
+        response = StreamingHttpResponse(
+            event_stream(), 
+            content_type='text/event-stream'
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['Connection'] = 'keep-alive'
+        return response
 
 
 class ClearPublicationsView(LoginRequiredMixin, View):

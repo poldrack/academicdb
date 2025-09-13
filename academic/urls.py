@@ -24,5 +24,6 @@ urlpatterns = [
     path('sync/pubmed/', views.PubMedSyncView.as_view(), name='pubmed_sync'),
     path('sync/comprehensive/', views.ComprehensiveSyncView.as_view(), name='comprehensive_sync'),
     path('sync/status/', views.SyncStatusView.as_view(), name='sync_status'),
+    path('sync/progress/', views.SyncProgressStreamView.as_view(), name='sync_progress'),
     path('publications/clear/', views.ClearPublicationsView.as_view(), name='clear_publications'),
 ]
