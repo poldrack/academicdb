@@ -1,0 +1,77 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    {% if object %}
+                        <i class="fas fa-edit"></i> Edit Talk
+                    {% else %}
+                        <i class="fas fa-plus"></i> Add New Talk
+                    {% endif %}
+                </h3>
+            </div>
+            
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.year.id_for_label }}" class="form-label">Year *</label>
+                        {{ form.year }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.place.id_for_label }}" class="form-label">Institution/Venue *</label>
+                        {{ form.place }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">Talk Title</label>
+                        {{ form.title }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                        {{ form.date }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.invited }}
+                            <label for="{{ form.invited.id_for_label }}" class="form-check-label">Invited Talk</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.virtual }}
+                            <label for="{{ form.virtual.id_for_label }}" class="form-check-label">Virtual Talk</label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'academic:talk_list' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if object %}Update{% else %}Save{% endif %} Talk
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const formInputs = document.querySelectorAll('input:not([type="checkbox"]), select, textarea');
+    formInputs.forEach(input => {
+        input.classList.add('form-control');
+    });
+});
+</script>
+{% endblock %}

@@ -15,6 +15,10 @@
                 {% if user.is_authenticated %}
                     <a class="nav-link" href="{% url 'academic:dashboard' %}">Dashboard</a>
                     <a class="nav-link" href="{% url 'academic:publication_list' %}">Publications</a>
+                    <a class="nav-link" href="{% url 'academic:funding_list' %}">Funding</a>
+                    <a class="nav-link" href="{% url 'academic:teaching_list' %}">Teaching</a>
+                    <a class="nav-link" href="{% url 'academic:talk_list' %}">Talks</a>
+                    <a class="nav-link" href="{% url 'academic:conference_list' %}">Conferences</a>
                     <a class="nav-link" href="{% url 'academic:profile' %}">Profile</a>
                     <a class="nav-link" href="{% url 'account_logout' %}">Logout</a>
                 {% else %}

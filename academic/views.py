@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 import json
-from .models import Publication, Funding
+from .models import Publication, Funding, Teaching, Talk, Conference
 
 logger = logging.getLogger(__name__)
 
@@ -901,4 +901,263 @@ class ClearFundingView(LoginRequiredMixin, View):
                 'An error occurred while deleting funding records. Please try again.'
             )
             return redirect('academic:funding_list')
+
+
+# Teaching Views
+class TeachingListView(LoginRequiredMixin, ListView):
+    """
+    List all teaching activities for the current user
+    """
+    model = Teaching
+    template_name = 'academic/teaching_list.html'
+    context_object_name = 'teaching_list'
+    paginate_by = 20
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Filter teaching to show only those owned by the current user"""
+        return Teaching.objects.filter(owner=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'My Teaching'
+        context['teaching_count'] = self.get_queryset().count()
+        return context
+
+
+class TeachingDetailView(LoginRequiredMixin, DetailView):
+    """
+    Display details of a single teaching activity
+    """
+    model = Teaching
+    template_name = 'academic/teaching_detail.html'
+    context_object_name = 'teaching'
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only view their own teaching"""
+        return Teaching.objects.filter(owner=self.request.user)
+
+
+class TeachingCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new teaching activity
+    """
+    model = Teaching
+    template_name = 'academic/teaching_form.html'
+    fields = ['name', 'level', 'course_number', 'semester', 'year', 
+              'institution', 'enrollment']
+    success_url = reverse_lazy('academic:teaching_list')
+    login_url = '/accounts/login/'
+    
+    def form_valid(self, form):
+        """Set the owner to the current user and mark as manual entry"""
+        form.instance.owner = self.request.user
+        form.instance.source = 'manual'
+        
+        messages.success(self.request, 'Teaching activity added successfully!')
+        return super().form_valid(form)
+
+
+class TeachingUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update an existing teaching activity
+    """
+    model = Teaching
+    template_name = 'academic/teaching_form.html'
+    fields = ['name', 'level', 'course_number', 'semester', 'year', 
+              'institution', 'enrollment']
+    success_url = reverse_lazy('academic:teaching_list')
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only edit their own teaching"""
+        return Teaching.objects.filter(owner=self.request.user)
+    
+    def form_valid(self, form):
+        """Track manual edits"""
+        changed_fields = form.changed_data
+        
+        if changed_fields:
+            obj = form.save(commit=False)
+            # Mark fields as manually edited
+            for field_name in changed_fields:
+                obj.manual_edits[field_name] = True
+            obj.save()
+            messages.success(self.request, 'Teaching activity updated successfully!')
+            return redirect(self.success_url)
+        
+        return super().form_valid(form)
+
+
+# Talk Views
+class TalkListView(LoginRequiredMixin, ListView):
+    """
+    List all talks for the current user
+    """
+    model = Talk
+    template_name = 'academic/talk_list.html'
+    context_object_name = 'talk_list'
+    paginate_by = 20
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Filter talks to show only those owned by the current user"""
+        return Talk.objects.filter(owner=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'My Talks'
+        context['talk_count'] = self.get_queryset().count()
+        return context
+
+
+class TalkDetailView(LoginRequiredMixin, DetailView):
+    """
+    Display details of a single talk
+    """
+    model = Talk
+    template_name = 'academic/talk_detail.html'
+    context_object_name = 'talk'
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only view their own talks"""
+        return Talk.objects.filter(owner=self.request.user)
+
+
+class TalkCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new talk
+    """
+    model = Talk
+    template_name = 'academic/talk_form.html'
+    fields = ['year', 'place', 'title', 'date', 'invited', 'virtual']
+    success_url = reverse_lazy('academic:talk_list')
+    login_url = '/accounts/login/'
+    
+    def form_valid(self, form):
+        """Set the owner to the current user and mark as manual entry"""
+        form.instance.owner = self.request.user
+        form.instance.source = 'manual'
+        
+        messages.success(self.request, 'Talk added successfully!')
+        return super().form_valid(form)
+
+
+class TalkUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update an existing talk
+    """
+    model = Talk
+    template_name = 'academic/talk_form.html'
+    fields = ['year', 'place', 'title', 'date', 'invited', 'virtual']
+    success_url = reverse_lazy('academic:talk_list')
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only edit their own talks"""
+        return Talk.objects.filter(owner=self.request.user)
+    
+    def form_valid(self, form):
+        """Track manual edits"""
+        changed_fields = form.changed_data
+        
+        if changed_fields:
+            obj = form.save(commit=False)
+            # Mark fields as manually edited
+            for field_name in changed_fields:
+                obj.manual_edits[field_name] = True
+            obj.save()
+            messages.success(self.request, 'Talk updated successfully!')
+            return redirect(self.success_url)
+        
+        return super().form_valid(form)
+
+
+# Conference Views
+class ConferenceListView(LoginRequiredMixin, ListView):
+    """
+    List all conference presentations for the current user
+    """
+    model = Conference
+    template_name = 'academic/conference_list.html'
+    context_object_name = 'conference_list'
+    paginate_by = 20
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Filter conferences to show only those owned by the current user"""
+        return Conference.objects.filter(owner=self.request.user)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'My Conference Presentations'
+        context['conference_count'] = self.get_queryset().count()
+        return context
+
+
+class ConferenceDetailView(LoginRequiredMixin, DetailView):
+    """
+    Display details of a single conference presentation
+    """
+    model = Conference
+    template_name = 'academic/conference_detail.html'
+    context_object_name = 'conference'
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only view their own conferences"""
+        return Conference.objects.filter(owner=self.request.user)
+
+
+class ConferenceCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new conference presentation
+    """
+    model = Conference
+    template_name = 'academic/conference_form.html'
+    fields = ['title', 'authors', 'year', 'location', 'month', 
+              'conference_name', 'presentation_type', 'link', 'abstract']
+    success_url = reverse_lazy('academic:conference_list')
+    login_url = '/accounts/login/'
+    
+    def form_valid(self, form):
+        """Set the owner to the current user and mark as manual entry"""
+        form.instance.owner = self.request.user
+        form.instance.source = 'manual'
+        
+        messages.success(self.request, 'Conference presentation added successfully!')
+        return super().form_valid(form)
+
+
+class ConferenceUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update an existing conference presentation
+    """
+    model = Conference
+    template_name = 'academic/conference_form.html'
+    fields = ['title', 'authors', 'year', 'location', 'month', 
+              'conference_name', 'presentation_type', 'link', 'abstract']
+    success_url = reverse_lazy('academic:conference_list')
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only edit their own conferences"""
+        return Conference.objects.filter(owner=self.request.user)
+    
+    def form_valid(self, form):
+        """Track manual edits"""
+        changed_fields = form.changed_data
+        
+        if changed_fields:
+            obj = form.save(commit=False)
+            # Mark fields as manually edited
+            for field_name in changed_fields:
+                obj.manual_edits[field_name] = True
+            obj.save()
+            messages.success(self.request, 'Conference presentation updated successfully!')
+            return redirect(self.success_url)
+        
+        return super().form_valid(form)
 

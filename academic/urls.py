@@ -22,6 +22,24 @@ urlpatterns = [
     path('funding/<int:pk>/edit/', views.FundingUpdateView.as_view(), name='funding_update'),
     path('funding/clear/', views.ClearFundingView.as_view(), name='clear_funding'),
     
+    # Teaching URLs
+    path('teaching/', views.TeachingListView.as_view(), name='teaching_list'),
+    path('teaching/new/', views.TeachingCreateView.as_view(), name='teaching_create'),
+    path('teaching/<int:pk>/', views.TeachingDetailView.as_view(), name='teaching_detail'),
+    path('teaching/<int:pk>/edit/', views.TeachingUpdateView.as_view(), name='teaching_update'),
+    
+    # Talk URLs
+    path('talks/', views.TalkListView.as_view(), name='talk_list'),
+    path('talks/new/', views.TalkCreateView.as_view(), name='talk_create'),
+    path('talks/<int:pk>/', views.TalkDetailView.as_view(), name='talk_detail'),
+    path('talks/<int:pk>/edit/', views.TalkUpdateView.as_view(), name='talk_update'),
+    
+    # Conference URLs
+    path('conferences/', views.ConferenceListView.as_view(), name='conference_list'),
+    path('conferences/new/', views.ConferenceCreateView.as_view(), name='conference_create'),
+    path('conferences/<int:pk>/', views.ConferenceDetailView.as_view(), name='conference_detail'),
+    path('conferences/<int:pk>/edit/', views.ConferenceUpdateView.as_view(), name='conference_update'),
+    
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),
     

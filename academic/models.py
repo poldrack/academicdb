@@ -1018,3 +1018,348 @@ class Funding(models.Model):
         if self.amount:
             return f"{self.currency} {self.amount:,.2f}"
         return None
+
+
+class Teaching(models.Model):
+    """
+    Represents teaching activities including courses taught
+    """
+    # Course level choices
+    LEVEL_CHOICES = [
+        ('undergraduate', 'Undergraduate'),
+        ('graduate', 'Graduate'),
+        ('postdoc', 'Postdoctoral'),
+        ('professional', 'Professional Development'),
+        ('other', 'Other'),
+    ]
+    
+    # Ownership
+    owner = models.ForeignKey(
+        AcademicUser, 
+        on_delete=models.CASCADE,
+        related_name='teaching'
+    )
+    
+    # Course Details
+    name = models.CharField(
+        max_length=300,
+        help_text="Course name or title"
+    )
+    level = models.CharField(
+        max_length=50,
+        choices=LEVEL_CHOICES,
+        default='undergraduate',
+        help_text="Academic level of the course"
+    )
+    
+    # Optional Details
+    course_number = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Course number/code (e.g., PSYC 101)"
+    )
+    semester = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Semester taught (e.g., Fall 2023)"
+    )
+    year = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(1950),
+            MaxValueValidator(datetime.now().year + 10)
+        ],
+        help_text="Year taught"
+    )
+    institution = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Institution where course was taught"
+    )
+    enrollment = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of students enrolled"
+    )
+    
+    # Additional metadata
+    additional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional course details"
+    )
+    
+    # Source tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('manual', 'Manual Entry'),
+            ('import', 'File Import'),
+            ('institutional', 'Institutional System'),
+        ],
+        default='manual',
+        help_text="Original data source"
+    )
+    
+    # Edit tracking
+    manual_edits = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Tracks which fields have been manually edited"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'year']),
+            models.Index(fields=['level', 'year']),
+        ]
+        ordering = ['-year', 'level', 'name']
+        verbose_name = 'Teaching Activity'
+        verbose_name_plural = 'Teaching Activities'
+    
+    def __str__(self):
+        if self.year:
+            return f"{self.name} ({self.get_level_display()}, {self.year})"
+        return f"{self.name} ({self.get_level_display()})"
+
+
+class Talk(models.Model):
+    """
+    Represents invited talks, seminars, and speaking engagements
+    """
+    # Ownership
+    owner = models.ForeignKey(
+        AcademicUser, 
+        on_delete=models.CASCADE,
+        related_name='talks'
+    )
+    
+    # Talk Details
+    year = models.IntegerField(
+        validators=[
+            MinValueValidator(1950),
+            MaxValueValidator(datetime.now().year + 10)
+        ],
+        help_text="Year of the talk"
+    )
+    place = models.CharField(
+        max_length=500,
+        help_text="Institution, university, or venue where talk was given"
+    )
+    
+    # Optional Details
+    title = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Title of the talk"
+    )
+    date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Specific date of the talk"
+    )
+    invited = models.BooleanField(
+        default=True,
+        help_text="Was this an invited talk?"
+    )
+    virtual = models.BooleanField(
+        default=False,
+        help_text="Was this talk given virtually?"
+    )
+    
+    # Additional metadata
+    additional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional talk details (audience size, event name, etc.)"
+    )
+    
+    # Source tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('manual', 'Manual Entry'),
+            ('import', 'File Import'),
+        ],
+        default='manual',
+        help_text="Original data source"
+    )
+    
+    # Edit tracking
+    manual_edits = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Tracks which fields have been manually edited"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'year']),
+            models.Index(fields=['year', 'invited']),
+        ]
+        ordering = ['-year', '-date', 'place']
+        verbose_name = 'Talk'
+        verbose_name_plural = 'Talks'
+    
+    def __str__(self):
+        if self.title:
+            return f"{self.title} - {self.place} ({self.year})"
+        return f"{self.place} ({self.year})"
+
+
+class Conference(models.Model):
+    """
+    Represents conference presentations, posters, and proceedings
+    """
+    # Presentation type choices
+    TYPE_CHOICES = [
+        ('talk', 'Talk/Presentation'),
+        ('poster', 'Poster'),
+        ('keynote', 'Keynote'),
+        ('workshop', 'Workshop'),
+        ('panel', 'Panel Discussion'),
+        ('other', 'Other'),
+    ]
+    
+    # Ownership
+    owner = models.ForeignKey(
+        AcademicUser, 
+        on_delete=models.CASCADE,
+        related_name='conferences'
+    )
+    
+    # Conference Details
+    title = models.CharField(
+        max_length=500,
+        help_text="Title of the presentation/poster"
+    )
+    authors = models.TextField(
+        help_text="Authors of the presentation (as they appear in program)"
+    )
+    year = models.IntegerField(
+        validators=[
+            MinValueValidator(1950),
+            MaxValueValidator(datetime.now().year + 10)
+        ],
+        help_text="Year of the conference"
+    )
+    location = models.CharField(
+        max_length=500,
+        help_text="Conference location (city, venue, or 'virtual')"
+    )
+    
+    # Optional Details
+    month = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Month of the conference"
+    )
+    conference_name = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Name of the conference or meeting"
+    )
+    presentation_type = models.CharField(
+        max_length=50,
+        choices=TYPE_CHOICES,
+        default='talk',
+        help_text="Type of presentation"
+    )
+    link = models.URLField(
+        blank=True,
+        help_text="Link to presentation, abstract, or conference page"
+    )
+    abstract = models.TextField(
+        blank=True,
+        help_text="Abstract of the presentation"
+    )
+    
+    # Parsed author information (JSON field for structured data)
+    parsed_authors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Structured author information"
+    )
+    
+    # Additional metadata
+    additional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional conference details"
+    )
+    
+    # Source tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('manual', 'Manual Entry'),
+            ('import', 'File Import'),
+        ],
+        default='manual',
+        help_text="Original data source"
+    )
+    
+    # Edit tracking
+    manual_edits = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Tracks which fields have been manually edited"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'year']),
+            models.Index(fields=['year', 'presentation_type']),
+        ]
+        ordering = ['-year', 'month', 'title']
+        verbose_name = 'Conference Presentation'
+        verbose_name_plural = 'Conference Presentations'
+    
+    def __str__(self):
+        return f"{self.title} - {self.location} ({self.year})"
+    
+    @property
+    def first_author(self):
+        """Extract first author from authors string"""
+        if self.authors:
+            # Handle both comma-separated and formatted author strings
+            authors_clean = self.authors.strip()
+            if ',' in authors_clean:
+                return authors_clean.split(',')[0].strip()
+            else:
+                # Assume space-separated format
+                words = authors_clean.split()
+                if words:
+                    # Look for pattern "LastName FirstInitial"
+                    return f"{words[0]} {words[1] if len(words) > 1 else ''}"
+        return "Unknown"
+    
+    @property
+    def author_count(self):
+        """Estimate number of authors"""
+        if not self.authors:
+            return 0
+        # Simple heuristic: count commas + 1, or count "and" occurrences
+        comma_count = self.authors.count(',')
+        if comma_count > 0:
+            return comma_count + 1
+        
+        and_count = self.authors.lower().count(' and ')
+        if and_count > 0:
+            return and_count + 1
+        
+        # Fallback: assume single author if no clear separators
+        return 1 if self.authors.strip() else 0

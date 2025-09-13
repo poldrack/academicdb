@@ -1,0 +1,156 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    {% if object %}
+                        <i class="fas fa-edit"></i> Edit Teaching: {{ object.name|truncatechars:50 }}
+                    {% else %}
+                        <i class="fas fa-plus"></i> Add New Teaching Activity
+                    {% endif %}
+                </h3>
+            </div>
+            
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                <i class="fas fa-heading"></i> Course Name *
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.name.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Full name of the course or class</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.level.id_for_label }}" class="form-label">
+                                <i class="fas fa-graduation-cap"></i> Level *
+                            </label>
+                            {{ form.level }}
+                            {% if form.level.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.level.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.course_number.id_for_label }}" class="form-label">
+                                <i class="fas fa-hashtag"></i> Course Number
+                            </label>
+                            {{ form.course_number }}
+                            {% if form.course_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.course_number.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">e.g., PSYC 101</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.semester.id_for_label }}" class="form-label">
+                                <i class="fas fa-calendar-alt"></i> Semester
+                            </label>
+                            {{ form.semester }}
+                            {% if form.semester.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.semester.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">e.g., Fall 2023</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="{{ form.year.id_for_label }}" class="form-label">
+                                <i class="fas fa-calendar"></i> Year
+                            </label>
+                            {{ form.year }}
+                            {% if form.year.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.year.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="{{ form.institution.id_for_label }}" class="form-label">
+                                <i class="fas fa-building"></i> Institution
+                            </label>
+                            {{ form.institution }}
+                            {% if form.institution.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.institution.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">University or institution where taught</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="{{ form.enrollment.id_for_label }}" class="form-label">
+                                <i class="fas fa-users"></i> Enrollment
+                            </label>
+                            {{ form.enrollment }}
+                            {% if form.enrollment.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.enrollment.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Number of students</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'academic:teaching_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 
+                                    {% if object %}Update{% else %}Save{% endif %} Teaching
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form-control classes to all form fields
+    const formInputs = document.querySelectorAll('input, select, textarea');
+    formInputs.forEach(input => {
+        if (!input.classList.contains('btn')) {
+            input.classList.add('form-control');
+        }
+    });
+});
+</script>
+{% endblock %}
