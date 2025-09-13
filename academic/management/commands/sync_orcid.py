@@ -472,9 +472,13 @@ class Command(BaseCommand):
             if start_date_obj:
                 try:
                     from datetime import date
-                    year = int(start_date_obj.get('year', {}).get('value', 0))
-                    month = int(start_date_obj.get('month', {}).get('value', 1))
-                    day = int(start_date_obj.get('day', {}).get('value', 1))
+                    year_obj = start_date_obj.get('year', {})
+                    month_obj = start_date_obj.get('month', {})
+                    day_obj = start_date_obj.get('day', {})
+                    
+                    year = int(year_obj.get('value', 0) if year_obj else 0)
+                    month = int(month_obj.get('value', 1) if month_obj else 1)
+                    day = int(day_obj.get('value', 1) if day_obj else 1)
                     if year > 0:
                         start_date = date(year, month, day)
                 except (ValueError, TypeError):
@@ -484,9 +488,13 @@ class Command(BaseCommand):
             if end_date_obj:
                 try:
                     from datetime import date
-                    year = int(end_date_obj.get('year', {}).get('value', 0))
-                    month = int(end_date_obj.get('month', {}).get('value', 12))
-                    day = int(end_date_obj.get('day', {}).get('value', 31))
+                    year_obj = end_date_obj.get('year', {})
+                    month_obj = end_date_obj.get('month', {})
+                    day_obj = end_date_obj.get('day', {})
+                    
+                    year = int(year_obj.get('value', 0) if year_obj else 0)
+                    month = int(month_obj.get('value', 12) if month_obj else 12)
+                    day = int(day_obj.get('value', 31) if day_obj else 31)
                     if year > 0:
                         end_date = date(year, month, day)
                 except (ValueError, TypeError):

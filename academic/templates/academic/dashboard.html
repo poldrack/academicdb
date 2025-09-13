@@ -540,13 +540,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const individualSyncBtns = document.querySelectorAll('button[type="submit"]:not(#comprehensive-sync-btn)');
     individualSyncBtns.forEach(btn => {
         btn.addEventListener('click', function(e) {
-            this.disabled = true;
+            // Update UI immediately
             const originalText = this.innerHTML;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
             
+            // Don't disable the button - let the form submit
+            // The button will be disabled by the form submission
+            
             // Re-enable after a delay if something goes wrong
             setTimeout(() => {
-                if (this.disabled) {
+                if (this.innerHTML.includes('Syncing')) {
                     this.disabled = false;
                     this.innerHTML = originalText;
                 }

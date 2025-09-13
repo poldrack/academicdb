@@ -239,10 +239,22 @@ class OrcidSyncView(LoginRequiredMixin, View):
                 output = captured_output.getvalue()
                 
                 # Check if sync was successful based on output
-                if 'Synced' in output and 'publications' in output:
-                    messages.success(request, 'ORCID sync completed successfully! Check your publications.')
+                synced_publications = 'Synced' in output and 'publications' in output
+                synced_funding = 'Synced' in output and 'funding records' in output
+                
+                if synced_publications or synced_funding:
+                    sync_items = []
+                    if synced_publications:
+                        sync_items.append('publications')
+                    if synced_funding:
+                        sync_items.append('funding records')
+                    items_text = ' and '.join(sync_items)
+                    messages.success(request, f'ORCID sync completed successfully! Check your {items_text}.')
                 elif 'No publications' in output or 'Found 0 publications' in output:
-                    messages.warning(request, 'ORCID sync completed, but no new publications were found.')
+                    if synced_funding:
+                        messages.success(request, 'ORCID sync completed successfully! Check your funding records.')
+                    else:
+                        messages.warning(request, 'ORCID sync completed, but no new publications were found.')
                 else:
                     messages.info(request, 'ORCID sync completed.')
                 
