@@ -7,6 +7,7 @@ import logging
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.core.exceptions import ValidationError
 from academic.models import Publication
 
 User = get_user_model()
@@ -288,6 +289,10 @@ class Command(BaseCommand):
                     if given and family:
                         authors.append({'name': f"{given} {family} (Ed.)"})
             
+            # Ensure we always have at least one author (required by model validation)
+            if not authors:
+                authors = [{'name': 'Unknown Author'}]
+            
             return {
                 'title': title,
                 'year': year,
@@ -333,6 +338,11 @@ class Command(BaseCommand):
             return False
             
         try:
+            # Ensure we always have authors (required by model validation)
+            authors = pub_data.get('authors', [])
+            if not authors:
+                authors = [{'name': 'Unknown Author'}]
+                
             publication = Publication(
                 owner=user,
                 doi=doi,
@@ -342,18 +352,28 @@ class Command(BaseCommand):
                 publication_name=pub_data.get('publication_name'),
                 publication_type=pub_data.get('publication_type', 'journal-article'),
                 source='orcid',
-                authors=pub_data.get('authors', []),
+                authors=authors,
                 metadata={
                     'orcid_sync': True,
                     'crossref_data': pub_data.get('raw_metadata', {}),
                     'enriched': True
                 }
             )
+            
+            # Validate before saving
+            publication.full_clean()
             publication.save()
             
             self.stdout.write(f'  Created publication: {pub_data.get("title", doi)}')
             return True
             
+        except ValidationError as e:
+            self.stdout.write(
+                self.style.ERROR(
+                    f'  Validation error for {doi}: {e}'
+                )
+            )
+            return False
         except Exception as e:
             self.stdout.write(
                 self.style.ERROR(
