@@ -840,3 +840,53 @@ class FundingUpdateView(LoginRequiredMixin, UpdateView):
         
         return super().form_valid(form)
 
+
+class ClearFundingView(LoginRequiredMixin, View):
+    """
+    Handle clearing all funding records for the current user
+    """
+    login_url = '/accounts/login/'
+    
+    def post(self, request):
+        """Clear all funding records for the current user"""
+        user = request.user
+        
+        # Security check - require confirmation parameter
+        confirmation = request.POST.get('confirmation', '').lower()
+        if confirmation != 'delete all funding':
+            messages.error(
+                request, 
+                'Invalid confirmation. You must type "delete all funding" exactly to confirm.'
+            )
+            return redirect('academic:funding_list')
+        
+        try:
+            # Count funding records before deletion for reporting
+            funding_count = user.funding.count() if hasattr(user, 'funding') else 0
+            
+            if funding_count == 0:
+                messages.warning(request, 'No funding records found to delete.')
+                return redirect('academic:funding_list')
+            
+            # Delete all funding records for this user
+            deleted_count = user.funding.all().delete()[0]
+            
+            # Log the action
+            logger.info(f"User {user.id} cleared {deleted_count} funding records via web interface")
+            
+            # Success message
+            messages.success(
+                request, 
+                f'Successfully deleted {deleted_count} funding records. You can re-sync from ORCID or add new funding manually.'
+            )
+            
+            return redirect('academic:funding_list')
+            
+        except Exception as e:
+            logger.error(f"Error clearing funding for user {user.id}: {str(e)}")
+            messages.error(
+                request, 
+                'An error occurred while deleting funding records. Please try again.'
+            )
+            return redirect('academic:funding_list')
+

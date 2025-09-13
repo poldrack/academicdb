@@ -19,6 +19,13 @@
                         </button>
                     </form>
                 {% endif %}
+                
+                <!-- Clear All Button (only show if funding exists) -->
+                {% if funding_count > 0 %}
+                    <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#clearFundingModal" title="Clear all funding">
+                        <i class="fas fa-trash-alt"></i> Clear All
+                    </button>
+                {% endif %}
             </div>
         </div>
         
@@ -199,6 +206,58 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Clear Funding Confirmation Modal -->
+<div class="modal fade" id="clearFundingModal" tabindex="-1" aria-labelledby="clearFundingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="clearFundingModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Clear All Funding
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>⚠️ Warning:</strong> This will permanently delete <strong>all {{ funding_count }} funding records</strong> from your database.
+                </div>
+                
+                <p><strong>This action cannot be undone.</strong> All funding data, including:</p>
+                <ul>
+                    <li>Grant titles and descriptions</li>
+                    <li>Agency information and grant numbers</li>
+                    <li>Funding amounts and dates</li>
+                    <li>Manual edits and customizations</li>
+                </ul>
+                <p>will be permanently removed from your account.</p>
+                
+                <p>You can re-sync funding from your ORCID profile after clearing, but any manual edits will be lost.</p>
+                
+                <hr>
+                
+                <form method="post" action="{% url 'academic:clear_funding' %}" id="clearFundingForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="confirmationInput" class="form-label">
+                            <strong>To confirm, type "delete all funding" exactly:</strong>
+                        </label>
+                        <input type="text" class="form-control" id="confirmationInput" name="confirmation" 
+                               placeholder="Type here to confirm..." autocomplete="off">
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                            <i class="fas fa-trash-alt"></i> Delete All Funding
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -241,6 +300,56 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Handle clear funding confirmation
+    const confirmationInput = document.getElementById('confirmationInput');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const clearFundingForm = document.getElementById('clearFundingForm');
+    
+    if (confirmationInput && confirmDeleteBtn) {
+        confirmationInput.addEventListener('input', function() {
+            const expectedText = 'delete all funding';
+            const inputText = this.value.toLowerCase().trim();
+            
+            if (inputText === expectedText) {
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.classList.remove('disabled');
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                confirmDeleteBtn.disabled = true;
+                confirmDeleteBtn.classList.add('disabled');
+                this.classList.remove('is-valid');
+                if (inputText.length > 0) {
+                    this.classList.add('is-invalid');
+                }
+            }
+        });
+        
+        // Handle form submission
+        clearFundingForm.addEventListener('submit', function(e) {
+            const inputText = confirmationInput.value.toLowerCase().trim();
+            if (inputText !== 'delete all funding') {
+                e.preventDefault();
+                confirmationInput.classList.add('is-invalid');
+                return false;
+            }
+            
+            // Show loading state
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        });
+        
+        // Reset form when modal is hidden
+        const clearModal = document.getElementById('clearFundingModal');
+        clearModal.addEventListener('hidden.bs.modal', function() {
+            confirmationInput.value = '';
+            confirmationInput.classList.remove('is-valid', 'is-invalid');
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.classList.add('disabled');
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All Funding';
+        });
+    }
 });
 </script>
 {% endblock %}

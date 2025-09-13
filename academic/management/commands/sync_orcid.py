@@ -392,41 +392,143 @@ class Command(BaseCommand):
             self.stdout.write('  No ORCID activities data available for funding sync')
             return 0
 
-        # Extract funding data using existing utility function
-        try:
-            funding_df = orcid.get_orcid_funding(orcid_data)
-            if funding_df.empty:
-                self.stdout.write('  No funding records found in ORCID')
-                return 0
-        except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(f'  Error extracting funding data: {str(e)}')
-            )
+        # Get funding groups from activities summary
+        funding_groups = orcid_data.get('activities-summary', {}).get('fundings', {}).get('group', [])
+        if not funding_groups:
+            self.stdout.write('  No funding records found in ORCID')
             return 0
 
-        self.stdout.write(f'  Found {len(funding_df)} funding records in ORCID')
+        self.stdout.write(f'  Found {len(funding_groups)} funding records in ORCID')
         
         synced_count = 0
-        for _, funding_row in funding_df.iterrows():
+        for funding_group in funding_groups:
             try:
-                if self.sync_funding_record(user, funding_row):
-                    synced_count += 1
+                # Get the first funding summary from the group
+                funding_summary = funding_group.get('funding-summary', [])
+                if not funding_summary:
+                    continue
+                    
+                summary = funding_summary[0]
+                put_code = summary.get('put-code')
+                
+                if put_code:
+                    # Fetch detailed funding record using put-code
+                    detailed_funding = self.fetch_detailed_funding_record(user.orcid_id, put_code)
+                    if detailed_funding:
+                        if self.sync_funding_record(user, detailed_funding):
+                            synced_count += 1
+                        
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(
-                        f'  Failed to sync funding "{funding_row["title"]}": {str(e)}'
-                    )
+                    self.style.ERROR(f'  Failed to sync funding record: {str(e)}')
                 )
                 continue
 
         return synced_count
 
+    def fetch_detailed_funding_record(self, orcid_id, put_code):
+        """Fetch detailed funding record from ORCID API using put-code"""
+        try:
+            headers = {'Accept': 'application/json'}
+            base_url = 'https://pub.orcid.org/v3.0'
+            url = f'{base_url}/{orcid_id}/funding/{put_code}'
+            
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            
+            return response.json()
+            
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'  Failed to fetch detailed funding record {put_code}: {str(e)}')
+            )
+            return None
+
     def sync_funding_record(self, user, funding_data):
         """Create or update a single funding record"""
-        # Extract data from the funding row (from pandas DataFrame)
-        title = funding_data.get('title', '').strip()
-        organization = funding_data.get('organization', '').strip()
-        grant_id = funding_data.get('id', '').strip()
+        # Handle both DataFrame (old) and detailed ORCID JSON (new) formats
+        if hasattr(funding_data, 'get') and 'title' in funding_data and isinstance(funding_data['title'], dict):
+            # New format: detailed ORCID JSON
+            title = funding_data.get('title', {}).get('title', {}).get('value', '').strip()
+            organization = funding_data.get('organization', {}).get('name', '').strip()
+            
+            # Extract grant number from external-ids
+            grant_id = ''
+            external_ids = funding_data.get('external-ids', {}).get('external-id', [])
+            if external_ids:
+                grant_id = external_ids[0].get('external-id-value', '').strip()
+            
+            # Extract URL from main url field (not external-ids)
+            url = funding_data.get('url', {}).get('value', '') if funding_data.get('url') else ''
+            
+            # Extract role from organization-defined-type
+            role = funding_data.get('organization-defined-type', {}).get('value', '') if funding_data.get('organization-defined-type') else ''
+            
+            # Extract dates with full precision
+            start_date = None
+            end_date = None
+            
+            start_date_obj = funding_data.get('start-date')
+            if start_date_obj:
+                try:
+                    from datetime import date
+                    year = int(start_date_obj.get('year', {}).get('value', 0))
+                    month = int(start_date_obj.get('month', {}).get('value', 1))
+                    day = int(start_date_obj.get('day', {}).get('value', 1))
+                    if year > 0:
+                        start_date = date(year, month, day)
+                except (ValueError, TypeError):
+                    pass
+            
+            end_date_obj = funding_data.get('end-date')
+            if end_date_obj:
+                try:
+                    from datetime import date
+                    year = int(end_date_obj.get('year', {}).get('value', 0))
+                    month = int(end_date_obj.get('month', {}).get('value', 12))
+                    day = int(end_date_obj.get('day', {}).get('value', 31))
+                    if year > 0:
+                        end_date = date(year, month, day)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Extract amount if available
+            amount = None
+            amount_obj = funding_data.get('amount')
+            if amount_obj:
+                try:
+                    amount = float(amount_obj.get('value', 0))
+                except (ValueError, TypeError):
+                    pass
+                    
+        else:
+            # Old format: pandas DataFrame row
+            title = funding_data.get('title', '').strip()
+            organization = funding_data.get('organization', '').strip()
+            grant_id = funding_data.get('id', '').strip()
+            url = funding_data.get('url', '')
+            role = funding_data.get('role', '')
+            amount = None
+            
+            # Parse dates (old format uses just years)
+            start_date = None
+            end_date = None
+            
+            try:
+                start_year = funding_data.get('start_date')
+                if start_year and start_year != 'present' and str(start_year).strip():
+                    from datetime import date
+                    start_date = date(int(start_year), 1, 1)
+            except (ValueError, TypeError):
+                pass
+                
+            try:
+                end_year = funding_data.get('end_date')
+                if end_year and end_year != 'present' and str(end_year).strip():
+                    from datetime import date
+                    end_date = date(int(end_year), 12, 31)
+            except (ValueError, TypeError):
+                pass
         
         if not title or not organization:
             self.stdout.write('  Skipping funding record with missing title or organization')
@@ -447,26 +549,6 @@ class Command(BaseCommand):
             self.stdout.write(f'  Would create funding: {title} ({organization})')
             return True
 
-        # Parse dates
-        start_date = None
-        end_date = None
-        
-        try:
-            start_year = funding_data.get('start_date')
-            if start_year and start_year != 'present' and str(start_year).strip():
-                from datetime import date
-                start_date = date(int(start_year), 1, 1)
-        except (ValueError, TypeError):
-            pass
-            
-        try:
-            end_year = funding_data.get('end_date')
-            if end_year and end_year != 'present' and str(end_year).strip():
-                from datetime import date
-                end_date = date(int(end_year), 12, 31)
-        except (ValueError, TypeError):
-            pass
-
         # Create funding record
         try:
             funding = Funding(
@@ -474,13 +556,14 @@ class Command(BaseCommand):
                 title=title,
                 agency=organization,
                 grant_number=grant_id,
+                amount=amount,
                 start_date=start_date,
                 end_date=end_date,
                 source='orcid',
                 additional_info={
                     'orcid_sync': True,
-                    'url': funding_data.get('url', ''),
-                    'role': funding_data.get('role', ''),
+                    'url': url,
+                    'role': role,
                     'original_data': funding_data.to_dict() if hasattr(funding_data, 'to_dict') else dict(funding_data)
                 }
             )

@@ -20,6 +20,7 @@ urlpatterns = [
     path('funding/new/', views.FundingCreateView.as_view(), name='funding_create'),
     path('funding/<int:pk>/', views.FundingDetailView.as_view(), name='funding_detail'),
     path('funding/<int:pk>/edit/', views.FundingUpdateView.as_view(), name='funding_update'),
+    path('funding/clear/', views.ClearFundingView.as_view(), name='clear_funding'),
     
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),
