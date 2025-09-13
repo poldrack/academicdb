@@ -140,13 +140,25 @@ function refreshSpreadsheet() {
 }
 
 function saveSpreadsheet() {
-    updateStatus('Save functionality coming soon...');
+    updateStatus('Saving...');
+    const iframe = document.getElementById('spreadsheet-iframe');
+    if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({type: 'save'}, '*');
+    }
 }
 
 // Listen for messages from iframe
 window.addEventListener('message', function(event) {
     if (event.data.type === 'cellUpdated') {
         updateStatus('Modified');
+    } else if (event.data.type === 'saveComplete') {
+        updateStatus('Saved');
+        setTimeout(() => updateStatus('Ready'), 2000);
+    } else if (event.data.type === 'saveError') {
+        updateStatus('Error');
+        console.error('Save error:', event.data.message);
+    } else if (event.data.type === 'statusUpdate') {
+        updateStatus(event.data.status);
     }
 });
 </script>

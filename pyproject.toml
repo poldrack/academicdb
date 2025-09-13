@@ -29,6 +29,7 @@ dependencies = [
     "django-extensions>=3.2.0",
     "djangorestframework>=3.14.0",
     "python-dotenv>=1.1.0",
+    "openpyxl>=3.1.5",
 ]
 
 [project.scripts]

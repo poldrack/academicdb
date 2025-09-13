@@ -1,0 +1,350 @@
+{% extends "academic/base.html" %}
+{% load static %}
+
+{% block title %}{{ model_name }} Spreadsheet - Academic Database{% endblock %}
+
+{% block extra_css %}
+<!-- Custom styles FIRST -->
+<style>
+    /* AGGRESSIVE CSS RESET - Completely isolate Luckysheet */
+    .spreadsheet-wrapper {
+        /* Create a new stacking context */
+        position: relative;
+        width: 100%;
+        height: 600px;
+        background: white;
+        border: 1px solid #ddd;
+
+        /* CSS containment to prevent inheritance */
+        contain: layout style;
+
+        /* Create isolation */
+        isolation: isolate;
+    }
+
+    /* Nuclear option - reset EVERYTHING in the Luckysheet container */
+    .spreadsheet-wrapper,
+    .spreadsheet-wrapper *,
+    .spreadsheet-wrapper *::before,
+    .spreadsheet-wrapper *::after {
+        /* Reset all properties */
+        all: unset !important;
+
+        /* Then set basics back */
+        display: revert !important;
+        position: revert !important;
+        box-sizing: border-box !important;
+
+        /* Font reset */
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        font-size: 12px !important;
+        line-height: 1.2 !important;
+        color: #000 !important;
+
+        /* Reset margins and padding */
+        margin: revert !important;
+        padding: revert !important;
+
+        /* Reset borders and backgrounds */
+        border: revert !important;
+        background: revert !important;
+
+        /* Reset positioning */
+        top: revert !important;
+        left: revert !important;
+        right: revert !important;
+        bottom: revert !important;
+
+        /* Reset dimensions */
+        width: revert !important;
+        height: revert !important;
+        min-width: revert !important;
+        min-height: revert !important;
+        max-width: revert !important;
+        max-height: revert !important;
+
+        /* Reset z-index */
+        z-index: revert !important;
+
+        /* Reset text properties */
+        text-align: revert !important;
+        text-decoration: revert !important;
+        text-transform: revert !important;
+
+        /* Reset flex/grid */
+        flex: revert !important;
+        grid: revert !important;
+    }
+
+    /* Specific container resets */
+    .spreadsheet-wrapper {
+        display: block !important;
+        position: relative !important;
+        width: 100% !important;
+        height: 600px !important;
+        background: white !important;
+        border: 1px solid #ddd !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #{{ container_id }} {
+        display: block !important;
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    .spreadsheet-controls {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+
+    .spreadsheet-status {
+        font-size: 0.875rem;
+    }
+
+    .alert-spreadsheet {
+        margin-bottom: 1rem;
+    }
+
+    .btn-toolbar .btn {
+        margin-right: 0.5rem;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+
+    .loading-content {
+        text-align: center;
+    }
+
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    /* Minimal necessary styles - don't interfere with Luckysheet */
+</style>
+
+<!-- Luckysheet CSS loaded AFTER our resets -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/css/pluginsCss.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/plugins.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/css/luckysheet.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/assets/iconfont/iconfont.css" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>{{ model_name }} Spreadsheet</h2>
+            <p class="text-muted mb-0">Manage your {{ model_name|lower }} data in an Excel-like interface</p>
+        </div>
+        <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="viewMode" id="spreadsheet-view" checked>
+            <label class="btn btn-outline-primary" for="spreadsheet-view">
+                <i class="fas fa-table"></i> Spreadsheet
+            </label>
+
+            <input type="radio" class="btn-check" name="viewMode" id="list-view">
+            <label class="btn btn-outline-primary" for="list-view">
+                <i class="fas fa-list"></i> List View
+            </label>
+        </div>
+    </div>
+
+    <!-- Quick Help -->
+    <div class="alert alert-info alert-dismissible fade show alert-spreadsheet" role="alert">
+        <h6><i class="fas fa-info-circle me-2"></i>Quick Tips:</h6>
+        <ul class="mb-0 small">
+            <li><strong>Edit:</strong> Double-click any cell to edit, press Enter to confirm</li>
+            <li><strong>Navigation:</strong> Use arrow keys or Tab to move between cells</li>
+            <li><strong>Copy/Paste:</strong> Ctrl+C/V works from Excel or other spreadsheets</li>
+            <li><strong>Save:</strong> Changes auto-save every few seconds, or click Save</li>
+            <li><strong>Add Row:</strong> Right-click and select "Insert row" or use the Add Row button</li>
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Controls -->
+    <div class="spreadsheet-controls">
+        <div class="btn-toolbar d-flex justify-content-between" role="toolbar">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-success btn-sm" id="save-btn">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="add-row-btn">
+                    <i class="fas fa-plus"></i> Add Row
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="import-btn">
+                    <i class="fas fa-upload"></i> Import CSV
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="export-btn">
+                    <i class="fas fa-download"></i> Export Excel
+                </button>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="spreadsheet-status me-3" id="status-text">Ready</span>
+                <span class="badge bg-secondary" id="status-badge">Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spreadsheet Container -->
+    <div class="spreadsheet-wrapper">
+        <div id="{{ container_id }}">
+            <!-- Luckysheet will be initialized here -->
+        </div>
+        <!-- Loading state -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-content">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Loading {{ model_name|lower }} data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- List View Container (hidden by default) -->
+    <div id="list-view-container" class="d-none">
+        <div class="text-center py-5">
+            <i class="fas fa-list fa-3x text-muted mb-3"></i>
+            <h5>List View</h5>
+            <p class="text-muted">Switch to list view to see your {{ model_name|lower }} in a traditional table format.</p>
+            <a href="{% url list_view_url %}" class="btn btn-primary">
+                <i class="fas fa-list"></i> Go to List View
+            </a>
+        </div>
+    </div>
+
+    <!-- Hidden file input for CSV import -->
+    <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<!-- Luckysheet JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/luckysheet.umd.js"></script>
+
+<!-- Base spreadsheet functionality -->
+<script src="{% static 'js/spreadsheet.js' %}"></script>
+<script src="{% static 'js/spreadsheet-debug.js' %}"></script>
+
+<!-- Model-specific JavaScript -->
+{% block spreadsheet_js %}{% endblock %}
+
+<script>
+// View mode toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const spreadsheetView = document.getElementById('spreadsheet-view');
+    const listView = document.getElementById('list-view');
+    const spreadsheetContainer = document.querySelector('.spreadsheet-wrapper');
+    const listContainer = document.getElementById('list-view-container');
+
+    function toggleView() {
+        if (spreadsheetView.checked) {
+            spreadsheetContainer.style.display = 'block';
+            listContainer.classList.add('d-none');
+        } else {
+            spreadsheetContainer.style.display = 'none';
+            listContainer.classList.remove('d-none');
+        }
+    }
+
+    spreadsheetView.addEventListener('change', toggleView);
+    listView.addEventListener('change', toggleView);
+
+    // Initialize with spreadsheet view
+    toggleView();
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', function(event) {
+        if (event.state && event.state.view) {
+            if (event.state.view === 'list') {
+                listView.checked = true;
+            } else {
+                spreadsheetView.checked = true;
+            }
+            toggleView();
+        }
+    });
+
+    // Update URL when view changes
+    spreadsheetView.addEventListener('change', function() {
+        if (this.checked) {
+            const url = new URL(window.location);
+            url.searchParams.delete('view');
+            history.pushState({view: 'spreadsheet'}, '', url);
+        }
+    });
+
+    listView.addEventListener('change', function() {
+        if (this.checked) {
+            const url = new URL(window.location);
+            url.searchParams.set('view', 'list');
+            history.pushState({view: 'list'}, '', url);
+        }
+    });
+
+    // Initialize view based on URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const view = urlParams.get('view');
+    if (view === 'list') {
+        listView.checked = true;
+    } else {
+        spreadsheetView.checked = true;
+    }
+    toggleView();
+});
+
+// Global error handler
+window.addEventListener('error', function(event) {
+    console.error('Spreadsheet error:', event.error);
+
+    const container = document.querySelector('#{{ container_id }}');
+    if (container && event.message && event.message.includes('luckysheet')) {
+        container.innerHTML = `
+            <div class="alert alert-danger m-3" role="alert">
+                <h6><i class="fas fa-exclamation-triangle"></i> Spreadsheet Error</h6>
+                <p class="mb-2">There was a problem loading the spreadsheet. Please refresh the page and try again.</p>
+                <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">
+                    <i class="fas fa-refresh"></i> Reload Page
+                </button>
+            </div>
+        `;
+    }
+});
+
+// Warn user before leaving page with unsaved changes
+window.addEventListener('beforeunload', function(event) {
+    if (window.academicSpreadsheet && window.academicSpreadsheet.hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return event.returnValue;
+    }
+});
+</script>
+{% endblock %}

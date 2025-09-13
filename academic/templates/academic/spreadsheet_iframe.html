@@ -65,6 +65,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         const config = JSON.parse(decodeURIComponent(urlParams.get('config') || '{}'));
 
+        // Save functionality - declare these BEFORE they're used
+        let originalData = [];
+        let hasChanges = false;
+
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
             console.log('Status:', message);
@@ -95,7 +99,10 @@
                 }
 
                 const responseData = await response.json();
-                return responseData.results || responseData || [];
+                const data = responseData.results || responseData || [];
+                // Store original data for comparison during save
+                originalData = [...data];
+                return data;
             } catch (error) {
                 console.error('Load data error:', error);
                 updateStatus('Error: ' + error.message);
@@ -177,7 +184,8 @@
                     hook: {
                         cellUpdated: (r, c, oldValue, newValue, isRefresh) => {
                             if (!isRefresh && r > 0) {
-                                updateStatus(`Cell [${r},${c}] modified`);
+                                hasChanges = true;
+                                updateStatus(`Modified`);
                                 // Notify parent window of changes
                                 if (window.parent !== window) {
                                     window.parent.postMessage({
@@ -207,10 +215,277 @@
         // Initialize when page loads
         window.addEventListener('load', initSpreadsheet);
 
+        // Save functionality functions
+
+        function getCSRFToken() {
+            // Try to get CSRF token from parent window or current document
+            try {
+                if (window.parent !== window && window.parent.document) {
+                    const parentToken = window.parent.document.querySelector('[name=csrfmiddlewaretoken]');
+                    if (parentToken) return parentToken.value;
+                }
+            } catch (e) {
+                // Cross-origin access blocked, try current document
+            }
+
+            const currentToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (currentToken) return currentToken.value;
+
+            // Fallback to reading from cookies
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrftoken') {
+                    return decodeURIComponent(value);
+                }
+            }
+
+            return '';
+        }
+
+        function notifyParent(type, data = {}) {
+            if (window.parent !== window) {
+                window.parent.postMessage({type, ...data}, '*');
+            }
+        }
+
+        async function saveChanges() {
+            console.log('saveChanges called, hasChanges:', hasChanges);
+
+            // Always try to save even if hasChanges is false, to handle edge cases
+            // if (!hasChanges) {
+            //     notifyParent('saveComplete');
+            //     return;
+            // }
+
+            updateStatus('Saving...');
+            notifyParent('statusUpdate', {status: 'Saving...'});
+
+            try {
+                const currentData = getSpreadsheetData();
+                console.log('Current spreadsheet data:', currentData);
+
+                const updates = prepareUpdates(currentData);
+                console.log('Prepared updates:', updates);
+
+                if (updates.length > 0) {
+                    const result = await bulkUpdate(updates);
+                    console.log('Bulk update result:', result);
+                } else {
+                    console.log('No updates to save');
+                }
+
+                hasChanges = false;
+                updateStatus('Saved');
+                notifyParent('saveComplete');
+
+                // Reload data to get any server-generated IDs
+                // Increased timeout to ensure save completes
+                setTimeout(() => {
+                    console.log('Reloading page to refresh data...');
+                    location.reload();
+                }, 2000);
+
+            } catch (error) {
+                console.error('Save failed:', error);
+                updateStatus('Error: ' + error.message);
+                notifyParent('saveError', {message: error.message});
+            }
+        }
+
+        function getSpreadsheetData() {
+            if (!luckysheet || !luckysheet.getSheetData) {
+                console.error('Luckysheet not available for data extraction');
+                return [];
+            }
+
+            try {
+                const sheetData = luckysheet.getSheetData();
+                console.log('Raw sheet data from Luckysheet:', sheetData);
+                const rows = [];
+
+                // Skip header row (index 0)
+                for (let r = 1; r < sheetData.length; r++) {
+                    if (sheetData[r]) {
+                        const row = [];
+                        for (let c = 0; c < (config.columns || []).length; c++) {
+                            const cell = sheetData[r][c];
+                            let value = '';
+
+                            if (cell) {
+                                // Luckysheet can store values in different ways
+                                if (cell.v !== undefined && cell.v !== null) {
+                                    // Check if v is an object with a value property
+                                    if (typeof cell.v === 'object' && cell.v.v !== undefined) {
+                                        value = cell.v.v;
+                                    } else {
+                                        value = cell.v;
+                                    }
+                                } else if (cell.m !== undefined && cell.m !== null) {
+                                    value = cell.m;
+                                } else if (cell.ct && cell.ct.s && cell.ct.s.length > 0) {
+                                    // Sometimes value is in the styled text
+                                    value = cell.ct.s[0].v || '';
+                                }
+                            }
+
+                            row.push(value);
+                        }
+                        rows.push(row);
+                    }
+                }
+
+                console.log('Extracted rows:', rows);
+                return rows;
+            } catch (error) {
+                console.error('Error getting spreadsheet data:', error);
+                return [];
+            }
+        }
+
+        function prepareUpdates(currentData) {
+            const updates = [];
+
+            console.log('prepareUpdates - originalData:', originalData);
+            console.log('prepareUpdates - currentData:', currentData);
+
+            // Track which original records we've matched
+            let originalIndex = 0;
+
+            for (let i = 0; i < currentData.length; i++) {
+                const rowData = currentData[i];
+
+                // Skip empty rows
+                if (isEmptyRow(rowData)) {
+                    continue;
+                }
+
+                // Convert array data back to object
+                const rowObject = {};
+                (config.columns || []).forEach((col, index) => {
+                    if (index < rowData.length) {
+                        const value = parseFieldValue(rowData[index], col.type);
+                        // Only add non-null values to the object
+                        if (value !== null) {
+                            rowObject[col.data] = value;
+                        }
+                    }
+                });
+
+                // Skip rows without required 'name' field
+                if (!rowObject.name) {
+                    console.log(`Row ${i}: Skipping row without name`);
+                    continue;
+                }
+
+                // Add ID if updating existing row
+                // We match based on the order of non-empty rows
+                if (originalIndex < originalData.length && originalData[originalIndex] && originalData[originalIndex].id) {
+                    rowObject.id = originalData[originalIndex].id;
+                    console.log(`Row ${i} (originalIndex ${originalIndex}): updating existing record with ID ${originalData[originalIndex].id}`);
+                    console.log('Row data:', rowObject);
+                    originalIndex++;
+                } else {
+                    console.log(`Row ${i}: creating new record`);
+                    console.log('Row data:', rowObject);
+                }
+
+                updates.push(rowObject);
+            }
+
+            console.log('prepareUpdates - final updates:', updates);
+            return updates;
+        }
+
+        function parseFieldValue(value, type) {
+            // Handle empty values
+            if (value === '' || value === null || value === undefined) {
+                // For text fields, return null for empty strings
+                // This ensures optional fields are properly handled
+                return null;
+            }
+
+            // Trim string values first
+            if (typeof value === 'string') {
+                value = value.trim();
+                if (value === '') {
+                    return null;
+                }
+            }
+
+            switch (type) {
+                case 'numeric':
+                case 'number':
+                    // Parse as integer for fields like year and enrollment
+                    const num = parseInt(value, 10);
+                    return isNaN(num) ? null : num;
+                case 'boolean':
+                case 'checkbox':
+                    return value === 'Yes' || value === true || value === 'true' || value === 1;
+                default:
+                    // For text fields, return the trimmed value
+                    return value;
+            }
+        }
+
+        function isEmptyRow(rowData) {
+            return rowData.every(cell =>
+                cell === null ||
+                cell === undefined ||
+                cell === '' ||
+                (typeof cell === 'string' && cell.trim() === '')
+            );
+        }
+
+        async function bulkUpdate(data) {
+            const baseUrl = `${window.location.protocol}//${window.location.host}`;
+            const endpoint = baseUrl + config.endpoint + 'bulk_update/';
+
+            console.log('Sending bulk update to:', endpoint);
+            console.log('Payload:', JSON.stringify(data, null, 2));
+
+            const csrfToken = getCSRFToken();
+            console.log('CSRF Token:', csrfToken ? 'Found' : 'Missing');
+
+            const response = await fetch(endpoint, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Error response:', errorData);
+                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('Success response:', result);
+
+            if (result.errors && result.errors.length > 0) {
+                console.error('Updates failed with errors:', result.errors);
+                // Show detailed error information
+                result.errors.forEach(error => {
+                    console.error(`Row ${error.row}:`, error.errors || error.error);
+                });
+                throw new Error(`${result.errors.length} updates failed. Check console for details.`);
+            }
+
+            return result;
+        }
+
         // Listen for messages from parent window
         window.addEventListener('message', function(event) {
             if (event.data.type === 'refresh') {
                 location.reload();
+            } else if (event.data.type === 'save') {
+                saveChanges();
             }
         });
     </script>

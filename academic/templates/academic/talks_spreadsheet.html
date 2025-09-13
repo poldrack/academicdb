@@ -1,0 +1,55 @@
+{% extends "academic/spreadsheet_base.html" %}
+{% load static %}
+
+{% block spreadsheet_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Talks-specific configuration
+    const talksColumns = [
+        {
+            data: 'title',
+            title: 'Title',
+            type: 'text'
+        },
+        {
+            data: 'year',
+            title: 'Year',
+            type: 'numeric',
+            required: true
+        },
+        {
+            data: 'place',
+            title: 'Place',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'date',
+            title: 'Date',
+            type: 'date'
+        },
+        {
+            data: 'invited',
+            title: 'Invited',
+            type: 'boolean'
+        },
+        {
+            data: 'virtual',
+            title: 'Virtual',
+            type: 'boolean'
+        }
+    ];
+
+    // Initialize the spreadsheet
+    window.academicSpreadsheet = new AcademicSpreadsheet({
+        endpoint: '/api/v1/talks/',
+        container: '#talks-spreadsheet-container',
+        columns: talksColumns,
+        modelName: 'Talks',
+        autoSave: true
+    });
+
+    console.log('Talks spreadsheet initialized');
+});
+</script>
+{% endblock %}

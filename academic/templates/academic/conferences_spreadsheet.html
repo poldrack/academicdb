@@ -1,0 +1,68 @@
+{% extends "academic/spreadsheet_base.html" %}
+{% load static %}
+
+{% block spreadsheet_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Conferences-specific configuration
+    const conferencesColumns = [
+        {
+            data: 'title',
+            title: 'Title',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'authors',
+            title: 'Authors',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'year',
+            title: 'Year',
+            type: 'numeric',
+            required: true
+        },
+        {
+            data: 'month',
+            title: 'Month',
+            type: 'text'
+        },
+        {
+            data: 'location',
+            title: 'Location',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'conference_name',
+            title: 'Conference Name',
+            type: 'text'
+        },
+        {
+            data: 'presentation_type',
+            title: 'Type',
+            type: 'text',
+            source: ['talk', 'poster', 'keynote', 'workshop', 'panel', 'other']
+        },
+        {
+            data: 'link',
+            title: 'Link',
+            type: 'text'
+        }
+    ];
+
+    // Initialize the spreadsheet
+    window.academicSpreadsheet = new AcademicSpreadsheet({
+        endpoint: '/api/v1/conferences/',
+        container: '#conferences-spreadsheet-container',
+        columns: conferencesColumns,
+        modelName: 'Conferences',
+        autoSave: true
+    });
+
+    console.log('Conferences spreadsheet initialized');
+});
+</script>
+{% endblock %}
