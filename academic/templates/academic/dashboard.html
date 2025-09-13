@@ -196,9 +196,9 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Funding</h5>
-                <h2 class="text-info">0</h2>
+                <h2 class="text-info">{{ user.funding.count|default:"0" }}</h2>
                 <p class="card-text">Grants and awards</p>
-                <a href="#" class="btn btn-info">Manage Funding</a>
+                <a href="{% url 'academic:funding_list' %}" class="btn btn-info">Manage Funding</a>
             </div>
         </div>
     </div>

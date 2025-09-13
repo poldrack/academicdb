@@ -1,0 +1,246 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>My Funding ({{ funding_count }})</h1>
+            <div>
+                <a href="{% url 'academic:funding_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Funding
+                </a>
+                
+                <!-- ORCID Sync Button (only show if ORCID connected) -->
+                {% if user.is_orcid_connected %}
+                    <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success ms-2" title="Sync funding from ORCID">
+                            <i class="fab fa-orcid"></i> Sync ORCID
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Search and Filter Options -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <form method="get" class="d-flex">
+                    <input type="text" class="form-control" name="search" 
+                           placeholder="Search funding by title, agency, or grant number..."
+                           value="{{ request.GET.search }}">
+                    <button type="submit" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    {% if request.GET.search %}
+                        <a href="{% url 'academic:funding_list' %}" class="btn btn-outline-danger ms-2">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                    <option value="declined">Declined</option>
+                </select>
+            </div>
+        </div>
+
+        {% if funding_list %}
+            <!-- Funding Cards -->
+            <div class="row">
+                {% for funding in funding_list %}
+                    <div class="col-lg-6 col-xl-4 mb-4" data-status="{{ funding.status }}">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-1">
+                                        <a href="{% url 'academic:funding_detail' funding.pk %}" class="text-decoration-none">
+                                            {{ funding.title|truncatechars:50 }}
+                                        </a>
+                                    </h5>
+                                    <small class="text-muted">
+                                        <i class="fas fa-building"></i> {{ funding.agency }}
+                                    </small>
+                                </div>
+                                <div class="ms-2">
+                                    <span class="badge bg-{% if funding.status == 'active' %}success{% elif funding.status == 'completed' %}secondary{% elif funding.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                        {{ funding.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                {% if funding.grant_number %}
+                                    <p class="card-text">
+                                        <i class="fas fa-hashtag"></i> {{ funding.grant_number }}
+                                    </p>
+                                {% endif %}
+                                
+                                {% if funding.formatted_amount %}
+                                    <p class="card-text">
+                                        <i class="fas fa-dollar-sign"></i> {{ funding.formatted_amount }}
+                                    </p>
+                                {% endif %}
+                                
+                                {% if funding.start_date %}
+                                    <p class="card-text small">
+                                        <i class="fas fa-calendar"></i> 
+                                        {{ funding.start_date }}
+                                        {% if funding.end_date %}
+                                            - {{ funding.end_date }}
+                                            {% if funding.duration_years %}
+                                                ({{ funding.duration_years }} years)
+                                            {% endif %}
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+                                
+                                {% if funding.role and funding.role != 'pi' %}
+                                    <p class="card-text small">
+                                        <i class="fas fa-user-tie"></i> {{ funding.get_role_display }}
+                                    </p>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="card-footer bg-transparent">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{% url 'academic:funding_detail' funding.pk %}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{% url 'academic:funding_update' funding.pk %}" 
+                                       class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                </div>
+                                {% if funding.source == 'orcid' %}
+                                    <div class="text-center mt-2">
+                                        <small class="text-muted">
+                                            <i class="fab fa-orcid"></i> From ORCID
+                                        </small>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <div class="row">
+                    <div class="col-12">
+                        <nav aria-label="Funding pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">&laquo; First</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Previous</a>
+                                    </li>
+                                {% endif %}
+                                
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+                                
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Next</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Last &raquo;</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            {% endif %}
+            
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-5">
+                <i class="fas fa-hand-holding-usd fa-4x text-muted mb-3"></i>
+                <h3>No Funding Records</h3>
+                <p class="text-muted mb-4">You don't have any funding records yet.</p>
+                
+                <div class="d-flex justify-content-center gap-3">
+                    {% if user.is_orcid_connected %}
+                        <form method="post" action="{% url 'academic:orcid_sync' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success">
+                                <i class="fab fa-orcid"></i> Sync from ORCID
+                            </button>
+                        </form>
+                    {% endif %}
+                    
+                    <a href="{% url 'academic:funding_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Funding Manually
+                    </a>
+                </div>
+                
+                {% if not user.is_orcid_connected %}
+                    <div class="alert alert-info mt-4" style="max-width: 500px; margin: 0 auto;">
+                        <i class="fas fa-info-circle"></i> 
+                        <a href="{% url 'academic:profile' %}" class="alert-link">Connect your ORCID account</a> 
+                        to automatically sync funding information.
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Status filter functionality
+    const statusFilter = document.getElementById('statusFilter');
+    const fundingCards = document.querySelectorAll('[data-status]');
+    
+    statusFilter.addEventListener('change', function() {
+        const selectedStatus = this.value;
+        
+        fundingCards.forEach(card => {
+            if (!selectedStatus || card.dataset.status === selectedStatus) {
+                card.style.display = 'block';
+                card.classList.remove('d-none');
+            } else {
+                card.style.display = 'none';
+                card.classList.add('d-none');
+            }
+        });
+    });
+    
+    // Handle sync buttons
+    const syncBtns = document.querySelectorAll('button[type="submit"]');
+    syncBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (this.innerHTML.includes('Sync')) {
+                this.disabled = true;
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+                
+                // Re-enable after timeout if something goes wrong
+                setTimeout(() => {
+                    if (this.disabled) {
+                        this.disabled = false;
+                        this.innerHTML = originalText;
+                    }
+                }, 30000);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

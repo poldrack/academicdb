@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from academic.models import Publication
+from academic.models import Publication, Funding
 
 User = get_user_model()
 
@@ -143,6 +143,10 @@ class Command(BaseCommand):
                     self.style.ERROR(f'  Failed to sync {doi}: {str(e)}')
                 )
                 continue
+
+        # Sync funding sources
+        funding_count = self.sync_funding_from_orcid(user, orcid_data)
+        self.stdout.write(f'Synced {funding_count} funding records')
 
         # Update user's last sync time
         if not self.dry_run:
@@ -379,5 +383,122 @@ class Command(BaseCommand):
                 self.style.ERROR(
                     f'  Error creating publication {doi}: {str(e)}'
                 )
+            )
+            return False
+
+    def sync_funding_from_orcid(self, user, orcid_data):
+        """Sync funding records from ORCID data"""
+        if not orcid_data or not orcid_data.get('activities-summary'):
+            self.stdout.write('  No ORCID activities data available for funding sync')
+            return 0
+
+        # Extract funding data using existing utility function
+        try:
+            funding_df = orcid.get_orcid_funding(orcid_data)
+            if funding_df.empty:
+                self.stdout.write('  No funding records found in ORCID')
+                return 0
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'  Error extracting funding data: {str(e)}')
+            )
+            return 0
+
+        self.stdout.write(f'  Found {len(funding_df)} funding records in ORCID')
+        
+        synced_count = 0
+        for _, funding_row in funding_df.iterrows():
+            try:
+                if self.sync_funding_record(user, funding_row):
+                    synced_count += 1
+            except Exception as e:
+                self.stdout.write(
+                    self.style.ERROR(
+                        f'  Failed to sync funding "{funding_row["title"]}": {str(e)}'
+                    )
+                )
+                continue
+
+        return synced_count
+
+    def sync_funding_record(self, user, funding_data):
+        """Create or update a single funding record"""
+        # Extract data from the funding row (from pandas DataFrame)
+        title = funding_data.get('title', '').strip()
+        organization = funding_data.get('organization', '').strip()
+        grant_id = funding_data.get('id', '').strip()
+        
+        if not title or not organization:
+            self.stdout.write('  Skipping funding record with missing title or organization')
+            return False
+
+        # Check if funding already exists (by title and organization to avoid duplicates)
+        existing_funding = Funding.objects.filter(
+            owner=user,
+            title=title,
+            agency=organization
+        ).first()
+
+        if existing_funding:
+            self.stdout.write(f'  Funding already exists: {title}')
+            return False
+
+        if self.dry_run:
+            self.stdout.write(f'  Would create funding: {title} ({organization})')
+            return True
+
+        # Parse dates
+        start_date = None
+        end_date = None
+        
+        try:
+            start_year = funding_data.get('start_date')
+            if start_year and start_year != 'present' and str(start_year).strip():
+                from datetime import date
+                start_date = date(int(start_year), 1, 1)
+        except (ValueError, TypeError):
+            pass
+            
+        try:
+            end_year = funding_data.get('end_date')
+            if end_year and end_year != 'present' and str(end_year).strip():
+                from datetime import date
+                end_date = date(int(end_year), 12, 31)
+        except (ValueError, TypeError):
+            pass
+
+        # Create funding record
+        try:
+            funding = Funding(
+                owner=user,
+                title=title,
+                agency=organization,
+                grant_number=grant_id,
+                start_date=start_date,
+                end_date=end_date,
+                source='orcid',
+                additional_info={
+                    'orcid_sync': True,
+                    'url': funding_data.get('url', ''),
+                    'role': funding_data.get('role', ''),
+                    'original_data': funding_data.to_dict() if hasattr(funding_data, 'to_dict') else dict(funding_data)
+                }
+            )
+            
+            # Validate before saving
+            funding.full_clean()
+            funding.save()
+            
+            self.stdout.write(f'  Created funding: {title}')
+            return True
+            
+        except ValidationError as e:
+            self.stdout.write(
+                self.style.ERROR(f'  Validation error for funding "{title}": {e}')
+            )
+            return False
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'  Error creating funding "{title}": {str(e)}')
             )
             return False

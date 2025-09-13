@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 import json
-from .models import Publication
+from .models import Publication, Funding
 
 logger = logging.getLogger(__name__)
 
@@ -751,4 +751,92 @@ class ClearPublicationsView(LoginRequiredMixin, View):
             logger.error(f"Error clearing publications for user {user.id}: {str(e)}")
         
         return redirect('academic:dashboard')
+
+
+class FundingListView(LoginRequiredMixin, ListView):
+    """
+    List all funding for the current user
+    """
+    model = Funding
+    template_name = 'academic/funding_list.html'
+    context_object_name = 'funding_list'
+    paginate_by = 20
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Filter funding to show only those owned by the current user"""
+        return Funding.objects.filter(owner=self.request.user).order_by('-start_date', 'title')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'My Funding'
+        context['funding_count'] = self.get_queryset().count()
+        return context
+
+
+class FundingDetailView(LoginRequiredMixin, DetailView):
+    """
+    Display details of a single funding record
+    """
+    model = Funding
+    template_name = 'academic/funding_detail.html'
+    context_object_name = 'funding'
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only view their own funding"""
+        return Funding.objects.filter(owner=self.request.user)
+
+
+class FundingCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new funding record manually
+    """
+    model = Funding
+    template_name = 'academic/funding_form.html'
+    fields = ['title', 'agency', 'grant_number', 'amount', 'currency', 
+              'start_date', 'end_date', 'role', 'status']
+    success_url = reverse_lazy('academic:funding_list')
+    login_url = '/accounts/login/'
+    
+    def form_valid(self, form):
+        """Set the owner to the current user and mark as manual entry"""
+        form.instance.owner = self.request.user
+        form.instance.source = 'manual'
+        
+        messages.success(self.request, 'Funding record added successfully!')
+        return super().form_valid(form)
+
+
+class FundingUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update an existing funding record
+    """
+    model = Funding
+    template_name = 'academic/funding_form.html'
+    fields = ['title', 'agency', 'grant_number', 'amount', 'currency', 
+              'start_date', 'end_date', 'role', 'status']
+    success_url = reverse_lazy('academic:funding_list')
+    login_url = '/accounts/login/'
+    
+    def get_queryset(self):
+        """Ensure users can only edit their own funding"""
+        return Funding.objects.filter(owner=self.request.user)
+    
+    def form_valid(self, form):
+        """Track manual edits"""
+        # Get changed fields
+        changed_fields = form.changed_data
+        
+        if changed_fields:
+            # Use the save_with_edit_protection method
+            obj = form.save(commit=False)
+            obj.save_with_edit_protection(
+                user_edit=True,
+                edited_fields=changed_fields
+            )
+            messages.success(self.request, 'Funding record updated successfully!')
+            return redirect(self.success_url)
+        
+        return super().form_valid(form)
 

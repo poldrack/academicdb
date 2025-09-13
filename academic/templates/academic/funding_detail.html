@@ -1,0 +1,212 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h1>{{ funding.title }}</h1>
+                <p class="text-muted">
+                    <i class="fas fa-building"></i> {{ funding.agency }}
+                    {% if funding.grant_number %}
+                        | <i class="fas fa-hashtag"></i> {{ funding.grant_number }}
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <span class="badge bg-{% if funding.status == 'active' %}success{% elif funding.status == 'completed' %}secondary{% elif funding.status == 'pending' %}warning{% else %}danger{% endif %} fs-6">
+                    {{ funding.get_status_display }}
+                </span>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="mb-4">
+            <a href="{% url 'academic:funding_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Funding List
+            </a>
+            <a href="{% url 'academic:funding_update' funding.pk %}" class="btn btn-primary ms-2">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+        </div>
+        
+        <!-- Main Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Funding Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Agency:</dt>
+                            <dd class="col-sm-8">{{ funding.agency }}</dd>
+                            
+                            {% if funding.grant_number %}
+                                <dt class="col-sm-4">Grant Number:</dt>
+                                <dd class="col-sm-8">{{ funding.grant_number }}</dd>
+                            {% endif %}
+                            
+                            <dt class="col-sm-4">Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-{% if funding.status == 'active' %}success{% elif funding.status == 'completed' %}secondary{% elif funding.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                    {{ funding.get_status_display }}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Your Role:</dt>
+                            <dd class="col-sm-8">{{ funding.get_role_display }}</dd>
+                        </dl>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <dl class="row">
+                            {% if funding.formatted_amount %}
+                                <dt class="col-sm-4">Amount:</dt>
+                                <dd class="col-sm-8">
+                                    <strong>{{ funding.formatted_amount }}</strong>
+                                </dd>
+                            {% endif %}
+                            
+                            {% if funding.start_date %}
+                                <dt class="col-sm-4">Start Date:</dt>
+                                <dd class="col-sm-8">{{ funding.start_date|date:"F j, Y" }}</dd>
+                            {% endif %}
+                            
+                            {% if funding.end_date %}
+                                <dt class="col-sm-4">End Date:</dt>
+                                <dd class="col-sm-8">{{ funding.end_date|date:"F j, Y" }}</dd>
+                            {% endif %}
+                            
+                            {% if funding.duration_years %}
+                                <dt class="col-sm-4">Duration:</dt>
+                                <dd class="col-sm-8">{{ funding.duration_years }} years</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Source and Sync Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-database"></i> Data Source</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Source:</strong> 
+                            {% if funding.source == 'orcid' %}
+                                <i class="fab fa-orcid text-success"></i> ORCID
+                                <br><small class="text-muted">Synced from your ORCID profile</small>
+                            {% elif funding.source == 'manual' %}
+                                <i class="fas fa-user text-primary"></i> Manual Entry
+                                <br><small class="text-muted">Added manually by you</small>
+                            {% else %}
+                                {{ funding.get_source_display }}
+                            {% endif %}
+                        </p>
+                        
+                        <p><strong>Created:</strong> {{ funding.created_at|date:"F j, Y \a\t g:i A" }}</p>
+                        <p><strong>Last Updated:</strong> {{ funding.updated_at|date:"F j, Y \a\t g:i A" }}</p>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        {% if funding.last_api_sync %}
+                            <p><strong>Last API Sync:</strong> {{ funding.last_api_sync|date:"F j, Y \a\t g:i A" }}</p>
+                        {% endif %}
+                        
+                        {% if funding.manually_edited_at %}
+                            <p><strong>Last Manual Edit:</strong> {{ funding.manually_edited_at|date:"F j, Y \a\t g:i A" }}</p>
+                        {% endif %}
+                        
+                        {% if funding.has_manual_edits %}
+                            <div class="alert alert-info small">
+                                <i class="fas fa-info-circle"></i> 
+                                This record has manual edits that will be preserved during sync operations.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Additional Information -->
+        {% if funding.additional_info %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-plus-circle"></i> Additional Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if funding.additional_info.url %}
+                        <p><strong>URL:</strong> 
+                            <a href="{{ funding.additional_info.url }}" target="_blank" rel="noopener">
+                                {{ funding.additional_info.url }} <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </p>
+                    {% endif %}
+                    
+                    {% if funding.additional_info.original_data %}
+                        <details class="mt-3">
+                            <summary class="fw-bold">Original ORCID Data</summary>
+                            <pre class="bg-light p-3 mt-2 small"><code>{{ funding.additional_info.original_data|pprint }}</code></pre>
+                        </details>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Edit History -->
+        {% if funding.edit_history %}
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history"></i> Edit History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for edit in funding.edit_history %}
+                            <div class="timeline-item mb-3">
+                                <div class="d-flex">
+                                    <div class="me-3">
+                                        <i class="fas fa-edit text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <p class="mb-1">
+                                            <strong>{{ edit.action|title }}</strong>
+                                            <small class="text-muted">{{ edit.timestamp|date:"F j, Y \a\t g:i A" }}</small>
+                                        </p>
+                                        {% if edit.fields %}
+                                            <p class="mb-0 small text-muted">
+                                                Fields modified: {{ edit.fields|join:", " }}
+                                            </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Pretty print JSON in code blocks
+    const codeBlocks = document.querySelectorAll('pre code');
+    codeBlocks.forEach(block => {
+        try {
+            const data = JSON.parse(block.textContent);
+            block.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            // If it's not valid JSON, leave as is
+        }
+    });
+});
+</script>
+{% endblock %}

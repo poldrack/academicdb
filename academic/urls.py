@@ -15,6 +15,12 @@ urlpatterns = [
     path('publications/<int:pk>/', views.PublicationDetailView.as_view(), name='publication_detail'),
     path('publications/<int:pk>/edit/', views.PublicationUpdateView.as_view(), name='publication_update'),
     
+    # Funding URLs
+    path('funding/', views.FundingListView.as_view(), name='funding_list'),
+    path('funding/new/', views.FundingCreateView.as_view(), name='funding_create'),
+    path('funding/<int:pk>/', views.FundingDetailView.as_view(), name='funding_detail'),
+    path('funding/<int:pk>/edit/', views.FundingUpdateView.as_view(), name='funding_update'),
+    
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),
     

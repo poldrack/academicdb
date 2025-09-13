@@ -830,3 +830,191 @@ class AuthorCache(models.Model):
                 self.confidence_score = min(1.0, self.confidence_score + 0.1)
         
         self.save()
+
+
+class Funding(models.Model):
+    """
+    Represents grants, awards, and funding history for academic researchers
+    """
+    # Status choices
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('pending', 'Pending'),
+        ('declined', 'Declined'),
+    ]
+    
+    # Role choices
+    ROLE_CHOICES = [
+        ('pi', 'Principal Investigator'),
+        ('co_pi', 'Co-Principal Investigator'),
+        ('co_i', 'Co-Investigator'),
+        ('consultant', 'Consultant'),
+        ('other', 'Other'),
+    ]
+    
+    # Ownership
+    owner = models.ForeignKey(
+        AcademicUser, 
+        on_delete=models.CASCADE,
+        related_name='funding'
+    )
+    
+    # Grant Details
+    title = models.CharField(max_length=500)
+    agency = models.CharField(max_length=200)
+    grant_number = models.CharField(max_length=100, blank=True)
+    
+    # Financial Information
+    amount = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Funding amount in the specified currency"
+    )
+    currency = models.CharField(max_length=3, default='USD')
+    
+    # Timeline
+    start_date = models.DateField(
+        null=True, 
+        blank=True,
+        help_text="Project start date"
+    )
+    end_date = models.DateField(
+        null=True, 
+        blank=True,
+        help_text="Project end date"
+    )
+    
+    # Role & Collaboration
+    role = models.CharField(
+        max_length=50,
+        choices=ROLE_CHOICES,
+        default='pi',
+        help_text="Your role in this funding"
+    )
+    
+    # Flexible Details
+    additional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional metadata (ORCID-specific fields, etc.)"
+    )
+    
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        help_text="Current status of the funding"
+    )
+    
+    # Source Tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('orcid', 'ORCID'),
+            ('manual', 'Manual Entry'),
+            ('institutional', 'Institutional System'),
+        ],
+        default='manual',
+        help_text="Original data source"
+    )
+    
+    # Edit Tracking (consistent with Publication model)
+    manual_edits = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Tracks which fields have been manually edited"
+    )
+    edit_history = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Audit trail of all edits"
+    )
+    manually_edited_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last manual edit timestamp"
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_api_sync = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last synchronization with external API"
+    )
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'start_date']),
+            models.Index(fields=['agency', 'status']),
+            models.Index(fields=['source', 'updated_at']),
+        ]
+        ordering = ['-start_date', '-created_at']
+        verbose_name = 'Funding'
+        verbose_name_plural = 'Funding'
+    
+    def __str__(self):
+        return f"{self.title} ({self.agency})"
+    
+    def clean(self):
+        """Validate funding data"""
+        super().clean()
+        
+        # Validate date range
+        if self.start_date and self.end_date:
+            if self.end_date < self.start_date:
+                raise ValidationError({
+                    'end_date': 'End date must be after start date'
+                })
+    
+    def save_with_edit_protection(self, api_data=None, user_edit=False, edited_fields=None):
+        """
+        Save funding with protection for manually edited fields
+        Similar pattern to Publication model
+        """
+        if user_edit and edited_fields:
+            # Mark fields as manually edited
+            for field_name in edited_fields:
+                self.manual_edits[field_name] = True
+            
+            # Add to edit history
+            self.edit_history.append({
+                'timestamp': timezone.now().isoformat(),
+                'fields': edited_fields,
+                'action': 'manual_edit',
+            })
+            self.manually_edited_at = timezone.now()
+        
+        if api_data:
+            # Only update fields that haven't been manually edited
+            for field, value in api_data.items():
+                if not self.manual_edits.get(field, False):
+                    setattr(self, field, value)
+            self.last_api_sync = timezone.now()
+        
+        self.save()
+    
+    @property
+    def duration_years(self):
+        """Calculate project duration in years"""
+        if self.start_date and self.end_date:
+            delta = self.end_date - self.start_date
+            return round(delta.days / 365.25, 1)
+        return None
+    
+    @property
+    def is_active(self):
+        """Check if funding is currently active"""
+        return self.status == 'active'
+    
+    @property
+    def formatted_amount(self):
+        """Return formatted amount with currency"""
+        if self.amount:
+            return f"{self.currency} {self.amount:,.2f}"
+        return None
