@@ -70,7 +70,13 @@ def parse_crossref_record(
                 f = f[0]
             pub[field] = f
     if 'published' in record and 'date-parts' in record['published']:
-        pub['publication-date'] = '-'.join([str(i) for i in record['published']['date-parts'][0]])
+        date_parts = record['published']['date-parts'][0]
+        # Ensure we have year, month, day format (YYYY-MM-DD)
+        if len(date_parts) >= 1:
+            year = str(date_parts[0])
+            month = str(date_parts[1]).zfill(2) if len(date_parts) >= 2 else '01'
+            day = str(date_parts[2]).zfill(2) if len(date_parts) >= 3 else '01'
+            pub['publication-date'] = f'{year}-{month}-{day}'
     # filter out pages with n/a
     if 'page' in pub and pub['page'].find('n/a') > -1:
         del pub['page']
