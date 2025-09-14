@@ -63,8 +63,27 @@ class Command(BaseCommand):
         # Filter to publications that don't already have PMC IDs
         publications_without_pmc = []
         already_have_pmc = 0
+        skipped_ignored = 0
+        skipped_preprints = 0
+        skipped_no_pmid = 0
 
         for pub in publications:
+            # Skip ignored publications
+            if pub.is_ignored:
+                skipped_ignored += 1
+                continue
+
+            # Skip preprints (they won't have PMC IDs)
+            if pub.is_preprint:
+                skipped_preprints += 1
+                continue
+
+            # Skip if no PMID and no DOI (PMC requires at least one)
+            pmid = pub.identifiers.get('pmid') if pub.identifiers else None
+            if not pmid and not pub.doi:
+                skipped_no_pmid += 1
+                continue
+
             if pub.identifiers and pub.identifiers.get('pmcid'):
                 already_have_pmc += 1
             else:
@@ -72,6 +91,12 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Found {len(publications_without_pmc)} publications without PMC IDs")
         self.stdout.write(f"Publications already with PMC IDs: {already_have_pmc}")
+        if skipped_ignored > 0:
+            self.stdout.write(f"Skipped ignored publications: {skipped_ignored}")
+        if skipped_preprints > 0:
+            self.stdout.write(f"Skipped preprints: {skipped_preprints}")
+        if skipped_no_pmid > 0:
+            self.stdout.write(f"Skipped publications without PMID or DOI: {skipped_no_pmid}")
 
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN MODE - No changes will be made"))
@@ -87,24 +112,24 @@ class Command(BaseCommand):
 
         for pub in publications_without_pmc:
             self.stdout.write(f"\nLooking up PMC ID for: {pub.title[:100]}...")
-            
+
             try:
                 pmc_id = self.lookup_pmc_id(pub)
-                
+
                 if pmc_id:
                     self.stdout.write(f"  Found PMC ID: {pmc_id}")
                     successful_lookups += 1
-                    
+
                     if not dry_run:
                         self.update_publication_pmc_id(pub, pmc_id)
                     updated_count += 1
                 else:
                     self.stdout.write(f"  No PMC ID found")
                     failed_lookups += 1
-                
+
                 # Rate limiting
                 time.sleep(rate_limit)
-                
+
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"  Error: {str(e)}"))
                 failed_lookups += 1
@@ -120,7 +145,7 @@ class Command(BaseCommand):
                 f"Already had PMC IDs: {already_have_pmc}"
             )
         )
-        
+
         if dry_run:
             self.stdout.write(self.style.WARNING("\nDRY RUN - No actual changes were made"))
 
@@ -129,33 +154,29 @@ class Command(BaseCommand):
         Lookup PMC ID for a publication using DOI or PMID
         """
         pmc_id = None
-        
-        # Try DOI first if available
-        if publication.doi:
-            pmc_id = self.lookup_pmc_by_doi(publication.doi)
-            if pmc_id:
-                return pmc_id
-        
-        # Try PMID if available
+
+        # Try PMID first if available (more direct)
         pmid = publication.identifiers.get('pmid') if publication.identifiers else None
         if pmid:
             pmc_id = self.lookup_pmc_by_pmid(pmid)
             if pmc_id:
                 return pmc_id
-        
-        # Try searching by title as last resort
-        if publication.title:
-            pmc_id = self.lookup_pmc_by_title(publication.title)
+
+        # Try DOI if no PMC found via PMID
+        if publication.doi and not pmid:  # Only use DOI if we don't have PMID
+            pmc_id = self.lookup_pmc_by_doi(publication.doi)
             if pmc_id:
                 return pmc_id
-        
+
+        # Don't search by title - too unreliable
+
         return None
 
     def lookup_pmc_by_doi(self, doi):
         """Lookup PMC ID using DOI via PubMed API"""
         try:
             self.stdout.write(f"    Searching by DOI: {doi}")
-            
+
             # Search PubMed for the DOI
             search_handle = Entrez.esearch(
                 db='pubmed',
@@ -164,21 +185,24 @@ class Command(BaseCommand):
             )
             search_result = Entrez.read(search_handle)
             search_handle.close()
-            
+
             if search_result['IdList']:
                 pmid = search_result['IdList'][0]
-                return self.lookup_pmc_by_pmid(pmid)
-                
+                # Now look up the PMC ID using the found PMID
+                # But don't print duplicate messages
+                return self.lookup_pmc_by_pmid(pmid, print_message=False)
+
         except Exception as e:
             logger.warning(f"Error looking up PMC by DOI {doi}: {str(e)}")
-        
+
         return None
 
-    def lookup_pmc_by_pmid(self, pmid):
+    def lookup_pmc_by_pmid(self, pmid, print_message=True):
         """Lookup PMC ID using PMID via PubMed API"""
         try:
-            self.stdout.write(f"    Searching by PMID: {pmid}")
-            
+            if print_message:
+                self.stdout.write(f"    Searching by PMID: {pmid}")
+
             # Fetch the publication record
             fetch_handle = Entrez.efetch(
                 db='pubmed',
@@ -187,40 +211,14 @@ class Command(BaseCommand):
             )
             records = Entrez.read(fetch_handle)
             fetch_handle.close()
-            
+
             if records['PubmedArticle']:
                 record = records['PubmedArticle'][0]
                 return self.extract_pmc_from_record(record)
-                
+
         except Exception as e:
             logger.warning(f"Error looking up PMC by PMID {pmid}: {str(e)}")
-        
-        return None
 
-    def lookup_pmc_by_title(self, title):
-        """Lookup PMC ID by searching for title"""
-        try:
-            self.stdout.write(f"    Searching by title: {title[:50]}...")
-            
-            # Clean title for search
-            clean_title = title.replace('"', '').replace('[', '').replace(']', '')
-            
-            # Search PubMed for the title
-            search_handle = Entrez.esearch(
-                db='pubmed',
-                term=f'"{clean_title}"[Title]',
-                retmax=1
-            )
-            search_result = Entrez.read(search_handle)
-            search_handle.close()
-            
-            if search_result['IdList']:
-                pmid = search_result['IdList'][0]
-                return self.lookup_pmc_by_pmid(pmid)
-                
-        except Exception as e:
-            logger.warning(f"Error looking up PMC by title: {str(e)}")
-        
         return None
 
     def extract_pmc_from_record(self, record):
@@ -236,7 +234,7 @@ class Command(BaseCommand):
                         return pmc_id
         except Exception as e:
             logger.warning(f"Error extracting PMC from record: {str(e)}")
-        
+
         return None
 
     def update_publication_pmc_id(self, publication, pmc_id):
@@ -244,19 +242,19 @@ class Command(BaseCommand):
         try:
             if not publication.identifiers:
                 publication.identifiers = {}
-            
+
             publication.identifiers['pmcid'] = pmc_id
-            
+
             # Don't add PMC link to the links dictionary since it will be
             # displayed automatically via the identifiers.pmcid field
             # This prevents duplicate PMC links in the UI
-            
+
             # Mark as manually edited to preserve this information
             if not publication.manual_edits:
                 publication.manual_edits = {}
             publication.manual_edits['identifiers'] = True
-            
+
             publication.save()
-            
+
         except Exception as e:
             logger.error(f"Error updating publication {publication.id}: {str(e)}")

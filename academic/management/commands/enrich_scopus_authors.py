@@ -68,6 +68,22 @@ class Command(BaseCommand):
         # Filter to publications with DOIs
         publications = publications.exclude(doi__isnull=True).exclude(doi__exact='')
 
+        # Further filter to skip publications that have already been enriched (unless force flag is set)
+        if not force:
+            # Skip publications that have been enriched or have all authors with Scopus IDs
+            publications_to_skip = []
+            for pub in publications:
+                # Skip if already marked as Scopus enriched
+                if pub.metadata and pub.metadata.get('scopus_author_enriched'):
+                    publications_to_skip.append(pub.id)
+                # Skip if all authors already have Scopus IDs
+                elif self.all_authors_have_scopus_ids(pub):
+                    publications_to_skip.append(pub.id)
+
+            if publications_to_skip:
+                publications = publications.exclude(id__in=publications_to_skip)
+                self.stdout.write(f"Skipped {len(publications_to_skip)} publications already enriched or with complete Scopus author IDs")
+
         if not publications.exists():
             self.stdout.write(self.style.WARNING("No publications with DOIs found"))
             return
@@ -84,11 +100,6 @@ class Command(BaseCommand):
         not_in_scopus = 0
 
         for pub in publications:
-            # Skip if all authors already have Scopus IDs (unless force flag is set)
-            if not force and self.all_authors_have_scopus_ids(pub):
-                already_complete += 1
-                self.stdout.write(f"✓ {pub.title[:60]}... - Already complete")
-                continue
 
             self.stdout.write(f"\nProcessing: {pub.title[:60]}...")
             self.stdout.write(f"  DOI: {pub.doi}")
@@ -112,11 +123,18 @@ class Command(BaseCommand):
                             self.stdout.write(self.style.SUCCESS(f"  ✓ Enriched {updated} authors with Scopus IDs"))
                         else:
                             self.stdout.write("  No new Scopus IDs added")
+
+                        # Mark as enriched regardless of whether new IDs were added
+                        if not dry_run:
+                            self.mark_as_scopus_enriched(pub)
                     else:
                         self.stdout.write("  No author data in Scopus record")
                 else:
                     not_in_scopus += 1
                     self.stdout.write("  Not found in Scopus")
+                    # Mark as attempted even if not found
+                    if not dry_run:
+                        self.mark_as_scopus_enriched(pub)
 
                 processed += 1
 
@@ -197,6 +215,15 @@ class Command(BaseCommand):
 
         return authors
 
+    def mark_as_scopus_enriched(self, publication):
+        """Mark publication as having been processed for Scopus author enrichment"""
+        if not publication.metadata:
+            publication.metadata = {}
+
+        publication.metadata['scopus_author_enriched'] = True
+        publication.metadata['scopus_author_enriched_at'] = time.time()
+        publication.save(update_fields=['metadata'])
+
     def update_publication_authors(self, publication, scopus_authors, dry_run=False):
         """
         Update publication authors with Scopus IDs using positional matching
@@ -273,7 +300,7 @@ class Command(BaseCommand):
                 publication.manual_edits = {}
             publication.manual_edits['authors'] = True
 
-            publication.save()
+            publication.save(update_fields=['authors', 'manual_edits'])
 
         return updated_count
 
@@ -336,7 +363,7 @@ class Command(BaseCommand):
                 'new_count': new_count
             })
 
-            publication.save()
+            publication.save(update_fields=['authors', 'edit_history'])
 
         return new_count
 
@@ -412,7 +439,7 @@ class Command(BaseCommand):
                 publication.manual_edits = {}
             publication.manual_edits['authors'] = True
 
-            publication.save()
+            publication.save(update_fields=['authors', 'manual_edits'])
 
         return updated_count
 

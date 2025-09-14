@@ -1,0 +1,90 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="text-danger">Delete Publication</h1>
+            <a href="{% url 'academic:publication_detail' publication.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Publication
+            </a>
+        </div>
+
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Deletion
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <strong>Warning:</strong> This action cannot be undone. The publication will be permanently removed from your database.
+                </div>
+
+                <h6>Publication to be deleted:</h6>
+                <div class="p-3 bg-light border rounded mb-4">
+                    <h6 class="text-primary">{{ publication.title }}</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Year:</strong> {{ publication.year }}</p>
+                            <p class="mb-1"><strong>Type:</strong> {{ publication.get_publication_type_display }}</p>
+                            {% if publication.publication_name %}
+                            <p class="mb-1"><strong>Published in:</strong> {{ publication.publication_name }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if publication.doi %}
+                            <p class="mb-1"><strong>DOI:</strong> {{ publication.doi }}</p>
+                            {% endif %}
+                            <p class="mb-1"><strong>Authors:</strong> {{ publication.author_count }}</p>
+                            <p class="mb-1"><strong>Source:</strong> {{ publication.get_source_display }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a href="{% url 'academic:publication_detail' publication.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <a href="{% url 'academic:publication_list' %}" class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-list"></i> Back to Publications
+                            </a>
+                        </div>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete Publication
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6>About Deleting Publications</h6>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    When you delete a publication:
+                </p>
+                <ul class="small">
+                    <li>The publication record is permanently removed</li>
+                    <li>This action cannot be undone</li>
+                    <li>The publication may reappear if you sync from external APIs again</li>
+                    <li>Consider using "Ignore" instead if you want to hide it temporarily</li>
+                </ul>
+
+                <div class="alert alert-info mt-3">
+                    <small>
+                        <strong>Alternative:</strong> If you want to keep the publication but exclude it from reports, consider using the "Ignore" option in the edit form instead of deleting.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

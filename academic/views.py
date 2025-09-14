@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, View
+from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, StreamingHttpResponse
 from django.contrib import messages
@@ -123,18 +123,16 @@ class PublicationListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         """Filter publications to show only those owned by the current user"""
         queryset = Publication.objects.filter(owner=self.request.user)
-
-        # Allow filtering by ignored status via query parameter
-        show_ignored = self.request.GET.get('show_ignored', 'false').lower() == 'true'
-        if not show_ignored:
-            queryset = queryset.filter(is_ignored=False)
-
+        # Include all publications (both ignored and non-ignored)
         return queryset.order_by('-year', 'title')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'My Publications'
         context['publication_count'] = self.get_queryset().count()
+        # Count ignored and non-ignored publications separately
+        context['ignored_count'] = self.get_queryset().filter(is_ignored=True).count()
+        context['active_count'] = self.get_queryset().filter(is_ignored=False).count()
         return context
 
 
@@ -211,6 +209,26 @@ class PublicationUpdateView(LoginRequiredMixin, UpdateView):
             return redirect(self.success_url)
         
         return super().form_valid(form)
+
+
+class PublicationDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Delete a publication with confirmation
+    """
+    model = Publication
+    template_name = 'academic/publication_confirm_delete.html'
+    success_url = reverse_lazy('academic:publication_list')
+    login_url = '/accounts/login/'
+
+    def get_queryset(self):
+        """Ensure users can only delete their own publications"""
+        return Publication.objects.filter(owner=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        """Add success message when deleting"""
+        obj = self.get_object()
+        messages.success(request, f'Publication "{obj.title}" has been deleted successfully.')
+        return super().delete(request, *args, **kwargs)
 
 
 class OrcidSyncView(LoginRequiredMixin, View):

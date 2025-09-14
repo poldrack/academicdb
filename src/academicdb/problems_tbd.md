@@ -4,6 +4,138 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.  
 
+[x] ~~It appears that the DOI-based Scopus author ID enrichment is being rerun each time.  We should only run it for publications that don't already have Scopus Author IDs assigned~~ **FIXED**:
+
+**Root cause**: The Scopus author enrichment command was processing publications every time, even if they had already been enriched or had complete Scopus author information.
+
+**Solution implemented**:
+1. **Enhanced filtering**: Added pre-filtering to skip publications that have already been processed or have all authors with Scopus IDs
+2. **Enrichment tracking**: Added `metadata['scopus_author_enriched']` flag to track processing attempts
+3. **Timestamp tracking**: Added `metadata['scopus_author_enriched_at']` to record when enrichment was attempted
+4. **Skip logic**: Publications are skipped if they have the enrichment flag set or all authors already have Scopus IDs (unless `--force` is used)
+5. **Mark all attempts**: Both successful enrichments and failed lookups are marked to avoid re-processing
+
+**Files modified**: `academic/management/commands/enrich_scopus_authors.py`
+
+[x] ~~Add "PI (Subcontract)" as an additional role (under "Your Role") for funding entries.~~ **FIXED**:
+
+**Root cause**: The funding role choices were missing the "PI (Subcontract)" option which is commonly used in academic funding scenarios.
+
+**Solution implemented**:
+1. **Added role choice**: Added `('pi_subcontract', 'PI (Subcontract)')` to the `ROLE_CHOICES` in the Funding model
+2. **Database migration**: Created migration `0011_add_pi_subcontract_role.py` to update the database schema
+3. **Proper ordering**: Placed the new role after "Principal Investigator" and before "Co-Principal Investigator" for logical grouping
+
+**Files modified**: `academic/models.py`, plus new migration `academic/migrations/0011_add_pi_subcontract_role.py`
+
+[x] ~~UNIQUE constraint failed: academic_publication.owner_id, academic_publication.doi error during Scopus author enrichment~~ **FIXED**:
+
+**Root cause**: The Publication model's `save()` method automatically normalizes DOI to lowercase. When the Scopus author enrichment command saves publications, this DOI normalization could create duplicate entries if a publication with the lowercase DOI already exists, causing a UNIQUE constraint violation.
+
+**Solution implemented**:
+1. **Selective field updates**: Modified all `publication.save()` calls in the Scopus author enrichment command to use `update_fields` parameter
+2. **Avoid DOI normalization**: By specifying only the fields being changed (`authors`, `manual_edits`, `edit_history`, `metadata`), the save method doesn't trigger DOI normalization
+3. **Preserve functionality**: All functionality remains intact while preventing constraint violations
+
+**Files modified**: `academic/management/commands/enrich_scopus_authors.py`
+
+[x] ~~Currently it seems that ignored publications are not showing up in the listing. I would prefer that they appear in the listing but are marked with an "Ignored" badge.~~ **FIXED**:
+
+**Root cause**: The `PublicationListView` was filtering out ignored publications by default, preventing them from appearing in the publication list.
+
+**Solution implemented**:
+1. **Modified queryset**: Removed the filter that excluded ignored publications from the queryset in `PublicationListView`
+2. **Added visual indicator**: Added an "Ignored" badge with eye-slash icon in the publication list template
+3. **Tooltip support**: Badge shows the ignore reason as a tooltip when available
+4. **Counts tracking**: Added separate tracking for ignored vs active publication counts
+
+**Files modified**: `academic/views.py`, `academic/templates/academic/publication_list.html`
+[x] ~~For preprints, don't worry about finding PMC links for them.~~ **FIXED**
+[x] ~~When searching for PMC IDs using the PMID, it seems that some PMIDs are searched twice (the message "Searching for PMID: ..." appears twice for each one).  This is unncessary - each PMID should just be searched once.~~ **FIXED**
+[x] ~~If a publication does not have a PMID then there is no need to search for a PMC ID since that is a prerequisite for a publication to appear in PMC.~~ **FIXED**
+[x] ~~Ignored publications can be skipped in the PMC ID search process.~~ **FIXED**
+
+**Combined fix for all PMC search issues**:
+
+**Root causes**:
+1. Preprints were being unnecessarily searched for PMC IDs
+2. When searching by DOI, the code would find a PMID and then search again with that PMID, causing duplicate messages
+3. Publications without PMIDs were still being searched
+4. Ignored publications were being processed unnecessarily
+
+**Solution implemented in `lookup_pmc_ids.py`**:
+1. **Skip filters**: Added pre-filtering to skip ignored publications, preprints, and publications without PMIDs or DOIs
+2. **Search order**: Changed to search by PMID first (if available), then by DOI only if no PMID exists
+3. **Duplicate prevention**: Added `print_message` parameter to `lookup_pmc_by_pmid()` to suppress duplicate messages when called from DOI search
+4. **Removed title search**: Removed unreliable title-based search completely
+5. **Better reporting**: Added counters to show how many publications were skipped for each reason
+
+**Files modified**: `academic/management/commands/lookup_pmc_ids.py`
+
+
+[x] ~~I am seeing errors related to the importing of some new funding entires from ORCID - they appear to have a None in one of the fields.  (I can't tell which because the error disappeared)~~ **FIXED**:
+
+**Root cause**: The ORCID funding sync code was not properly handling None values in nested dictionary structures from the ORCID API response, causing AttributeError exceptions when trying to access fields on None objects.
+
+**Solution implemented**:
+1. **Safe dictionary access**: Added robust None checks for all nested dictionary accesses using the pattern `dict.get('key') or {}`
+2. **Improved value extraction**: Changed from chained `.get()` calls to safe extraction with None checks at each level
+3. **Better error logging**: Added warning messages when date/amount parsing fails to help debug future issues
+4. **Defensive programming**: All field extractions now handle None values gracefully and provide sensible defaults
+
+**Files modified**: `academic/management/commands/sync_orcid.py` (sync_funding_record method)
+
+[x] ~~It seems that crossref data is being downloaded for all DOIs during syncing, even if they have already been enriched.  Each publication record should have any entry noting whether it has already been enriched using crossref data, and those should not be downloaded again.~~ **FIXED**:
+
+**Root cause**: The CrossRef enrichment command was not properly tracking which publications had already been enriched, causing unnecessary API calls and re-downloading of data.
+
+**Solution implemented**:
+1. **Enrichment tracking**: Added `metadata['crossref_enriched']` flag that is set to `True` when CrossRef data is successfully retrieved
+2. **Timestamp tracking**: Added `metadata['crossref_enriched_at']` to record when enrichment occurred
+3. **Smart filtering**: Modified `get_publications_to_enrich()` to exclude publications where `metadata['crossref_enriched']=True`
+4. **Progress logging**: Added logging to show how many publications are being skipped because they're already enriched
+5. **Force option**: Retained `--force` flag to allow re-enrichment when needed
+
+**Files modified**: `academic/management/commands/enrich_crossref.py`
+
+[x] ~~There is not currently a way to delete a publication.  Please add this functionality.~~ **FIXED**:
+
+**Root cause**: No delete functionality existed for publications, limiting users' ability to remove unwanted or incorrect publications from their database.
+
+**Solution implemented**:
+1. **Delete view**: Added `PublicationDeleteView` with proper authentication and authorization to ensure users can only delete their own publications
+2. **Confirmation page**: Created a comprehensive delete confirmation template (`publication_confirm_delete.html`) with publication details and warnings about permanent deletion
+3. **URL routing**: Added delete URL pattern (`publications/<int:pk>/delete/`) to the URL configuration
+4. **UI integration**: Added delete buttons to both publication list and detail views for easy access
+5. **User guidance**: Included helpful information about the difference between deleting and ignoring publications
+6. **Success messaging**: Added confirmation message when deletion is successful
+
+**Files modified**: `academic/views.py`, `academic/urls.py`, `academic/templates/academic/publication_list.html`, `academic/templates/academic/publication_detail.html`, plus new `academic/templates/academic/publication_confirm_delete.html`
+
+[x] ~~It seems that DOIs with differences in capitalization are being treated as different publications (e.g. 10.3758/BF03214547 and 10.3758/bf03214547).  It seems that in the general convention is for DOIs to be lower cased, so we should change all DOIs to lower case to prevent duplicated references. Add this to the sync process, and also add a management feature to allow removal of duplicates with matching DOIs that differ only in letter case.~~ **FIXED**:
+
+**Root cause**: DOIs were not being normalized to lowercase during import and save operations, leading to duplicate publications that differed only in case (e.g., "10.3758/BF03214547" vs "10.3758/bf03214547").
+
+**Solution implemented**:
+1. **Model-level normalization**: Modified `Publication.save()` method to automatically lowercase and strip DOIs before saving
+2. **Sync process updates**: Updated all sync commands (`sync_scopus.py`, `sync_pubmed.py`, `sync_scopus_enhanced.py`) to normalize DOIs to lowercase during import
+3. **Deduplication command**: Created `deduplicate_doi_case.py` management command to find and merge existing publications with case-different DOIs
+4. **Automatic future prevention**: All new publications will have normalized DOIs, preventing future case-sensitivity duplicates
+
+**Files modified**: `academic/models.py`, `academic/management/commands/sync_scopus.py`, `academic/management/commands/sync_pubmed.py`, `academic/management/commands/sync_scopus_enhanced.py`, plus new `academic/management/commands/deduplicate_doi_case.py`
+
+[x] ~~There is no way within the edit window for a publication to mark it as ignored.  Please add a way for the user to mark a publication as ignored.~~ **FIXED**:
+
+**Root cause**: The publication edit form did not include the `is_ignored` and `ignore_reason` fields that were already available in the model, preventing users from marking publications as ignored through the UI.
+
+**Solution implemented**:
+1. **Enhanced edit form**: Added "Ignore this publication" checkbox and optional "Reason for ignoring" text field to the publication edit form
+2. **Dynamic UI**: Implemented JavaScript to show/hide the reason field when the ignore checkbox is toggled
+3. **User guidance**: Added helpful explanations in the form and sidebar about when and why to ignore publications (corrigenda, misattributed works, duplicates, etc.)
+4. **Form integration**: Leveraged existing model fields and view logic that were already configured to handle ignore functionality
+
+**Files modified**: `academic/templates/academic/publication_form.html`
+
 [x] ~~The position matching tests for author similarity seem to brittle. for example, I see this warning message: "    ⚠️  Position 5: Names seem very different - J He vs He J."  It seems obvious that "J He" and "He J." would refer to the same person.  Improve the logic so that it is more robust to these kinds of differences.~~ **FIXED**:
 
 **Root cause**: The `names_reasonably_similar` function was too strict for cases like "J He" vs "He J." which are clearly the same author with different formatting.
@@ -17,76 +149,3 @@ Fixed problems marked with [x]
 
 **Files modified**: `academic/management/commands/enrich_scopus_authors.py:names_reasonably_similar()`
 
-[x] ~~We need a way to mark publications as "ignored". This could refer to cases where there has been a corrigendum (which appears as a separate publication) or in cases where the publication doesn't actually belong to the author.~~ **FIXED**:
-
-**Root cause**: No existing mechanism to mark publications as ignored for exclusion from reports, CVs, or analysis.
-
-**Solution implemented**:
-1. **Database schema changes**: Added `is_ignored` boolean field and `ignore_reason` text field to Publication model
-2. **Migration created**: Database migration to add the new fields to existing publications
-3. **API updates**: Updated PublicationSerializer to include ignore fields in REST API
-4. **View filtering**: Modified PublicationListView to filter out ignored publications by default (with option to show them via `?show_ignored=true`)
-5. **Form integration**: Added ignore fields to both create and update publication forms
-6. **UI support**: Forms now allow users to mark publications as ignored and provide reasons
-
-**Files modified**: `academic/models.py`, `academic/serializers.py`, `academic/views.py`, plus database migration
-
-[x] ~~Some publications (e.g. 10.1093/braincomms/fcae120, 10.7554/eLife.79277 ) show both a "PMC Full Text" link and a "Pmc" link, both of which refer to the same PMC link. Please ensure that the PMC Full Text link is only stored and referred to once for all publications.~~ **FIXED**:
-
-**Root cause**: The PMC lookup command was adding PMC links to the `links` dictionary while the template was already displaying PMC links from the `identifiers.pmcid` field, resulting in duplicate links in the UI.
-
-**Solution implemented**:
-1. **Prevented future duplicates**: Modified `lookup_pmc_ids.py` to only store PMC ID in identifiers, not add redundant links
-2. **Created cleanup command**: Added `deduplicate_pmc_links.py` management command to identify and remove existing duplicate PMC links
-3. **Bulk cleanup performed**: Ran deduplication command and successfully cleaned 141+ publications with duplicate PMC links
-4. **Consistent display logic**: PMC links now only appear once via the identifiers display, eliminating redundancy
-
-**Files modified**: `academic/management/commands/lookup_pmc_ids.py`, `academic/management/commands/deduplicate_pmc_links.py`
-
-
-
-[x] ~~The progress window is not fully tracking the onging processing when a full database sync is performed.  In particular, it never says that Scopus ID matching is happening - it stops at PMC matching.  Please ensure that all steps in the process are reflected in the progress window.~~ **FIXED**:
-
-**Root cause**: Progress tracking in the comprehensive sync function was not properly updating progress percentages for postprocessing tasks, causing the progress bar to appear stuck after PMC matching while Scopus ID enrichment was running in the background.
-
-**Solution implemented**:
-1. **Improved progress granularity**: Split total progress calculation into distinct phases with proper step allocation (sync sources: 30 steps each, enrichment: 20 steps, postprocessing: 15 steps)
-2. **Per-task progress updates**: Each postprocessing task now updates both the current step description AND progress percentage
-3. **Better step distribution**: Postprocessing steps are evenly distributed among tasks (PMC lookup and Scopus author ID enrichment)
-4. **Progress continuity**: Progress advances even when individual tasks fail, preventing the UI from getting stuck
-5. **Clearer phase indicators**: Progress window now shows distinct phases: "Database Synchronization", "Data Enrichment", and "Post-Processing"
-
-**Files modified**: `academic/views.py:run_comprehensive_sync_background()`
-
-[x] ~~the positional matching of authors for identification of Scopus IDs seems to
-  be breaking on at least two occasions (10.1093/braincomms/fcae120 and
-  10.3389/fninf.2012.00009).  are you checking to make sure that the two
-  publications have the same number of authors? it seems that one author may
-  have been skipped in one of the records leading to a mismatch.  When a mismatch occurs, we should use the Scopus entry for our database entry, replacing the mismatching author list from the original entry.~~ **FIXED**:
-
-**Root cause**: Positional matching algorithm did not handle cases where author counts differed between the publication record and Scopus data, leading to incorrect author-Scopus ID assignments.
-
-**Solution implemented**:
-1. **Enhanced author count validation**: Added explicit check for author count mismatches between publication and Scopus records
-2. **Authoritative Scopus replacement**: When counts don't match, completely replace the publication's author list with Scopus data instead of attempting name-based matching
-3. **Improved logging**: Added detailed logging to show when author counts match/mismatch and what action is taken
-4. **Positional match validation**: Added basic name similarity checking to warn when positional matches seem questionable
-5. **Audit trail**: Added edit history tracking when author lists are replaced due to mismatches
-6. **New method `replace_authors_with_scopus_data`**: Handles complete author list replacement while preserving necessary metadata
-7. **Enhanced validation with `names_reasonably_similar`**: Provides early warning for potentially incorrect positional matches
-
-**Files modified**: `academic/management/commands/enrich_scopus_authors.py`
-
-[x] ~~the progress bar when using the "Sync All Databases" function is not working correctly - it shows "initializing" but then goes away as if the sync was complete, when in reality the sync is ongoing (as seen from the progress messages printed to the server console)~~ **FIXED**:
-
-**Root cause**: The form was submitting normally causing page reload, instead of being handled by JavaScript AJAX
-**Solution implemented**:
-1. **Fixed form submission**: Prevented default form submission and handled entirely via AJAX with proper headers
-2. **Fixed thread synchronization**: Background sync function now receives sync_id parameter to ensure progress tracking matches
-3. **Updated view responses**: Return JSON for AJAX requests instead of redirecting
-4. **Added race condition protection**: Pre-initialize progress data before starting thread
-5. **Updated command names**: Fixed postprocessing to use correct `enrich_scopus_authors` command
-6. **Added comprehensive debugging**: Console logging and error handling for progress tracking
-7. **Memory cleanup**: Added automatic cleanup of completed sync progress data
-
-**Files modified**: `academic/views.py`, `academic/templates/academic/dashboard.html`

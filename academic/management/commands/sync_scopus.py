@@ -126,6 +126,8 @@ class Command(BaseCommand):
             try:
                 # Extract basic publication info
                 doi = pub_data.doi if hasattr(pub_data, 'doi') and pub_data.doi else None
+                if doi:
+                    doi = doi.lower().strip()  # Normalize DOI to lowercase
                 eid = pub_data.eid if hasattr(pub_data, 'eid') else None
                 
                 if not doi and not eid:

@@ -447,22 +447,32 @@ class Command(BaseCommand):
     def sync_funding_record(self, user, funding_data):
         """Create or update a single funding record"""
         # Handle both DataFrame (old) and detailed ORCID JSON (new) formats
-        if hasattr(funding_data, 'get') and 'title' in funding_data and isinstance(funding_data['title'], dict):
+        if hasattr(funding_data, 'get') and 'title' in funding_data and isinstance(funding_data.get('title'), dict):
             # New format: detailed ORCID JSON
-            title = funding_data.get('title', {}).get('title', {}).get('value', '').strip()
-            organization = funding_data.get('organization', {}).get('name', '').strip()
+            # Safely extract title with None checks
+            title_obj = funding_data.get('title') or {}
+            title_inner = title_obj.get('title') or {}
+            title = (title_inner.get('value') or '').strip()
+
+            # Safely extract organization with None checks
+            org_obj = funding_data.get('organization') or {}
+            organization = (org_obj.get('name') or '').strip()
             
             # Extract grant number from external-ids
             grant_id = ''
-            external_ids = funding_data.get('external-ids', {}).get('external-id', [])
-            if external_ids:
-                grant_id = external_ids[0].get('external-id-value', '').strip()
-            
+            external_ids_obj = funding_data.get('external-ids') or {}
+            external_ids = external_ids_obj.get('external-id') or []
+            if external_ids and len(external_ids) > 0:
+                first_id = external_ids[0] or {}
+                grant_id = (first_id.get('external-id-value') or '').strip()
+
             # Extract URL from main url field (not external-ids)
-            url = funding_data.get('url', {}).get('value', '') if funding_data.get('url') else ''
-            
+            url_obj = funding_data.get('url') or {}
+            url = (url_obj.get('value') or '').strip() if url_obj else ''
+
             # Extract role from organization-defined-type
-            role = funding_data.get('organization-defined-type', {}).get('value', '') if funding_data.get('organization-defined-type') else ''
+            role_obj = funding_data.get('organization-defined-type') or {}
+            role = (role_obj.get('value') or '').strip() if role_obj else ''
             
             # Extract dates with full precision
             start_date = None
@@ -472,42 +482,54 @@ class Command(BaseCommand):
             if start_date_obj:
                 try:
                     from datetime import date
-                    year_obj = start_date_obj.get('year', {})
-                    month_obj = start_date_obj.get('month', {})
-                    day_obj = start_date_obj.get('day', {})
-                    
-                    year = int(year_obj.get('value', 0) if year_obj else 0)
-                    month = int(month_obj.get('value', 1) if month_obj else 1)
-                    day = int(day_obj.get('value', 1) if day_obj else 1)
+                    year_obj = start_date_obj.get('year') or {}
+                    month_obj = start_date_obj.get('month') or {}
+                    day_obj = start_date_obj.get('day') or {}
+
+                    year_val = year_obj.get('value') if year_obj else None
+                    month_val = month_obj.get('value') if month_obj else None
+                    day_val = day_obj.get('value') if day_obj else None
+
+                    year = int(year_val) if year_val is not None else 0
+                    month = int(month_val) if month_val is not None else 1
+                    day = int(day_val) if day_val is not None else 1
+
                     if year > 0:
                         start_date = date(year, month, day)
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    self.stdout.write(f'  Warning: Could not parse start date: {e}')
             
             end_date_obj = funding_data.get('end-date')
             if end_date_obj:
                 try:
                     from datetime import date
-                    year_obj = end_date_obj.get('year', {})
-                    month_obj = end_date_obj.get('month', {})
-                    day_obj = end_date_obj.get('day', {})
-                    
-                    year = int(year_obj.get('value', 0) if year_obj else 0)
-                    month = int(month_obj.get('value', 12) if month_obj else 12)
-                    day = int(day_obj.get('value', 31) if day_obj else 31)
+                    year_obj = end_date_obj.get('year') or {}
+                    month_obj = end_date_obj.get('month') or {}
+                    day_obj = end_date_obj.get('day') or {}
+
+                    year_val = year_obj.get('value') if year_obj else None
+                    month_val = month_obj.get('value') if month_obj else None
+                    day_val = day_obj.get('value') if day_obj else None
+
+                    year = int(year_val) if year_val is not None else 0
+                    month = int(month_val) if month_val is not None else 12
+                    day = int(day_val) if day_val is not None else 31
+
                     if year > 0:
                         end_date = date(year, month, day)
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    self.stdout.write(f'  Warning: Could not parse end date: {e}')
             
             # Extract amount if available
             amount = None
             amount_obj = funding_data.get('amount')
             if amount_obj:
                 try:
-                    amount = float(amount_obj.get('value', 0))
-                except (ValueError, TypeError):
-                    pass
+                    amount_val = amount_obj.get('value') if amount_obj else None
+                    if amount_val is not None:
+                        amount = float(amount_val)
+                except (ValueError, TypeError) as e:
+                    self.stdout.write(f'  Warning: Could not parse amount: {e}')
                     
         else:
             # Old format: pandas DataFrame row

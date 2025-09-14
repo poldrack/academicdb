@@ -125,15 +125,25 @@ class Command(BaseCommand):
 
         # Filter to publications that need enrichment
         if not self.force:
-            queryset = queryset.filter(
-                models.Q(metadata__needs_enrichment=True) |
-                models.Q(metadata__crossref_enriched__isnull=True) |
-                models.Q(title__startswith='Publication with DOI:')  # Placeholder titles
+            # Count how many are already enriched for logging
+            total_with_dois = queryset.exclude(doi__isnull=True).exclude(doi='').count()
+            already_enriched = queryset.filter(metadata__crossref_enriched=True).count()
+
+            # Exclude publications that have already been enriched with CrossRef
+            queryset = queryset.exclude(
+                metadata__crossref_enriched=True
             )
+
+            if already_enriched > 0:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Skipping {already_enriched} publications already enriched with CrossRef data'
+                    )
+                )
 
         # Only enrich publications with DOIs
         queryset = queryset.exclude(doi__isnull=True).exclude(doi='')
-        
+
         return list(queryset.select_related('owner'))
 
     def fetch_crossref_records(self, dois):
@@ -176,11 +186,13 @@ class Command(BaseCommand):
             
             if updated:
                 # Mark as enriched and update metadata
+                from django.utils import timezone
                 publication.metadata = publication.metadata or {}
                 publication.metadata['crossref_enriched'] = True
+                publication.metadata['crossref_enriched_at'] = timezone.now().isoformat()
                 publication.metadata['needs_enrichment'] = False
                 publication.metadata['crossref_source'] = 'CrossRef API'
-                
+
                 publication.save()
                 self.stdout.write(f'  Enriched: {publication.title[:60]}...')
                 return True

@@ -416,7 +416,11 @@ class Publication(models.Model):
         return 'Unknown Preprint Server'
 
     def save(self, *args, **kwargs):
-        """Override save to auto-detect preprint status"""
+        """Override save to auto-detect preprint status and normalize DOI"""
+        # Normalize DOI to lowercase
+        if self.doi:
+            self.doi = self.doi.lower().strip()
+
         # Auto-detect preprint status before saving
         self.detect_preprint_status()
         super().save(*args, **kwargs)
@@ -932,6 +936,7 @@ class Funding(models.Model):
     # Role choices
     ROLE_CHOICES = [
         ('pi', 'Principal Investigator'),
+        ('pi_subcontract', 'PI (Subcontract)'),
         ('co_pi', 'Co-Principal Investigator'),
         ('co_i', 'Co-Investigator'),
         ('consultant', 'Consultant'),

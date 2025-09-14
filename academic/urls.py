@@ -14,6 +14,7 @@ urlpatterns = [
     path('publications/new/', views.PublicationCreateView.as_view(), name='publication_create'),
     path('publications/<int:pk>/', views.PublicationDetailView.as_view(), name='publication_detail'),
     path('publications/<int:pk>/edit/', views.PublicationUpdateView.as_view(), name='publication_update'),
+    path('publications/<int:pk>/delete/', views.PublicationDeleteView.as_view(), name='publication_delete'),
     
     # Funding URLs
     path('funding/', views.FundingListView.as_view(), name='funding_list'),

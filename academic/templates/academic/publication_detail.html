@@ -12,6 +12,9 @@
                 <a href="{% url 'academic:publication_update' publication.pk %}" class="btn btn-primary">
                     <i class="fas fa-edit"></i> Edit
                 </a>
+                <a href="{% url 'academic:publication_delete' publication.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </a>
             </div>
         </div>
 

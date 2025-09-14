@@ -146,6 +146,8 @@ class Command(BaseCommand):
                     continue
                     
                 doi = parsed_data.get('DOI')
+                if doi:
+                    doi = doi.lower().strip()  # Normalize DOI to lowercase
                 pmid = parsed_data.get('PMID')
                 
                 if not doi and not pmid:

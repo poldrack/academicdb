@@ -96,6 +96,11 @@
                                         <i class="fas fa-file-alt"></i> Preprint
                                     </span>
                                 {% endif %}
+                                {% if publication.is_ignored %}
+                                    <span class="badge bg-secondary ms-2" title="{% if publication.ignore_reason %}{{ publication.ignore_reason }}{% else %}This publication has been ignored{% endif %}">
+                                        <i class="fas fa-eye-slash"></i> Ignored
+                                    </span>
+                                {% endif %}
                                 {% if publication.has_manual_edits %}
                                     <span class="badge bg-info ms-2">Edited</span>
                                 {% endif %}
@@ -120,6 +125,9 @@
                                 </a>
                                 <a href="{% url 'academic:publication_update' publication.pk %}" class="btn btn-sm btn-outline-secondary">
                                     Edit
+                                </a>
+                                <a href="{% url 'academic:publication_delete' publication.pk %}" class="btn btn-sm btn-outline-danger">
+                                    Delete
                                 </a>
                             </td>
                         </tr>
