@@ -2,6 +2,7 @@
 Django management command to sync publications from PubMed
 """
 import logging
+import re
 from datetime import datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
@@ -148,6 +149,8 @@ class Command(BaseCommand):
                 doi = parsed_data.get('DOI')
                 if doi:
                     doi = doi.lower().strip()  # Normalize DOI to lowercase
+                    # Replace repeated slashes with single slash
+                    doi = re.sub(r'/+', '/', doi)
 
                     # Check if DOI should be skipped based on user preferences
                     skip_dois = user.get_skip_dois_list()
@@ -303,6 +306,8 @@ class Command(BaseCommand):
             for article_id in record['PubmedData']['ArticleIdList']:
                 if hasattr(article_id, 'attributes') and article_id.attributes.get('IdType') == 'doi':
                     doi = str(article_id).lower().replace('http://dx.doi.org/', '')
+                    # Replace repeated slashes with single slash
+                    doi = re.sub(r'/+', '/', doi)
                     break
         return doi
 

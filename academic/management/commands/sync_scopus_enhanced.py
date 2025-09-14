@@ -2,6 +2,7 @@
 Enhanced Django management command to sync publications from Scopus with full author details
 """
 import logging
+import re
 from datetime import datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
@@ -201,6 +202,8 @@ class Command(BaseCommand):
                 doi = pub_data.doi if hasattr(pub_data, 'doi') and pub_data.doi else None
                 if doi:
                     doi = doi.lower().strip()  # Normalize DOI to lowercase
+                    # Replace repeated slashes with single slash
+                    doi = re.sub(r'/+', '/', doi)
 
                     # Check if DOI should be skipped based on user preferences
                     skip_dois = user.get_skip_dois_list()

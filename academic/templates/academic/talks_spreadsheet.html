@@ -18,10 +18,14 @@
                         <button type="button" class="btn btn-outline-success" onclick="saveSpreadsheet()">
                             <i class="fas fa-save"></i> Save Changes
                         </button>
-                        <a href="{% url 'academic:talk_list' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-list"></i> List View
-                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="document.getElementById('csv-import').click()">
+                            <i class="fas fa-upload"></i> Import CSV
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteAllData()">
+                            <i class="fas fa-trash"></i> Delete All
+                        </button>
                     </div>
+                    <input type="file" id="csv-import" accept=".csv" style="display: none;" onchange="importCSV(event)">
                 </div>
                 <div class="col-md-6 text-end">
                     <span class="badge bg-secondary" id="status-badge">Loading...</span>
@@ -93,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set iframe source with configuration
     const iframe = document.getElementById('spreadsheet-iframe');
     const configParam = encodeURIComponent(JSON.stringify(config));
-    const iframeUrl = `{% url 'academic:teaching_spreadsheet_iframe' %}?config=${configParam}`;
+    const iframeUrl = `{% url 'academic:talks_spreadsheet_iframe' %}?config=${configParam}`;
 
     console.log('Setting iframe URL to:', iframeUrl);
     iframe.src = iframeUrl;
@@ -139,6 +143,85 @@ function saveSpreadsheet() {
     if (iframe.contentWindow) {
         iframe.contentWindow.postMessage({type: 'save'}, '*');
     }
+}
+
+async function deleteAllData() {
+    if (!confirm('Are you sure you want to delete all talk data? This action cannot be undone.')) {
+        return;
+    }
+
+    updateStatus('Deleting...');
+
+    try {
+        const response = await fetch('/api/v1/talks/delete_all/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            updateStatus('Deleted');
+            alert(`Successfully deleted ${result.deleted_count} talk entries`);
+            refreshSpreadsheet();
+        } else {
+            throw new Error('Failed to delete data');
+        }
+    } catch (error) {
+        updateStatus('Error');
+        alert('Error deleting data: ' + error.message);
+    }
+}
+
+async function importCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    updateStatus('Importing...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/v1/talks/import_csv/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            credentials: 'include',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            updateStatus('Imported');
+            alert(`Successfully imported ${result.created} new and updated ${result.updated} existing talk entries`);
+            refreshSpreadsheet();
+        } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Import failed');
+        }
+    } catch (error) {
+        updateStatus('Error');
+        alert('Error importing CSV: ' + error.message);
+    }
+
+    // Clear the file input
+    event.target.value = '';
+}
+
+function getCSRFToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return decodeURIComponent(value);
+        }
+    }
+    return '';
 }
 
 // Listen for messages from iframe

@@ -4,6 +4,7 @@ functions to work with pubmed data
 
 from Bio import Entrez
 from datetime import datetime
+import re
 
 def get_pubmed_data(query, email, retmax=1000):
     Entrez.email = email
@@ -50,6 +51,8 @@ def get_pubmed_doi(record):
     for j in record['PubmedData']['ArticleIdList']:
         if j.attributes['IdType'] == 'doi':
             doi = str(j).lower().replace('http://dx.doi.org/', '')
+            # Replace repeated slashes with single slash
+            doi = re.sub(r'/+', '/', doi)
     return doi
 
 

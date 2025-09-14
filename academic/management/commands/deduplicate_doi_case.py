@@ -3,6 +3,7 @@ Django management command to deduplicate publications with DOIs that differ only
 This command will find DOI pairs like '10.3758/BF03214547' and '10.3758/bf03214547' and merge them.
 """
 import logging
+import re
 from collections import defaultdict
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
@@ -129,6 +130,8 @@ class Command(BaseCommand):
         doi_groups = defaultdict(list)
         for pub in publications:
             lowercase_doi = pub.doi.lower().strip()
+            # Replace repeated slashes with single slash
+            lowercase_doi = re.sub(r'/+', '/', lowercase_doi)
             doi_groups[lowercase_doi].append(pub)
 
         # Return only groups with multiple publications

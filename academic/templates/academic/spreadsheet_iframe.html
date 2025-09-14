@@ -87,7 +87,11 @@
                 const baseUrl = `${window.location.protocol}//${window.location.host}`;
                 const fullEndpoint = baseUrl + config.endpoint;
 
-                const response = await fetch(fullEndpoint, {
+                // Request all data for spreadsheet (no pagination)
+                const urlWithParams = new URL(fullEndpoint);
+                urlWithParams.searchParams.set('page_size', '2000'); // Request up to 2000 records
+
+                const response = await fetch(urlWithParams, {
                     headers: {
                         'Accept': 'application/json',
                     },
@@ -372,9 +376,13 @@
                     }
                 });
 
-                // Skip rows without required 'name' field
-                if (!rowObject.name) {
-                    console.log(`Row ${i}: Skipping row without name`);
+                // Find the first required field to validate non-empty rows
+                const requiredFields = (config.columns || []).filter(col => col.required);
+                const hasRequiredData = requiredFields.length === 0 ||
+                    requiredFields.some(field => rowObject[field.data] !== null && rowObject[field.data] !== undefined);
+
+                if (!hasRequiredData) {
+                    console.log(`Row ${i}: Skipping row without required data`);
                     continue;
                 }
 
@@ -421,6 +429,10 @@
                     return isNaN(num) ? null : num;
                 case 'boolean':
                 case 'checkbox':
+                    // Handle empty/null values as false for boolean fields
+                    if (value === null || value === undefined || value === '') {
+                        return false;
+                    }
                     return value === 'Yes' || value === true || value === 'true' || value === 1;
                 default:
                     // For text fields, return the trimmed value
@@ -471,10 +483,14 @@
             if (result.errors && result.errors.length > 0) {
                 console.error('Updates failed with errors:', result.errors);
                 // Show detailed error information
+                const errorDetails = [];
                 result.errors.forEach(error => {
-                    console.error(`Row ${error.row}:`, error.errors || error.error);
+                    const errorMsg = error.errors || error.error;
+                    console.error(`Row ${error.row}:`, errorMsg);
+                    errorDetails.push(`Row ${error.row}: ${JSON.stringify(errorMsg)}`);
                 });
-                throw new Error(`${result.errors.length} updates failed. Check console for details.`);
+                const detailedMessage = `${result.errors.length} updates failed:\n\n${errorDetails.join('\n')}`;
+                throw new Error(detailedMessage);
             }
 
             return result;

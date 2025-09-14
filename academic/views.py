@@ -1313,3 +1313,27 @@ class ConferencesSpreadsheetView(LoginRequiredMixin, TemplateView):
         context['list_view_url'] = 'academic:conference_list'
         return context
 
+
+class TalksSpreadsheetIframeView(LoginRequiredMixin, TemplateView):
+    """Talks spreadsheet iframe view - isolated from Django CSS"""
+    template_name = 'academic/spreadsheet_iframe.html'
+    login_url = '/accounts/login/'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Allow this view to be displayed in an iframe from the same origin
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+
+
+class ConferencesSpreadsheetIframeView(LoginRequiredMixin, TemplateView):
+    """Conferences spreadsheet iframe view - isolated from Django CSS"""
+    template_name = 'academic/spreadsheet_iframe.html'
+    login_url = '/accounts/login/'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Allow this view to be displayed in an iframe from the same origin
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+

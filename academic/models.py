@@ -117,6 +117,9 @@ class AcademicUser(AbstractUser):
                 elif doi.startswith('doi:'):
                     doi = doi.replace('doi:', '')
 
+                # Replace repeated slashes with single slash
+                doi = re.sub(r'/+', '/', doi)
+
                 if doi:
                     dois.append(doi)
 
@@ -447,9 +450,12 @@ class Publication(models.Model):
 
     def save(self, *args, **kwargs):
         """Override save to auto-detect preprint status and normalize DOI"""
-        # Normalize DOI to lowercase
+        # Normalize DOI to lowercase and replace repeated slashes
         if self.doi:
+            import re
             self.doi = self.doi.lower().strip()
+            # Replace repeated slashes with single slash
+            self.doi = re.sub(r'/+', '/', self.doi)
 
         # Auto-detect preprint status before saving
         self.detect_preprint_status()

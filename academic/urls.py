@@ -25,7 +25,7 @@ urlpatterns = [
     
     # Teaching URLs
     path('teaching/', views.TeachingSpreadsheetView.as_view(), name='teaching_spreadsheet'),
-    path('teaching/list/', views.TeachingListView.as_view(), name='teaching_list'),
+    path('teaching/list/', views.TeachingSpreadsheetView.as_view(), name='teaching_list'),  # Redirect to spreadsheet view
     path('teaching/new/', views.TeachingCreateView.as_view(), name='teaching_create'),
     path('teaching/<int:pk>/', views.TeachingDetailView.as_view(), name='teaching_detail'),
     path('teaching/<int:pk>/edit/', views.TeachingUpdateView.as_view(), name='teaching_update'),
@@ -33,17 +33,19 @@ urlpatterns = [
     
     # Talk URLs
     path('talks/', views.TalksSpreadsheetView.as_view(), name='talks_spreadsheet'),
-    path('talks/list/', views.TalkListView.as_view(), name='talk_list'),
+    path('talks/list/', views.TalksSpreadsheetView.as_view(), name='talk_list'),  # Redirect to spreadsheet view
     path('talks/new/', views.TalkCreateView.as_view(), name='talk_create'),
     path('talks/<int:pk>/', views.TalkDetailView.as_view(), name='talk_detail'),
     path('talks/<int:pk>/edit/', views.TalkUpdateView.as_view(), name='talk_update'),
-    
+    path('talks/spreadsheet/iframe/', views.TalksSpreadsheetIframeView.as_view(), name='talks_spreadsheet_iframe'),
+
     # Conference URLs
     path('conferences/', views.ConferencesSpreadsheetView.as_view(), name='conferences_spreadsheet'),
-    path('conferences/list/', views.ConferenceListView.as_view(), name='conference_list'),
+    path('conferences/list/', views.ConferencesSpreadsheetView.as_view(), name='conference_list'),  # Redirect to spreadsheet view
     path('conferences/new/', views.ConferenceCreateView.as_view(), name='conference_create'),
     path('conferences/<int:pk>/', views.ConferenceDetailView.as_view(), name='conference_detail'),
     path('conferences/<int:pk>/edit/', views.ConferenceUpdateView.as_view(), name='conference_update'),
+    path('conferences/spreadsheet/iframe/', views.ConferencesSpreadsheetIframeView.as_view(), name='conferences_spreadsheet_iframe'),
     
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),

@@ -9,6 +9,12 @@
                 <a href="{% url 'academic:publication_create' %}" class="btn btn-primary">
                     <i class="fas fa-plus"></i> Add Publication
                 </a>
+
+                <!-- CSV Import Button -->
+                <button type="button" class="btn btn-outline-info ms-2" onclick="document.getElementById('csv-import').click()">
+                    <i class="fas fa-upload"></i> Import CSV
+                </button>
+                <input type="file" id="csv-import" accept=".csv" style="display: none;" onchange="importCSV(event)">
                 
                 <!-- Comprehensive Sync Button -->
                 {% if user.is_orcid_connected or user.has_pubmed_query or user.has_scopus_id %}
@@ -255,6 +261,71 @@
 
 {% block extra_js %}
 <script>
+async function importCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show loading state
+    const importBtn = document.querySelector('[onclick="document.getElementById(\'csv-import\').click()"]');
+    const originalContent = importBtn.innerHTML;
+    importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+    importBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/v1/publications/import_csv/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            credentials: 'include',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            let message = `Successfully imported ${result.created} new and updated ${result.updated} existing publications.`;
+
+            if (result.errors && result.errors.length > 0) {
+                message += `\n\n${result.errors.length} errors occurred:\n`;
+                result.errors.slice(0, 5).forEach(error => {
+                    message += `Row ${error.row}: ${JSON.stringify(error.errors || error.error)}\n`;
+                });
+                if (result.errors.length > 5) {
+                    message += `... and ${result.errors.length - 5} more errors.`;
+                }
+            }
+
+            alert(message);
+            window.location.reload(); // Refresh to show new publications
+        } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Import failed');
+        }
+    } catch (error) {
+        alert('Error importing CSV: ' + error.message);
+    } finally {
+        // Restore button state
+        importBtn.innerHTML = originalContent;
+        importBtn.disabled = false;
+        // Clear the file input
+        event.target.value = '';
+    }
+}
+
+function getCSRFToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return decodeURIComponent(value);
+        }
+    }
+    return '';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Handle clear publications confirmation (same as dashboard)
     const confirmationInput = document.getElementById('confirmationInput');

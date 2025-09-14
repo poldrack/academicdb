@@ -4,6 +4,7 @@ Russ Poldrack, May 2020
 """
 
 import pandas as pd
+import re
 
 
 def get_dois_from_orcid_record(orcid_data):
@@ -17,7 +18,10 @@ def get_dois_from_orcid_record(orcid_data):
                         'http://dx.doi.org/', ''
                     )
             if doi is not None:
-                dois.append(doi.lower())
+                # Normalize DOI: lowercase and replace repeated slashes
+                normalized_doi = doi.lower()
+                normalized_doi = re.sub(r'/+', '/', normalized_doi)
+                dois.append(normalized_doi)
     return list(set(dois))
 
 

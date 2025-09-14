@@ -136,6 +136,10 @@ class TalkSerializer(serializers.ModelSerializer):
 
     def validate_year(self, value):
         """Validate talk year"""
+        if value is None:
+            raise serializers.ValidationError(
+                "Year is required"
+            )
         if value < 1950 or value > 2035:
             raise serializers.ValidationError(
                 "Year must be between 1950 and 2035"
@@ -163,6 +167,10 @@ class ConferenceSerializer(serializers.ModelSerializer):
 
     def validate_year(self, value):
         """Validate conference year"""
+        if value is None:
+            raise serializers.ValidationError(
+                "Year is required"
+            )
         if value < 1950 or value > 2035:
             raise serializers.ValidationError(
                 "Year must be between 1950 and 2035"

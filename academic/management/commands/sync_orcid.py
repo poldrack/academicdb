@@ -2,6 +2,7 @@
 Django management command to synchronize publications from ORCID API
 """
 import os
+import re
 import requests
 import logging
 from django.core.management.base import BaseCommand, CommandError
@@ -317,6 +318,8 @@ class Command(BaseCommand):
     def sync_publication_from_doi(self, user, doi):
         """Create or update publication from DOI"""
         doi = doi.lower().strip()
+        # Replace repeated slashes with single slash
+        doi = re.sub(r'/+', '/', doi)
 
         # Check if DOI should be skipped based on user preferences
         skip_dois = user.get_skip_dois_list()
