@@ -18,7 +18,7 @@ class PublicationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'year', 'publication_type', 'publication_name',
             'doi', 'authors', 'source', 'is_preprint', 'preprint_server',
-            'created_at', 'updated_at'
+            'is_ignored', 'ignore_reason', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'source', 'is_preprint', 'preprint_server']
         

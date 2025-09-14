@@ -4,6 +4,47 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.  
 
+[x] ~~The position matching tests for author similarity seem to brittle. for example, I see this warning message: "    ⚠️  Position 5: Names seem very different - J He vs He J."  It seems obvious that "J He" and "He J." would refer to the same person.  Improve the logic so that it is more robust to these kinds of differences.~~ **FIXED**:
+
+**Root cause**: The `names_reasonably_similar` function was too strict for cases like "J He" vs "He J." which are clearly the same author with different formatting.
+
+**Solution implemented**:
+1. **Enhanced name normalization**: Added removal of periods and better whitespace handling
+2. **Reversed order matching**: Added specific logic to detect "initial+surname vs surname+initial" patterns (e.g., "J He" vs "He J.")
+3. **Flexible initial matching**: Improved handling of single-letter names and initials
+4. **Better surname matching**: Relaxed surname length requirements to allow single-letter surnames
+5. **Initial+surname cross-validation**: Added logic to match initials against given names across different formats
+
+**Files modified**: `academic/management/commands/enrich_scopus_authors.py:names_reasonably_similar()`
+
+[x] ~~We need a way to mark publications as "ignored". This could refer to cases where there has been a corrigendum (which appears as a separate publication) or in cases where the publication doesn't actually belong to the author.~~ **FIXED**:
+
+**Root cause**: No existing mechanism to mark publications as ignored for exclusion from reports, CVs, or analysis.
+
+**Solution implemented**:
+1. **Database schema changes**: Added `is_ignored` boolean field and `ignore_reason` text field to Publication model
+2. **Migration created**: Database migration to add the new fields to existing publications
+3. **API updates**: Updated PublicationSerializer to include ignore fields in REST API
+4. **View filtering**: Modified PublicationListView to filter out ignored publications by default (with option to show them via `?show_ignored=true`)
+5. **Form integration**: Added ignore fields to both create and update publication forms
+6. **UI support**: Forms now allow users to mark publications as ignored and provide reasons
+
+**Files modified**: `academic/models.py`, `academic/serializers.py`, `academic/views.py`, plus database migration
+
+[x] ~~Some publications (e.g. 10.1093/braincomms/fcae120, 10.7554/eLife.79277 ) show both a "PMC Full Text" link and a "Pmc" link, both of which refer to the same PMC link. Please ensure that the PMC Full Text link is only stored and referred to once for all publications.~~ **FIXED**:
+
+**Root cause**: The PMC lookup command was adding PMC links to the `links` dictionary while the template was already displaying PMC links from the `identifiers.pmcid` field, resulting in duplicate links in the UI.
+
+**Solution implemented**:
+1. **Prevented future duplicates**: Modified `lookup_pmc_ids.py` to only store PMC ID in identifiers, not add redundant links
+2. **Created cleanup command**: Added `deduplicate_pmc_links.py` management command to identify and remove existing duplicate PMC links
+3. **Bulk cleanup performed**: Ran deduplication command and successfully cleaned 141+ publications with duplicate PMC links
+4. **Consistent display logic**: PMC links now only appear once via the identifiers display, eliminating redundancy
+
+**Files modified**: `academic/management/commands/lookup_pmc_ids.py`, `academic/management/commands/deduplicate_pmc_links.py`
+
+
+
 [x] ~~The progress window is not fully tracking the onging processing when a full database sync is performed.  In particular, it never says that Scopus ID matching is happening - it stops at PMC matching.  Please ensure that all steps in the process are reflected in the progress window.~~ **FIXED**:
 
 **Root cause**: Progress tracking in the comprehensive sync function was not properly updating progress percentages for postprocessing tasks, causing the progress bar to appear stuck after PMC matching while Scopus ID enrichment was running in the background.

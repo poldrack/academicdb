@@ -122,7 +122,14 @@ class PublicationListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         """Filter publications to show only those owned by the current user"""
-        return Publication.objects.filter(owner=self.request.user).order_by('-year', 'title')
+        queryset = Publication.objects.filter(owner=self.request.user)
+
+        # Allow filtering by ignored status via query parameter
+        show_ignored = self.request.GET.get('show_ignored', 'false').lower() == 'true'
+        if not show_ignored:
+            queryset = queryset.filter(is_ignored=False)
+
+        return queryset.order_by('-year', 'title')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -151,8 +158,8 @@ class PublicationCreateView(LoginRequiredMixin, CreateView):
     """
     model = Publication
     template_name = 'academic/publication_form.html'
-    fields = ['title', 'year', 'publication_date', 'publication_name', 
-              'publication_type', 'doi', 'authors']
+    fields = ['title', 'year', 'publication_date', 'publication_name',
+              'publication_type', 'doi', 'authors', 'is_ignored', 'ignore_reason']
     success_url = reverse_lazy('academic:publication_list')
     login_url = '/accounts/login/'
     
@@ -179,8 +186,8 @@ class PublicationUpdateView(LoginRequiredMixin, UpdateView):
     """
     model = Publication
     template_name = 'academic/publication_form.html'
-    fields = ['title', 'year', 'publication_date', 'publication_name', 
-              'publication_type', 'doi']
+    fields = ['title', 'year', 'publication_date', 'publication_name',
+              'publication_type', 'doi', 'is_ignored', 'ignore_reason']
     success_url = reverse_lazy('academic:publication_list')
     login_url = '/accounts/login/'
     

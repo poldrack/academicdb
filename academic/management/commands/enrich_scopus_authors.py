@@ -495,24 +495,39 @@ class Command(BaseCommand):
         """
         Check if two names are reasonably similar for positional matching validation.
         This helps detect when an author might have been skipped in one of the records.
+        Improved to handle cases like "J He" vs "He J." more robustly.
         """
         if not name1 or not name2:
             return False
 
         # Clean names for comparison
-        clean1 = name1.lower().strip().replace(',', ' ')
-        clean2 = name2.lower().strip().replace(',', ' ')
+        clean1 = name1.lower().strip().replace(',', ' ').replace('.', '')
+        clean2 = name2.lower().strip().replace(',', ' ').replace('.', '')
 
         # Exact match
         if clean1 == clean2:
             return True
 
         # Split into parts
-        parts1 = clean1.split()
-        parts2 = clean2.split()
+        parts1 = [p for p in clean1.split() if p]  # Remove empty strings
+        parts2 = [p for p in clean2.split() if p]  # Remove empty strings
 
         if not parts1 or not parts2:
             return False
+
+        # Handle common case: "J He" vs "He J." (initial + surname vs surname + initial)
+        if len(parts1) == 2 and len(parts2) == 2:
+            # Check if one is initial+surname and the other is surname+initial
+            if ((len(parts1[0]) == 1 and len(parts1[1]) > 1) and
+                (len(parts2[1]) == 1 and len(parts2[0]) > 1) and
+                parts1[0] == parts2[1] and parts1[1] == parts2[0]):
+                return True
+
+            # Check if they're in the same order but with different formatting
+            if ((len(parts1[0]) == 1 and len(parts2[0]) == 1) and
+                (len(parts1[1]) > 1 and len(parts2[1]) > 1) and
+                parts1[0] == parts2[0] and parts1[1] == parts2[1]):
+                return True
 
         # Check if any significant parts match (surnames, full first names)
         # At least one word longer than 2 characters should match
@@ -523,13 +538,28 @@ class Command(BaseCommand):
                         return True
 
         # Check if last names match (assuming last word is surname)
-        if len(parts1[-1]) > 2 and len(parts2[-1]) > 2:
+        if len(parts1[-1]) > 1 and len(parts2[-1]) > 1:  # Allow single letter surnames
             if parts1[-1] == parts2[-1]:
                 return True
 
         # Check if first names match (assuming first word is first name)
-        if len(parts1[0]) > 2 and len(parts2[0]) > 2:
+        if len(parts1[0]) > 1 and len(parts2[0]) > 1:  # Allow single letter first names
             if parts1[0] == parts2[0]:
+                return True
+
+        # Check for initial matches (handle "J" matching "J")
+        # This covers cases where names have same initials but different formatting
+        initials1 = [p for p in parts1 if len(p) == 1]
+        initials2 = [p for p in parts2 if len(p) == 1]
+        surnames1 = [p for p in parts1 if len(p) > 1]
+        surnames2 = [p for p in parts2 if len(p) > 1]
+
+        # If both have initials and surnames, check if they match
+        if initials1 and initials2 and surnames1 and surnames2:
+            # Check if any initial matches and any surname matches
+            initial_match = any(i1 == i2 for i1 in initials1 for i2 in initials2)
+            surname_match = any(s1 == s2 for s1 in surnames1 for s2 in surnames2)
+            if initial_match and surname_match:
                 return True
 
         return False

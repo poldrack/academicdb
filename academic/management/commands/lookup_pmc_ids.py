@@ -247,12 +247,9 @@ class Command(BaseCommand):
             
             publication.identifiers['pmcid'] = pmc_id
             
-            # Add to links if not present
-            if not publication.links:
-                publication.links = {}
-            
-            if 'pmc' not in publication.links:
-                publication.links['pmc'] = f'https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/'
+            # Don't add PMC link to the links dictionary since it will be
+            # displayed automatically via the identifiers.pmcid field
+            # This prevents duplicate PMC links in the UI
             
             # Mark as manually edited to preserve this information
             if not publication.manual_edits:

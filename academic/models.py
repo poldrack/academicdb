@@ -169,6 +169,15 @@ class Publication(models.Model):
         default=False,
         help_text="True if this publication is a preprint (detected from DOI or manually set)"
     )
+    is_ignored = models.BooleanField(
+        default=False,
+        help_text="True if this publication should be ignored (e.g., corrigendum, misattributed)"
+    )
+    ignore_reason = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Reason for ignoring this publication (optional)"
+    )
 
     # Flexible Metadata (JSON fields for SQLite, will be JSONB in PostgreSQL)
     metadata = models.JSONField(
