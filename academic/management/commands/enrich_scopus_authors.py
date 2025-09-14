@@ -211,9 +211,23 @@ class Command(BaseCommand):
         # Create a copy of authors for updating
         updated_authors = publication.authors.copy()
 
-        # Only proceed if we have the same number of authors or fewer in our publication
-        # (Some sources may have fewer authors listed)
-        max_authors = min(len(updated_authors), len(scopus_authors))
+        # Check if author counts match - this is critical for accurate positional matching
+        pub_author_count = len(updated_authors)
+        scopus_author_count = len(scopus_authors)
+
+        if pub_author_count != scopus_author_count:
+            self.stdout.write(
+                f"  ⚠️  Author count mismatch: Publication has {pub_author_count} authors, "
+                f"Scopus has {scopus_author_count} authors"
+            )
+            self.stdout.write("  Using Scopus author list as authoritative source")
+
+            # Replace entire author list with Scopus data when counts don't match
+            return self.replace_authors_with_scopus_data(publication, scopus_authors, dry_run)
+
+        # If counts match, proceed with positional matching
+        self.stdout.write(f"  Author counts match ({pub_author_count}), using positional matching")
+        max_authors = len(updated_authors)
 
         for i in range(max_authors):
             pub_author = updated_authors[i]
@@ -228,6 +242,18 @@ class Command(BaseCommand):
             if pub_author.get('scopus_id') and not self.force_update:
                 continue
 
+            # Verify that this positional match makes sense by doing basic name validation
+            pub_author_name = pub_author.get('name', 'Unknown')
+            scopus_author_name = scopus_author.get('name', 'Unknown')
+
+            # Basic validation: check if names are completely different (might indicate skipped author)
+            if not self.names_reasonably_similar(pub_author_name, scopus_author_name):
+                self.stdout.write(
+                    f"    ⚠️  Position {i+1}: Names seem very different - "
+                    f"{pub_author_name} vs {scopus_author_name}"
+                )
+                self.stdout.write("    Proceeding with positional match anyway (counts match)")
+
             # Update with Scopus ID using positional matching
             updated_authors[i]['scopus_id'] = scopus_author['scopus_id']
 
@@ -235,10 +261,147 @@ class Command(BaseCommand):
             if scopus_author.get('affiliation') and not pub_author.get('affiliation'):
                 updated_authors[i]['affiliation'] = scopus_author['affiliation']
 
-            pub_author_name = pub_author.get('name', 'Unknown')
-            scopus_author_name = scopus_author.get('name', 'Unknown')
             self.stdout.write(f"    Position {i+1}: {pub_author_name} -> {scopus_author_name} (ID: {scopus_author['scopus_id']})")
             updated_count += 1
+
+        # Save the updated authors
+        if updated_count > 0 and not dry_run:
+            publication.authors = updated_authors
+
+            # Mark as having manual edits to preserve the Scopus IDs
+            if not publication.manual_edits:
+                publication.manual_edits = {}
+            publication.manual_edits['authors'] = True
+
+            publication.save()
+
+        return updated_count
+
+    def replace_authors_with_scopus_data(self, publication, scopus_authors, dry_run=False):
+        """
+        Replace the entire author list with Scopus data when author counts don't match.
+        This ensures accuracy when there are discrepancies in author information.
+        Returns the number of authors replaced.
+        """
+        if not scopus_authors:
+            self.stdout.write("  No Scopus authors to replace with")
+            return 0
+
+        # Convert Scopus authors to the publication's author format
+        new_authors = []
+        for scopus_author in scopus_authors:
+            author_dict = {
+                'name': scopus_author.get('name', 'Unknown'),
+                'scopus_id': scopus_author.get('scopus_id')
+            }
+
+            # Add additional fields if available
+            if scopus_author.get('given_name'):
+                author_dict['given_name'] = scopus_author['given_name']
+            if scopus_author.get('surname'):
+                author_dict['surname'] = scopus_author['surname']
+            if scopus_author.get('initials'):
+                author_dict['initials'] = scopus_author['initials']
+            if scopus_author.get('affiliation'):
+                author_dict['affiliation'] = scopus_author['affiliation']
+
+            new_authors.append(author_dict)
+
+        # Show what we're replacing
+        old_count = len(publication.authors) if publication.authors else 0
+        new_count = len(new_authors)
+        self.stdout.write(f"  Replacing {old_count} authors with {new_count} Scopus authors:")
+
+        for i, author in enumerate(new_authors):
+            self.stdout.write(f"    Author {i+1}: {author['name']} (ID: {author.get('scopus_id', 'N/A')})")
+
+        # Save the replacement
+        if not dry_run:
+            publication.authors = new_authors
+
+            # Mark as having manual edits to preserve the Scopus data
+            if not publication.manual_edits:
+                publication.manual_edits = {}
+            publication.manual_edits['authors'] = True
+
+            # Add to edit history for audit trail
+            if not publication.edit_history:
+                publication.edit_history = []
+            publication.edit_history.append({
+                'timestamp': time.time(),
+                'field': 'authors',
+                'action': 'scopus_replacement',
+                'reason': 'author_count_mismatch',
+                'old_count': old_count,
+                'new_count': new_count
+            })
+
+            publication.save()
+
+        return new_count
+
+    def update_authors_by_name_matching(self, publication, scopus_authors, dry_run=False):
+        """
+        Update publication authors with Scopus IDs using name-based matching
+        Used when author counts don't match between publication and Scopus
+        Returns the number of authors updated
+        """
+        updated_count = 0
+
+        if not publication.authors:
+            return 0
+
+        # Create a copy of authors for updating
+        updated_authors = publication.authors.copy()
+
+        # Track which Scopus authors have been matched to avoid duplicates
+        matched_scopus_indices = set()
+
+        for i, pub_author in enumerate(updated_authors):
+            if not isinstance(pub_author, dict):
+                # Convert string author to dict format
+                updated_authors[i] = {'name': str(pub_author)}
+                pub_author = updated_authors[i]
+
+            # Skip if already has Scopus ID (unless force flag is set)
+            if pub_author.get('scopus_id') and not self.force_update:
+                continue
+
+            pub_author_name = pub_author.get('name', 'Unknown')
+
+            # Try to find matching Scopus author by name
+            best_match = None
+            best_match_index = None
+
+            for j, scopus_author in enumerate(scopus_authors):
+                # Skip if this Scopus author already matched
+                if j in matched_scopus_indices:
+                    continue
+
+                if self.authors_match(pub_author_name, scopus_author):
+                    best_match = scopus_author
+                    best_match_index = j
+                    break
+
+            if best_match:
+                # Update with Scopus ID
+                updated_authors[i]['scopus_id'] = best_match['scopus_id']
+
+                # Optionally enrich with additional data
+                if best_match.get('affiliation') and not pub_author.get('affiliation'):
+                    updated_authors[i]['affiliation'] = best_match['affiliation']
+
+                # Mark this Scopus author as matched
+                matched_scopus_indices.add(best_match_index)
+
+                scopus_author_name = best_match.get('name', 'Unknown')
+                self.stdout.write(
+                    f"    Name match: {pub_author_name} -> {scopus_author_name} "
+                    f"(ID: {best_match['scopus_id']})"
+                )
+                updated_count += 1
+            else:
+                self.stdout.write(f"    No match found for: {pub_author_name}")
 
         # Save the updated authors
         if updated_count > 0 and not dry_run:
@@ -325,5 +488,48 @@ class Command(BaseCommand):
                     for other in other_parts:
                         if other and initials and other[0] == initials[0]:
                             return True
+
+        return False
+
+    def names_reasonably_similar(self, name1, name2):
+        """
+        Check if two names are reasonably similar for positional matching validation.
+        This helps detect when an author might have been skipped in one of the records.
+        """
+        if not name1 or not name2:
+            return False
+
+        # Clean names for comparison
+        clean1 = name1.lower().strip().replace(',', ' ')
+        clean2 = name2.lower().strip().replace(',', ' ')
+
+        # Exact match
+        if clean1 == clean2:
+            return True
+
+        # Split into parts
+        parts1 = clean1.split()
+        parts2 = clean2.split()
+
+        if not parts1 or not parts2:
+            return False
+
+        # Check if any significant parts match (surnames, full first names)
+        # At least one word longer than 2 characters should match
+        for part1 in parts1:
+            if len(part1) > 2:  # Skip initials for this check
+                for part2 in parts2:
+                    if len(part2) > 2 and part1 == part2:
+                        return True
+
+        # Check if last names match (assuming last word is surname)
+        if len(parts1[-1]) > 2 and len(parts2[-1]) > 2:
+            if parts1[-1] == parts2[-1]:
+                return True
+
+        # Check if first names match (assuming first word is first name)
+        if len(parts1[0]) > 2 and len(parts2[0]) > 2:
+            if parts1[0] == parts2[0]:
+                return True
 
         return False

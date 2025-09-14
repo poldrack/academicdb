@@ -452,7 +452,9 @@ def run_comprehensive_sync_background(user_id, sync_id):
             return sync_id
         
         steps_per_source = 30
-        total_estimated_steps = len(sources) * steps_per_source + 40  # +40 for enrichment and post-processing
+        enrichment_steps = 20
+        postprocessing_steps = 15
+        total_estimated_steps = len(sources) * steps_per_source + enrichment_steps + postprocessing_steps
         progress['total_steps'] = total_estimated_steps
         current_step = 10
         
@@ -489,15 +491,15 @@ def run_comprehensive_sync_background(user_id, sync_id):
             'current_step': 'Enriching publications with CrossRef...',
             'progress': current_step
         })
-        
+
         try:
             call_command('enrich_crossref', user_id=user.id, verbosity=0)
             progress['messages'].append('✓ CrossRef enrichment completed')
         except Exception as e:
             progress['errors'].append(f'CrossRef enrichment failed: {str(e)}')
             progress['messages'].append('✗ CrossRef enrichment failed')
-            
-        current_step += 20
+
+        current_step += enrichment_steps
         progress['progress'] = current_step
         
         # Phase 3: Post-Processing
@@ -511,18 +513,21 @@ def run_comprehensive_sync_background(user_id, sync_id):
             ('lookup_pmc_ids', 'PMC ID lookup'),
             ('enrich_scopus_authors', 'DOI-based Scopus author ID enrichment'),
         ]
-        
+
+        steps_per_postprocess = postprocessing_steps // len(postprocessing_tasks)  # Distribute remaining steps evenly
+
         for command_name, description in postprocessing_tasks:
             try:
                 progress['current_step'] = f'Running {description}...'
+                progress['progress'] = current_step
                 call_command(command_name, user_id=user.id, verbosity=0)
                 progress['messages'].append(f'✓ {description} completed')
+                current_step += steps_per_postprocess
+                progress['progress'] = current_step
             except Exception as e:
                 progress['errors'].append(f'{description} failed: {str(e)}')
                 progress['messages'].append(f'✗ {description} failed')
-        
-        current_step += 15
-        progress['progress'] = current_step
+                current_step += steps_per_postprocess  # Still advance progress even on error
         
         # Final statistics
         final_count = user.publications.count()
