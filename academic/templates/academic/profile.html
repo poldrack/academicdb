@@ -56,16 +56,27 @@
                     
                     <div class="mb-3">
                         <label for="pubmed_query" class="form-label">PubMed Search Query</label>
-                        <textarea class="form-control" id="pubmed_query" name="pubmed_query" 
+                        <textarea class="form-control" id="pubmed_query" name="pubmed_query"
                                   rows="3" placeholder="e.g., Smith J[Author] AND Stanford[Affiliation]">{{ user.pubmed_query }}</textarea>
                         <div class="form-text">
-                            PubMed query to find additional publications. 
+                            PubMed query to find additional publications.
                             <a href="https://pubmed.ncbi.nlm.nih.gov/help/" target="_blank" class="text-decoration-none">
                                 <small>Query syntax help</small>
                             </a>
                         </div>
                     </div>
-                    
+
+                    <div class="mb-3">
+                        <label for="skip_dois" class="form-label">DOIs to Skip</label>
+                        <textarea class="form-control" id="skip_dois" name="skip_dois"
+                                  rows="5" placeholder="10.1234/example1&#10;10.5678/example2&#10;https://doi.org/10.9876/example3">{{ user.skip_dois }}</textarea>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle"></i> List DOIs (one per line) that should be skipped during publication ingestion.
+                            You can enter DOIs in any format (plain DOI, with "doi:" prefix, or full URL).
+                            <br><small class="text-muted">Examples: 10.1234/abc123, doi:10.1234/abc123, https://doi.org/10.1234/abc123</small>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </form>
             </div>

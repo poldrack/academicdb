@@ -68,6 +68,7 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         user.department = request.POST.get('department', '')
         user.scopus_id = request.POST.get('scopus_id', '')
         user.pubmed_query = request.POST.get('pubmed_query', '')
+        user.skip_dois = request.POST.get('skip_dois', '')
         
         # Handle research areas (comma-separated string to list)
         research_areas_str = request.POST.get('research_areas', '')

@@ -52,7 +52,7 @@ class AcademicUser(AbstractUser):
     
     # System Settings
     preferred_citation_style = models.CharField(
-        max_length=50, 
+        max_length=50,
         default='apa',
         choices=[
             ('apa', 'APA'),
@@ -62,6 +62,13 @@ class AcademicUser(AbstractUser):
         ]
     )
     email_notifications = models.BooleanField(default=True)
+
+    # DOI Skip List
+    skip_dois = models.TextField(
+        blank=True,
+        null=True,
+        help_text="List of DOIs to skip during publication ingestion (one per line)"
+    )
     
     # Timestamps
     last_orcid_sync = models.DateTimeField(null=True, blank=True)
@@ -86,11 +93,34 @@ class AcademicUser(AbstractUser):
     def has_scopus_id(self):
         """Check if user has Scopus ID"""
         return bool(self.scopus_id)
-    
+
     @property
     def has_pubmed_query(self):
         """Check if user has PubMed query"""
         return bool(self.pubmed_query and self.pubmed_query.strip())
+
+    def get_skip_dois_list(self):
+        """Get normalized list of DOIs to skip during ingestion"""
+        if not self.skip_dois:
+            return []
+
+        # Split by lines and normalize DOIs
+        dois = []
+        for line in self.skip_dois.strip().split('\n'):
+            doi = line.strip().lower()
+            if doi:
+                # Remove any URL prefix if present
+                if doi.startswith('https://doi.org/'):
+                    doi = doi.replace('https://doi.org/', '')
+                elif doi.startswith('http://doi.org/'):
+                    doi = doi.replace('http://doi.org/', '')
+                elif doi.startswith('doi:'):
+                    doi = doi.replace('doi:', '')
+
+                if doi:
+                    dois.append(doi)
+
+        return dois
 
 
 class Publication(models.Model):

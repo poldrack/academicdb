@@ -317,7 +317,13 @@ class Command(BaseCommand):
     def sync_publication_from_doi(self, user, doi):
         """Create or update publication from DOI"""
         doi = doi.lower().strip()
-        
+
+        # Check if DOI should be skipped based on user preferences
+        skip_dois = user.get_skip_dois_list()
+        if doi in skip_dois:
+            self.stdout.write(f'  Skipping DOI (in user skip list): {doi}')
+            return False
+
         # Check if publication already exists
         existing_pub = Publication.objects.filter(
             owner=user,

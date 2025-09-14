@@ -201,6 +201,13 @@ class Command(BaseCommand):
                 doi = pub_data.doi if hasattr(pub_data, 'doi') and pub_data.doi else None
                 if doi:
                     doi = doi.lower().strip()  # Normalize DOI to lowercase
+
+                    # Check if DOI should be skipped based on user preferences
+                    skip_dois = user.get_skip_dois_list()
+                    if doi in skip_dois:
+                        self.stdout.write(f"Skipping DOI (in user skip list): {doi}")
+                        continue
+
                 eid = pub_data.eid if hasattr(pub_data, 'eid') else None
                 
                 if not doi and not eid:
