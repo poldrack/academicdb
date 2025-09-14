@@ -371,8 +371,20 @@ class Publication(models.Model):
             bool: True if preprint status was updated
         """
         old_status = self.is_preprint
-        self.is_preprint = self.is_preprint_doi(self.doi)
-        return old_status != self.is_preprint
+        old_type = self.publication_type
+
+        # Detect if this is a preprint
+        is_preprint = self.is_preprint_doi(self.doi)
+
+        # Update preprint status and type
+        self.is_preprint = is_preprint
+        if is_preprint:
+            self.publication_type = 'preprint'
+        elif old_type == 'preprint' and not is_preprint:
+            # If it was a preprint but no longer is (DOI changed), revert to journal-article
+            self.publication_type = 'journal-article'
+
+        return old_status != self.is_preprint or old_type != self.publication_type
 
     @property
     def preprint_server(self):

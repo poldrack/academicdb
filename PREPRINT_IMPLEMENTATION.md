@@ -13,7 +13,7 @@ Successfully implemented automatic preprint detection for publications based on 
 
 #### New Methods
 - `is_preprint_doi(doi)` - Static method to detect preprint DOIs
-- `detect_preprint_status()` - Instance method to update preprint status
+- `detect_preprint_status()` - Instance method to update preprint status AND publication_type
 - `preprint_server` - Property to get preprint server name
 - Enhanced `save()` method to auto-detect preprint status
 
@@ -58,6 +58,7 @@ Supports the following preprint servers:
 
 ### User Experience
 - Preprints are clearly marked with yellow badges
+- **Publication type correctly shows "Preprint" instead of "Journal Article"**
 - Consistent styling across list and detail views
 - Informative tooltips show preprint server
 - No disruption to existing workflows
@@ -77,6 +78,7 @@ Supports the following preprint servers:
 
 ### Automatic Detection
 - Preprint status is automatically detected on publication save
+- **Automatically sets publication_type to 'preprint' for detected preprints**
 - Works for both new publications and updates
 - Preserves manual edits through existing edit protection system
 
@@ -122,3 +124,29 @@ Supports the following preprint servers:
 ✅ UI badges display properly in list and detail views
 ✅ API serialization includes preprint fields
 ✅ Auto-detection works on new publication saves
+
+## Bug Fix - Publication Type Correction
+
+### Issue Identified
+Initially, preprints were correctly detected and marked with `is_preprint=True`, but they continued to display as "Type: Journal Article" in the UI instead of "Type: Preprint".
+
+### Root Cause
+The `detect_preprint_status()` method was only updating the `is_preprint` boolean field but not updating the `publication_type` field to reflect the preprint status.
+
+### Solution Implemented
+1. **Enhanced `detect_preprint_status()` method** to update both fields:
+   - Sets `is_preprint = True` for detected preprints
+   - Sets `publication_type = 'preprint'` for detected preprints
+   - Handles reverse case: if DOI changes and is no longer a preprint, resets to 'journal-article'
+
+2. **Updated management command** to check and update both fields:
+   - Enhanced `detect_preprints.py` to detect when `publication_type` needs updating
+   - Added detailed logging showing type changes (e.g., "journal-article -> preprint")
+
+3. **Database Update Results**:
+   - All 37 existing preprints successfully updated from `publication_type='journal-article'` to `publication_type='preprint'`
+   - UI now correctly shows "Type: Preprint" for all preprints
+
+### Files Modified for Bug Fix
+- `academic/models.py` - Enhanced `detect_preprint_status()` method
+- `academic/management/commands/detect_preprints.py` - Updated to handle publication_type changes

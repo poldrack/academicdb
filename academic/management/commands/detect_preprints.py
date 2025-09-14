@@ -25,12 +25,18 @@ class Command(BaseCommand):
 
         for publication in publications_with_dois:
             old_status = publication.is_preprint
+            old_type = publication.publication_type
             is_preprint = Publication.is_preprint_doi(publication.doi)
 
             if is_preprint:
                 preprint_count += 1
-                if not dry_run and old_status != is_preprint:
-                    publication.is_preprint = is_preprint
+
+                # Check if we need to update
+                needs_update = (old_status != is_preprint) or (old_type != 'preprint')
+
+                if not dry_run and needs_update:
+                    # Use the model's detect_preprint_status method to update both fields
+                    publication.detect_preprint_status()
                     publication.save()
                     updated_count += 1
 
@@ -38,8 +44,15 @@ class Command(BaseCommand):
                         'arXiv' if publication.doi.startswith('10.48550') else \
                         'PsyArXiv' if publication.doi.startswith('10.31234') else 'Unknown'
 
-                status = "would be marked" if dry_run else ("marked" if old_status != is_preprint else "already marked")
-                self.stdout.write(f"  {publication.title[:60]}... - {status} as {server} preprint")
+                if dry_run:
+                    status = "would be marked"
+                elif needs_update:
+                    status = "updated"
+                else:
+                    status = "already correct"
+
+                type_info = f"(type: {old_type} -> preprint)" if old_type != 'preprint' else f"(type: {old_type})"
+                self.stdout.write(f"  {publication.title[:60]}... - {status} as {server} preprint {type_info}")
 
         if dry_run:
             self.stdout.write(
