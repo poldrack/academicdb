@@ -396,32 +396,35 @@ class PubMedSyncView(LoginRequiredMixin, View):
             return redirect("academic:profile")
 
 
-def run_comprehensive_sync_background(user_id):
+def run_comprehensive_sync_background(user_id, sync_id):
     """
     Run comprehensive sync in background thread with progress tracking
     """
     import uuid
     from django.contrib.auth import get_user_model
-    
+
     User = get_user_model()
-    sync_id = f"sync_{user_id}_{int(time.time())}"
-    
-    # Initialize progress tracking
-    sync_progress[sync_id] = {
-        'status': 'starting',
-        'phase': 'Initialization',
-        'current_step': 'Starting sync...',
-        'progress': 0,
-        'total_steps': 100,
-        'start_time': time.time(),
-        'messages': [],
-        'publications_added': 0,
-        'errors': []
-    }
+
+    # Get existing progress tracking (already initialized by the view)
+    if sync_id not in sync_progress:
+        # Fallback initialization if somehow missing
+        sync_progress[sync_id] = {
+            'status': 'starting',
+            'phase': 'Initialization',
+            'current_step': 'Starting sync...',
+            'progress': 0,
+            'total_steps': 100,
+            'start_time': time.time(),
+            'messages': [],
+            'publications_added': 0,
+            'errors': []
+        }
     
     try:
         user = User.objects.get(id=user_id)
         progress = sync_progress[sync_id]
+
+        logger.info(f"Starting comprehensive sync for user {user_id} with sync_id {sync_id}")
         
         # Phase 1: Database Synchronization
         progress.update({
@@ -506,8 +509,7 @@ def run_comprehensive_sync_background(user_id):
         
         postprocessing_tasks = [
             ('lookup_pmc_ids', 'PMC ID lookup'),
-            ('enrich_author_scopus_ids', 'Scopus author ID enrichment'),
-            ('lookup_author_scopus_ids', 'Author Scopus ID lookup'),
+            ('enrich_scopus_authors', 'DOI-based Scopus author ID enrichment'),
         ]
         
         for command_name, description in postprocessing_tasks:
@@ -535,9 +537,23 @@ def run_comprehensive_sync_background(user_id):
             'progress': 100,
             'end_time': time.time()
         })
-        
+
         if progress['errors']:
             progress['status'] = 'completed_with_errors'
+
+        # Schedule cleanup of old progress entries (after 5 minutes)
+        def cleanup_old_progress():
+            time.sleep(300)  # Wait 5 minutes
+            current_time = time.time()
+            to_remove = []
+            for sid, data in sync_progress.items():
+                if data.get('end_time') and (current_time - data['end_time']) > 300:  # 5 minutes old
+                    to_remove.append(sid)
+            for sid in to_remove:
+                sync_progress.pop(sid, None)
+
+        cleanup_thread = threading.Thread(target=cleanup_old_progress, daemon=True)
+        cleanup_thread.start()
             
     except Exception as e:
         progress.update({
@@ -547,6 +563,20 @@ def run_comprehensive_sync_background(user_id):
             'end_time': time.time()
         })
         progress['errors'].append(str(e))
+
+        # Schedule cleanup for error case too
+        def cleanup_old_progress():
+            time.sleep(300)  # Wait 5 minutes
+            current_time = time.time()
+            to_remove = []
+            for sid, data in sync_progress.items():
+                if data.get('end_time') and (current_time - data['end_time']) > 300:  # 5 minutes old
+                    to_remove.append(sid)
+            for sid in to_remove:
+                sync_progress.pop(sid, None)
+
+        cleanup_thread = threading.Thread(target=cleanup_old_progress, daemon=True)
+        cleanup_thread.start()
     
     return sync_id
 
@@ -574,8 +604,8 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
             return redirect('academic:profile')
         
         # Check if user already has a sync running
-        active_syncs = [sid for sid, data in sync_progress.items() 
-                       if str(user.id) in sid and data['status'] in ['starting', 'running']]
+        active_syncs = [sid for sid, data in sync_progress.items()
+                       if sid.startswith(f'sync_{user.id}_') and data['status'] in ['starting', 'running']]
         
         if active_syncs:
             messages.warning(request, 'A sync is already in progress. Please wait for it to complete.')
@@ -583,18 +613,33 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
         
         # Start background sync
         try:
+            # Generate sync_id before starting thread
+            sync_id = f"sync_{user.id}_{int(time.time())}"
+
+            # Pre-initialize progress tracking to avoid race conditions
+            sync_progress[sync_id] = {
+                'status': 'starting',
+                'phase': 'Initialization',
+                'current_step': 'Starting sync...',
+                'progress': 0,
+                'total_steps': 100,
+                'start_time': time.time(),
+                'messages': [],
+                'publications_added': 0,
+                'errors': []
+            }
+
             sync_thread = threading.Thread(
                 target=run_comprehensive_sync_background,
-                args=(user.id,),
+                args=(user.id, sync_id),
                 daemon=True
             )
             sync_thread.start()
-            
+
             # Store sync info in session for frontend tracking
             if 'sync_ids' not in request.session:
                 request.session['sync_ids'] = []
-            
-            sync_id = f"sync_{user.id}_{int(time.time())}"
+
             request.session['sync_ids'].append(sync_id)
             request.session.modified = True
             
@@ -608,14 +653,33 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
                 sync_sources.append('Scopus')
             
             sources_str = ', '.join(sync_sources)
-            messages.success(request, f'Started comprehensive sync from: {sources_str}. Check progress on your dashboard.')
-            
+
+            # Return appropriate response based on request type
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+                # AJAX request - return JSON response
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Started comprehensive sync from: {sources_str}',
+                    'sync_id': sync_id
+                })
+            else:
+                # Regular form submission - redirect with message
+                messages.success(request, f'Started comprehensive sync from: {sources_str}. Check progress on your dashboard.')
+                return redirect('academic:dashboard')
+
         except Exception as e:
-            messages.error(request, f'Failed to start comprehensive sync: {str(e)}')
+            error_msg = f'Failed to start comprehensive sync: {str(e)}'
             logger.error(f"Failed to start comprehensive sync for user {user.id}: {str(e)}")
-        
-        # Redirect to dashboard to show progress
-        return redirect('academic:dashboard')
+
+            # Return appropriate error response
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+                return JsonResponse({
+                    'success': False,
+                    'message': error_msg
+                })
+            else:
+                messages.error(request, error_msg)
+                return redirect('academic:dashboard')
 
 
 class SyncStatusView(LoginRequiredMixin, View):
@@ -629,8 +693,8 @@ class SyncStatusView(LoginRequiredMixin, View):
         user = request.user
         
         # Check for active sync progress
-        user_syncs = {sid: data for sid, data in sync_progress.items() 
-                     if str(user.id) in sid}
+        user_syncs = {sid: data for sid, data in sync_progress.items()
+                     if sid.startswith(f'sync_{user.id}_')}
         
         # Find most recent sync
         active_sync = None
@@ -674,16 +738,21 @@ class SyncProgressStreamView(LoginRequiredMixin, View):
         
         def event_stream():
             # Find active sync for this user
-            user_syncs = {sid: data for sid, data in sync_progress.items() 
-                         if str(user.id) in sid}
-            
+            user_syncs = {sid: data for sid, data in sync_progress.items()
+                         if sid.startswith(f'sync_{user.id}_')}
+
+            logger.info(f"Progress stream requested for user {user.id}, found syncs: {list(user_syncs.keys())}")
+
             if not user_syncs:
+                logger.warning(f"No active sync found for user {user.id}")
                 yield f"data: {json.dumps({'error': 'No active sync found'})}\n\n"
                 return
-            
+
             # Get most recent sync
-            latest_sync_id = max(user_syncs.keys(), 
+            latest_sync_id = max(user_syncs.keys(),
                                key=lambda x: user_syncs[x].get('start_time', 0))
+
+            logger.info(f"Streaming progress for sync {latest_sync_id}")
             
             last_progress = -1
             while True:
@@ -707,11 +776,11 @@ class SyncProgressStreamView(LoginRequiredMixin, View):
                 time.sleep(1)  # Poll every second
         
         response = StreamingHttpResponse(
-            event_stream(), 
+            event_stream(),
             content_type='text/event-stream'
         )
         response['Cache-Control'] = 'no-cache'
-        response['Connection'] = 'keep-alive'
+        response['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
         return response
 
 
