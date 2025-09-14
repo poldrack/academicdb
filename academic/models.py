@@ -165,7 +165,11 @@ class Publication(models.Model):
         default='journal-article',
         help_text="Type of publication"
     )
-    
+    is_preprint = models.BooleanField(
+        default=False,
+        help_text="True if this publication is a preprint (detected from DOI or manually set)"
+    )
+
     # Flexible Metadata (JSON fields for SQLite, will be JSONB in PostgreSQL)
     metadata = models.JSONField(
         default=dict,
@@ -335,6 +339,66 @@ class Publication(models.Model):
     def get_link(self, link_type):
         """Get a specific link (e.g., 'pdf', 'dataset', 'code')"""
         return self.links.get(link_type)
+
+    @staticmethod
+    def is_preprint_doi(doi):
+        """
+        Detect if a DOI belongs to a preprint server
+
+        Args:
+            doi (str): DOI to check
+
+        Returns:
+            bool: True if DOI is from a known preprint server
+        """
+        if not doi:
+            return False
+
+        # Known preprint DOI prefixes
+        preprint_prefixes = [
+            '10.1101',    # bioRxiv
+            '10.48550',   # arXiv
+            '10.31234',   # PsyArXiv
+        ]
+
+        return any(doi.startswith(prefix) for prefix in preprint_prefixes)
+
+    def detect_preprint_status(self):
+        """
+        Detect and update preprint status based on DOI
+
+        Returns:
+            bool: True if preprint status was updated
+        """
+        old_status = self.is_preprint
+        self.is_preprint = self.is_preprint_doi(self.doi)
+        return old_status != self.is_preprint
+
+    @property
+    def preprint_server(self):
+        """
+        Get the preprint server name based on DOI
+
+        Returns:
+            str: Name of preprint server or None
+        """
+        if not self.is_preprint or not self.doi:
+            return None
+
+        if self.doi.startswith('10.1101'):
+            return 'bioRxiv'
+        elif self.doi.startswith('10.48550'):
+            return 'arXiv'
+        elif self.doi.startswith('10.31234'):
+            return 'PsyArXiv'
+
+        return 'Unknown Preprint Server'
+
+    def save(self, *args, **kwargs):
+        """Override save to auto-detect preprint status"""
+        # Auto-detect preprint status before saving
+        self.detect_preprint_status()
+        super().save(*args, **kwargs)
 
 
 class AuthorCache(models.Model):

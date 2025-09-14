@@ -17,7 +17,14 @@
 
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">{{ publication.title }}</h5>
+                <h5 class="card-title mb-0">
+                    {{ publication.title }}
+                    {% if publication.is_preprint %}
+                        <span class="badge bg-warning text-dark ms-2" title="{{ publication.preprint_server }} preprint">
+                            <i class="fas fa-file-alt"></i> Preprint
+                        </span>
+                    {% endif %}
+                </h5>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -39,6 +46,16 @@
                                     <span class="badge bg-secondary">{{ publication.get_source_display }}</span>
                                 </td>
                             </tr>
+                            {% if publication.is_preprint %}
+                            <tr>
+                                <th>Preprint:</th>
+                                <td>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-file-alt"></i> {{ publication.preprint_server }} Preprint
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% if publication.publication_date %}
                             <tr>
                                 <th>Publication Date:</th>

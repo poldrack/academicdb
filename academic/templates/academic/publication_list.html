@@ -91,6 +91,11 @@
                                 <a href="{% url 'academic:publication_detail' publication.pk %}">
                                     {{ publication.title|truncatewords:10 }}
                                 </a>
+                                {% if publication.is_preprint %}
+                                    <span class="badge bg-warning text-dark ms-2" title="{{ publication.preprint_server }} preprint">
+                                        <i class="fas fa-file-alt"></i> Preprint
+                                    </span>
+                                {% endif %}
                                 {% if publication.has_manual_edits %}
                                     <span class="badge bg-info ms-2">Edited</span>
                                 {% endif %}

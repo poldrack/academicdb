@@ -10,14 +10,17 @@ User = get_user_model()
 
 class PublicationSerializer(serializers.ModelSerializer):
     """Serializer for Publication model"""
-    
+
+    preprint_server = serializers.ReadOnlyField()
+
     class Meta:
         model = Publication
         fields = [
             'id', 'title', 'year', 'publication_type', 'publication_name',
-            'doi', 'authors', 'source', 'created_at', 'updated_at'
+            'doi', 'authors', 'source', 'is_preprint', 'preprint_server',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'source']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'source', 'is_preprint', 'preprint_server']
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
