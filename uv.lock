@@ -9,6 +9,7 @@ source = { editable = "." }
 dependencies = [
     { name = "biopython" },
     { name = "crossrefapi" },
+    { name = "dj-database-url" },
     { name = "django" },
     { name = "django-allauth" },
     { name = "django-extensions" },
@@ -43,6 +44,7 @@ requires-dist = [
     { name = "biopython", specifier = ">=1.84" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "crossrefapi", specifier = ">=1.6.0" },
+    { name = "dj-database-url", specifier = ">=3.0.1" },
     { name = "django", specifier = ">=4.2,<5.0" },
     { name = "django-allauth", specifier = ">=0.57.0" },
     { name = "django-extensions", specifier = ">=3.2.0" },
@@ -372,6 +374,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/98/97/06afe62762c9a8a86af0cfb7bfdab22a43ad17138b07af5b1a58442690a2/deprecated-1.2.18.tar.gz", hash = "sha256:422b6f6d859da6f2ef57857761bfb392480502a64c3028ca9bbe86085d72115d", size = 2928744, upload-time = "2025-01-27T10:46:25.7Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6e/c6/ac0b6c1e2d138f1002bcf799d330bd6d85084fece321e662a14223794041/Deprecated-1.2.18-py2.py3-none-any.whl", hash = "sha256:bd5011788200372a32418f888e326a09ff80d0214bd961147cfed01b5c018eec", size = 9998, upload-time = "2025-01-27T10:46:09.186Z" },
+]
+
+[[package]]
+name = "dj-database-url"
+version = "3.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/75/05/2ec51009f4ce424877dbd8ad95868faec0c3494ed0ff1635f9ab53d9e0ee/dj_database_url-3.0.1.tar.gz", hash = "sha256:8994961efb888fc6bf8c41550870c91f6f7691ca751888ebaa71442b7f84eff8", size = 12556, upload-time = "2025-07-02T09:40:11.424Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/aa/5e/86a43c6fdaa41c12d58e4ff3ebbfd6b71a7cb0360a08614e3754ef2e9afb/dj_database_url-3.0.1-py3-none-any.whl", hash = "sha256:43950018e1eeea486bf11136384aec0fe55b29fe6fd8a44553231b85661d9383", size = 8808, upload-time = "2025-07-02T09:40:26.326Z" },
 ]
 
 [[package]]

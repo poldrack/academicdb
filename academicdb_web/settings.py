@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
 
 # Load environment variables from .env file
 load_dotenv()
@@ -91,24 +92,39 @@ WSGI_APPLICATION = 'academicdb_web.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Use DATABASE_URL if available, otherwise use PostgreSQL with fallback to SQLite
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.parse(
+            os.getenv('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
-
-# TODO: Switch to PostgreSQL for production
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv('DB_NAME', 'academicdb'),
-#         'USER': os.getenv('DB_USER', 'postgres'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-#         'HOST': os.getenv('DB_HOST', 'localhost'),
-#         'PORT': os.getenv('DB_PORT', '5432'),
-#     }
-# }
+elif os.getenv('USE_POSTGRES', 'true').lower() == 'true':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'academicdb'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 600,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {
+                'connect_timeout': 10,
+            }
+        }
+    }
+else:
+    # Fallback to SQLite for initial development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -184,8 +200,16 @@ ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Changed from 'mandatory' to avoid ORCID issues
 
-# ORCID configuration is handled via SocialApp in database
-# No SOCIALACCOUNT_PROVIDERS configuration needed
+# ORCID Provider Configuration
+# Note: Configuration is handled via SocialApp in database
+# This section provides additional provider-specific settings
+SOCIALACCOUNT_PROVIDERS = {
+    'orcid': {
+        'BASE_DOMAIN': 'orcid.org',  # Use 'sandbox.orcid.org' for testing
+        'MEMBER_API': False,  # Set to True if you have member API access
+        'VERIFIED_EMAIL': False,  # ORCID doesn't provide verified email status
+    }
+}
 
 # Additional social account settings
 SOCIALACCOUNT_STORE_TOKENS = True

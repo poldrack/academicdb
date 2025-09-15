@@ -1,0 +1,15 @@
+ORCID
+PostgreSQL
+JSONB
+academicdb
+PMID
+PMCID
+Scopus
+PubMed
+CrossRef
+bioRxiv
+arXiv
+PsyArXiv
+django
+allauth
+psycopg2

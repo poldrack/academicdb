@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator, MinLengthValidator
 from django.core.exceptions import ValidationError
@@ -447,6 +448,38 @@ class Publication(models.Model):
             return 'PsyArXiv'
 
         return 'Unknown Preprint Server'
+
+    @classmethod
+    def search(cls, query, user=None):
+        """
+        Full-text search across publications
+
+        Args:
+            query: Search query string
+            user: AcademicUser instance to filter by (optional)
+
+        Returns:
+            QuerySet of Publication objects ranked by relevance
+        """
+        search_query = SearchQuery(query, config='english')
+
+        # Start with base queryset
+        qs = cls.objects.all()
+
+        # Filter by user if provided
+        if user:
+            qs = qs.filter(owner=user)
+
+        # Use raw SQL for search vector that was created in migration
+        qs = qs.extra(
+            select={'rank': "ts_rank(search_vector, plainto_tsquery('english', %s))"},
+            select_params=(query,),
+            where=["search_vector @@ plainto_tsquery('english', %s)"],
+            params=(query,),
+            order_by=('-rank',)
+        )
+
+        return qs
 
     def save(self, *args, **kwargs):
         """Override save to auto-detect preprint status and normalize DOI"""
