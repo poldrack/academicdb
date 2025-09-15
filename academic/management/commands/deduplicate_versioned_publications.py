@@ -71,6 +71,7 @@ class Command(BaseCommand):
         publications_removed = 0
 
         # Get all publications with DOIs that contain version patterns
+        # Include both preprints and published articles
         versioned_pubs = Publication.objects.filter(
             owner=user,
             doi__iregex=r'.*/v\d+$'
@@ -98,17 +99,19 @@ class Command(BaseCommand):
             latest_pub, latest_version = pub_versions[0]
             older_versions = pub_versions[1:]
 
-            self.stdout.write(f"  Found {len(pub_versions)} versions of: {base_doi}")
-            self.stdout.write(f"    Keeping: {latest_pub.doi} (version {latest_version})")
+            # Determine if these are preprints or published articles
+            pub_type = "preprint" if latest_pub.is_preprint else "published article"
+            self.stdout.write(f"  Found {len(pub_versions)} versions of {pub_type}: {base_doi}")
+            self.stdout.write(f"    Keeping: {latest_pub.doi} (version {latest_version}) - {latest_pub.title[:60]}...")
 
             for older_pub, older_version in older_versions:
-                self.stdout.write(f"    {'Would remove' if dry_run else 'Removing'}: {older_pub.doi} (version {older_version})")
+                self.stdout.write(f"    {'Would remove' if dry_run else 'Removing'}: {older_pub.doi} (version {older_version}) - {older_pub.title[:60]}...")
 
                 if not dry_run:
                     with transaction.atomic():
                         # Log the removal
                         logger.info(
-                            f"Removing duplicate publication: {older_pub.doi} "
+                            f"Removing duplicate {pub_type}: {older_pub.doi} "
                             f"(keeping {latest_pub.doi}) for user {user.username}"
                         )
                         older_pub.delete()

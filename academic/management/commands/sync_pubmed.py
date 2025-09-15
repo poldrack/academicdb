@@ -221,10 +221,17 @@ class Command(BaseCommand):
                                     new_version = 0
 
                                 if new_version > latest_version:
-                                    # New DOI is newer, update the existing publication
+                                    # New DOI is newer, remove older versions and update
+                                    self.stdout.write(f"Found newer version {doi} (v{new_version}) - removing older versions")
+                                    for pub in potential_duplicates:
+                                        if pub != latest_pub:
+                                            self.stdout.write(f"  Removing old version: {pub.doi}")
+                                            pub.delete()
+
+                                    # Update the latest publication to the new DOI
                                     existing_pub = latest_pub
-                                    self.stdout.write(f"Updating DOI from {existing_pub.doi} to {doi} (newer version)")
                                     existing_pub.doi = doi
+                                    self.stdout.write(f"Updated to newest version: {doi}")
                                 else:
                                     # Existing version is newer or same, skip this import
                                     self.stdout.write(f"Skipping {doi} - newer version {latest_pub.doi} already exists")
@@ -346,12 +353,45 @@ class Command(BaseCommand):
         doi = None
         if 'PubmedData' in record and 'ArticleIdList' in record['PubmedData']:
             for article_id in record['PubmedData']['ArticleIdList']:
-                if hasattr(article_id, 'attributes') and article_id.attributes.get('IdType') == 'doi':
-                    doi = str(article_id).lower().replace('http://dx.doi.org/', '')
-                    # Replace repeated slashes with single slash
-                    doi = re.sub(r'/+', '/', doi)
-                    break
+                if hasattr(article_id, 'attributes'):
+                    id_type = article_id.attributes.get('IdType')
+                    id_value = str(article_id)
+
+                    # Debug logging for problematic records
+                    if 'arxiv' in id_value.lower():
+                        self.stdout.write(f"DEBUG: Found potential ArXiv ID - Type: {id_type}, Value: {id_value}")
+
+                    if id_type == 'doi':
+                        doi = id_value.lower().replace('http://dx.doi.org/', '')
+                        # Replace repeated slashes with single slash
+                        doi = re.sub(r'/+', '/', doi)
+                        break
+                    elif id_type in ['lid', 'locationidentifier']:
+                        # Handle ArXiv LID format conversion
+                        arxiv_doi = self.convert_arxiv_lid_to_doi(id_value)
+                        if arxiv_doi:
+                            self.stdout.write(f"DEBUG: Converted ArXiv LID {id_value} to DOI {arxiv_doi}")
+                            doi = arxiv_doi
+                            break
+                    # Also check if any ID contains arxiv regardless of type
+                    elif 'arxiv' in id_value.lower():
+                        arxiv_doi = self.convert_arxiv_lid_to_doi(id_value)
+                        if arxiv_doi:
+                            self.stdout.write(f"DEBUG: Found ArXiv in non-LID field (type: {id_type}), converted {id_value} to DOI {arxiv_doi}")
+                            doi = arxiv_doi
+                            break
         return doi
+
+    def convert_arxiv_lid_to_doi(self, lid_value):
+        """Convert ArXiv LID format to standard DOI"""
+        # Match patterns like "arXiv:2306.02183v3" or "arxiv:2306.02183"
+        arxiv_pattern = r'arxiv:(\d{4}\.\d{4,5})(?:v\d+)?'
+        match = re.match(arxiv_pattern, lid_value.lower())
+        if match:
+            arxiv_id = match.group(1)
+            # Convert to standard DOI format - preserve arXiv case
+            return f"10.48550/arXiv.{arxiv_id}"
+        return None
 
     def get_pubmed_pmcid(self, record):
         pmc = None

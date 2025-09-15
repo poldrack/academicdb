@@ -636,21 +636,34 @@ class Publication(models.Model):
 
         Uses title similarity and author matching
         """
-        # Check title similarity
+        # Check title similarity - use more relaxed threshold
         title_similarity = cls._calculate_title_similarity(preprint.title, published_pub.title)
-        if title_similarity < 0.8:  # Require at least 80% title similarity
+        if title_similarity < 0.6:  # Lowered from 0.8 to 0.6 for more flexibility
             return False
 
-        # Check author overlap
+        # Check author overlap - use more relaxed threshold
         author_overlap = cls._calculate_author_overlap(preprint.authors, published_pub.authors)
-        if author_overlap < 0.5:  # Require at least 50% author overlap
+        if author_overlap < 0.3:  # Lowered from 0.5 to 0.3 for more flexibility
             return False
 
-        # Check if published version came after preprint
+        # Check if published version came after preprint (allow same year)
         if published_pub.year < preprint.year:
             return False
 
-        return True
+        # Additional check: if we have very high title similarity (>= 0.9),
+        # we can be more lenient with author overlap
+        if title_similarity >= 0.9 and author_overlap >= 0.2:
+            return True
+
+        # For moderate title similarity, require higher author overlap
+        if title_similarity >= 0.7 and author_overlap >= 0.4:
+            return True
+
+        # For lower title similarity, require high author overlap
+        if title_similarity >= 0.6 and author_overlap >= 0.6:
+            return True
+
+        return False
 
     @classmethod
     def _calculate_title_similarity(cls, title1, title2):
@@ -1327,6 +1340,158 @@ class AuthorCache(models.Model):
                 self.confidence_score = min(1.0, self.confidence_score + 0.1)
         
         self.save()
+
+
+class PMCCache(models.Model):
+    """
+    Cache for PMID to PMCID mappings to speed up rebuilding the database
+    Stores mappings that survive deletion of the publication database
+    """
+    # Primary identifier
+    pmid = models.CharField(
+        max_length=20,
+        unique=True,
+        db_index=True,
+        help_text="PubMed ID"
+    )
+
+    # Cached PMC ID
+    pmcid = models.CharField(
+        max_length=20,
+        help_text="PubMed Central ID (with PMC prefix)"
+    )
+
+    # DOI (optional, for additional verification)
+    doi = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="DOI associated with this publication"
+    )
+
+    # Metadata for cache management
+    lookup_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of times this mapping has been used"
+    )
+
+    last_verified = models.DateTimeField(
+        auto_now=True,
+        help_text="Last time this mapping was verified/updated"
+    )
+
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('pubmed_api', 'PubMed API'),
+            ('manual', 'Manual Entry'),
+        ],
+        default='pubmed_api',
+        help_text="Source of the mapping"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['pmid']),
+            models.Index(fields=['pmcid']),
+            models.Index(fields=['doi']),
+            models.Index(fields=['lookup_count', '-last_verified']),
+        ]
+        ordering = ['-lookup_count', '-last_verified']
+        verbose_name = 'PMC Cache Entry'
+        verbose_name_plural = 'PMC Cache Entries'
+
+    def __str__(self):
+        return f"PMID:{self.pmid} -> {self.pmcid}"
+
+    @classmethod
+    def get_cached_pmcid(cls, pmid, doi=None):
+        """
+        Retrieve cached PMCID for a given PMID
+        Returns None if not found in cache
+        """
+        try:
+            cache_entry = cls.objects.filter(pmid=str(pmid)).first()
+            if cache_entry:
+                # Update lookup count and last verified
+                cache_entry.lookup_count += 1
+                cache_entry.save(update_fields=['lookup_count', 'last_verified'])
+                return cache_entry.pmcid
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def cache_pmcid_mapping(cls, pmid, pmcid, doi=None, source='pubmed_api'):
+        """
+        Cache a PMID to PMCID mapping
+        Updates existing entry or creates new one
+        """
+        if not pmid or not pmcid:
+            return None
+
+        # Ensure PMCID has PMC prefix
+        if not pmcid.startswith('PMC'):
+            pmcid = 'PMC' + pmcid
+
+        # Update or create cache entry
+        cache_entry, created = cls.objects.get_or_create(
+            pmid=str(pmid),
+            defaults={
+                'pmcid': pmcid,
+                'doi': doi,
+                'source': source,
+                'lookup_count': 1,
+            }
+        )
+
+        if not created:
+            # Update existing entry
+            cache_entry.pmcid = pmcid
+            if doi:
+                cache_entry.doi = doi
+            cache_entry.lookup_count += 1
+            cache_entry.save()
+
+        return cache_entry
+
+    @classmethod
+    def bulk_cache_mappings(cls, mappings):
+        """
+        Efficiently cache multiple PMID->PMCID mappings
+        mappings: list of dicts with 'pmid', 'pmcid', and optionally 'doi'
+        """
+        cache_entries = []
+        for mapping in mappings:
+            pmid = mapping.get('pmid')
+            pmcid = mapping.get('pmcid')
+            doi = mapping.get('doi')
+
+            if pmid and pmcid:
+                # Ensure PMCID has PMC prefix
+                if not pmcid.startswith('PMC'):
+                    pmcid = 'PMC' + pmcid
+
+                cache_entries.append(cls(
+                    pmid=str(pmid),
+                    pmcid=pmcid,
+                    doi=doi,
+                    source='pubmed_api',
+                    lookup_count=1,
+                ))
+
+        if cache_entries:
+            cls.objects.bulk_create(
+                cache_entries,
+                ignore_conflicts=True,
+                batch_size=100
+            )
+
+        return len(cache_entries)
 
 
 class Funding(models.Model):

@@ -53,7 +53,27 @@ def get_pubmed_doi(record):
             doi = str(j).lower().replace('http://dx.doi.org/', '')
             # Replace repeated slashes with single slash
             doi = re.sub(r'/+', '/', doi)
+            break
+        elif j.attributes['IdType'] in ['lid', 'locationidentifier']:
+            # Handle ArXiv LID format conversion
+            lid_value = str(j)
+            arxiv_doi = convert_arxiv_lid_to_doi(lid_value)
+            if arxiv_doi:
+                doi = arxiv_doi
+                break
     return doi
+
+
+def convert_arxiv_lid_to_doi(lid_value):
+    """Convert ArXiv LID format to standard DOI"""
+    # Match patterns like "arXiv:2306.02183v3" or "arxiv:2306.02183"
+    arxiv_pattern = r'arxiv:(\d{4}\.\d{4,5})(?:v\d+)?'
+    match = re.match(arxiv_pattern, lid_value.lower())
+    if match:
+        arxiv_id = match.group(1)
+        # Convert to standard DOI format - preserve arXiv case
+        return f"10.48550/arXiv.{arxiv_id}"
+    return None
 
 
 def get_pubmed_pmcid(record):

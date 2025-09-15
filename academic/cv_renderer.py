@@ -15,6 +15,37 @@ from django.contrib.staticfiles.finders import find
 from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
 
 
+def convert_html_to_latex(text):
+    """
+    Convert HTML formatting tags to LaTeX commands
+    """
+    if not isinstance(text, str):
+        return text
+
+    import re
+
+    # Convert HTML tags to LaTeX commands
+    # Handle italic/emphasis tags
+    text = re.sub(r'<i>(.*?)</i>', r'\\textit{\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'<em>(.*?)</em>', r'\\textit{\1}', text, flags=re.IGNORECASE)
+
+    # Handle bold/strong tags
+    text = re.sub(r'<b>(.*?)</b>', r'\\textbf{\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'<strong>(.*?)</strong>', r'\\textbf{\1}', text, flags=re.IGNORECASE)
+
+    # Handle underline tags
+    text = re.sub(r'<u>(.*?)</u>', r'\\underline{\1}', text, flags=re.IGNORECASE)
+
+    # Handle superscript and subscript
+    text = re.sub(r'<sup>(.*?)</sup>', r'\\textsuperscript{\1}', text, flags=re.IGNORECASE)
+    text = re.sub(r'<sub>(.*?)</sub>', r'\\textsubscript{\1}', text, flags=re.IGNORECASE)
+
+    # Remove any remaining HTML tags (sanitization)
+    text = re.sub(r'<[^>]+>', '', text)
+
+    return text
+
+
 def escape_characters_for_latex(data):
     """
     Escape special characters for LaTeX
@@ -34,15 +65,37 @@ def escape_characters_for_latex(data):
             # String appears to already be escaped, return as-is
             return result
 
-        # Only escape if not already escaped
-        # Use negative lookbehind to avoid double-escaping
-        result = re.sub(r'(?<!\\)&', r'\\&', result)
-        result = re.sub(r'(?<!\\)%', r'\\%', result)
-        result = re.sub(r'(?<!\\)\$', r'\\$', result)
-        result = re.sub(r'(?<!\\)#', r'\\#', result)
-        result = re.sub(r'(?<!\\)_', r'\\_', result)
-        result = re.sub(r'(?<!\\)\{', r'\\{', result)
-        result = re.sub(r'(?<!\\)\}', r'\\}', result)
+        # Check if string contains LaTeX commands (like \textit{}, \textbf{}, etc.)
+        latex_command_pattern = r'\\[a-zA-Z]+\{[^}]*\}'
+        if re.search(latex_command_pattern, result):
+            # String contains LaTeX commands, use more careful escaping
+            # First escape other characters that are NOT part of LaTeX commands
+            result = re.sub(r'(?<!\\)&', r'\\&', result)
+            result = re.sub(r'(?<!\\)%', r'\\%', result)
+            result = re.sub(r'(?<!\\)\$', r'\\$', result)
+            result = re.sub(r'(?<!\\)#', r'\\#', result)
+            result = re.sub(r'(?<!\\)_', r'\\_', result)
+
+            # For braces, avoid escaping those that are part of LaTeX commands
+            # Split the text and process non-command parts
+            parts = re.split(r'(\\[a-zA-Z]+\{[^}]*\})', result)
+            escaped_parts = []
+            for i, part in enumerate(parts):
+                if i % 2 == 0:  # Non-command part, escape braces
+                    part = re.sub(r'(?<!\\)\{', r'\\{', part)
+                    part = re.sub(r'(?<!\\)\}', r'\\}', part)
+                # Command parts (odd indices) are left unchanged
+                escaped_parts.append(part)
+            result = ''.join(escaped_parts)
+        else:
+            # No LaTeX commands, use normal escaping
+            result = re.sub(r'(?<!\\)&', r'\\&', result)
+            result = re.sub(r'(?<!\\)%', r'\\%', result)
+            result = re.sub(r'(?<!\\)\$', r'\\$', result)
+            result = re.sub(r'(?<!\\)#', r'\\#', result)
+            result = re.sub(r'(?<!\\)_', r'\\_', result)
+            result = re.sub(r'(?<!\\)\{', r'\\{', result)
+            result = re.sub(r'(?<!\\)\}', r'\\}', result)
 
         # Handle ~ and ^ carefully
         result = result.replace('~', r'\textasciitilde{}')
@@ -55,6 +108,20 @@ def escape_characters_for_latex(data):
         return [escape_characters_for_latex(item) for item in data]
     else:
         return data
+
+
+def prepare_title_for_latex(title):
+    """
+    Prepare title for LaTeX by converting HTML tags and escaping characters
+    """
+    if not title:
+        return title
+
+    # First convert HTML tags to LaTeX
+    latex_title = convert_html_to_latex(title)
+
+    # Then escape LaTeX special characters
+    return escape_characters_for_latex(latex_title)
 
 
 def get_education(user):
@@ -606,7 +673,7 @@ def format_publication(pub, debug=False):
     # Create formatted citation with escaped content
     authors_str = mk_author_string(pub.authors)
     outlet_str = get_publication_outlet(pub_data)
-    escaped_title = escape_characters_for_latex(pub.title)
+    escaped_title = prepare_title_for_latex(pub.title)
 
     # Build citation
     output = f"{authors_str}({pub.year}). {escaped_title}.{outlet_str}"
