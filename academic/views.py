@@ -1451,6 +1451,18 @@ class AdminPanelView(LoginRequiredMixin, TemplateView):
             'backup_count': len(list(backup_root.glob('backup_*'))) if backup_root.exists() else 0,
         }
 
+        # API Cache statistics (only for superusers)
+        if user.is_superuser:
+            from .models import APIRecordCache
+            context['cache_stats'] = {
+                'total_records': APIRecordCache.objects.count(),
+                'scopus_records': APIRecordCache.objects.filter(api_source='scopus').count(),
+                'pubmed_records': APIRecordCache.objects.filter(api_source='pubmed').count(),
+                'crossref_records': APIRecordCache.objects.filter(api_source='crossref').count(),
+            }
+        else:
+            context['cache_stats'] = None
+
         return context
 
 
@@ -1764,4 +1776,53 @@ class CVPreviewView(LoginRequiredMixin, TemplateView):
         }
 
         return context
+
+
+class ClearAPICacheView(LoginRequiredMixin, View):
+    """
+    Handle clearing all API cache records (Scopus, PubMed, CrossRef)
+    Only admin users can access this view as it affects all users
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        """Clear all API cache records"""
+        # Only allow superusers to clear the global cache
+        if not request.user.is_superuser:
+            messages.error(request, 'Only administrators can clear the API cache.')
+            return redirect('academic:dashboard')
+
+        # Security check - require confirmation parameter
+        if request.POST.get('confirm') != 'DELETE':
+            messages.error(request, 'Confirmation required to clear API cache.')
+            return redirect('academic:admin_panel')
+
+        try:
+            from .models import APIRecordCache
+
+            # Get cache statistics before deletion
+            total_records = APIRecordCache.objects.count()
+            scopus_records = APIRecordCache.objects.filter(api_source='scopus').count()
+            pubmed_records = APIRecordCache.objects.filter(api_source='pubmed').count()
+            crossref_records = APIRecordCache.objects.filter(api_source='crossref').count()
+
+            # Delete all cache records
+            deleted_count = APIRecordCache.objects.all().delete()[0]
+
+            # Log the action
+            logger.info(f"Admin user {request.user.id} ({request.user.username}) cleared {deleted_count} API cache records")
+
+            # Success message with breakdown
+            messages.success(
+                request,
+                f'Successfully cleared {deleted_count} API cache records: '
+                f'{scopus_records} Scopus, {pubmed_records} PubMed, {crossref_records} CrossRef. '
+                f'Future API calls will be slower until the cache is rebuilt.'
+            )
+
+        except Exception as e:
+            messages.error(request, f'Failed to clear API cache: {str(e)}')
+            logger.error(f"Error clearing API cache by user {request.user.id}: {str(e)}")
+
+        return redirect('academic:admin_panel')
 

@@ -4,6 +4,9 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.
 
+[x] I would like to cache all of the full records from Scopus, Pubmed, and Crossref that are obtained while syncing, and save them to a separate table that will not be deleted when the publications are deleted. This is order to speed up re-syncing. Instead there should be a separate button in the Tools page to delete these caches.  Remove any rate-limiting delays for items that are found in the cache.
+    - FIXED: Implemented APIRecordCache model to store full API records from Scopus, PubMed, and CrossRef. Records are cached independently of publication records and persist when publications are deleted. Added cache management interface in Tools page for administrators to view cache statistics and clear cache. Cache supports intelligent lookup by multiple identifiers (API ID, DOI, PMID, Scopus ID) with automatic metadata extraction and lookup count tracking.
+
 [x] I would like to add the ability to search for publications using a text field. it should search the title and authors, and show only those publications that match the search term.
     - FIXED: Added search functionality to publications list view with search form that filters by title and authors. Search preserves pagination and shows appropriate feedback for no results.
 

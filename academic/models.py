@@ -1992,6 +1992,384 @@ class Conference(models.Model):
         verbose_name_plural = 'Conference Presentations'
 
 
+class APIRecordCache(models.Model):
+    """
+    Cache for full records from external APIs (Scopus, PubMed, CrossRef)
+    These records are preserved even when publications are deleted to speed up re-syncing
+    """
+    # API source choices
+    API_SOURCES = [
+        ('scopus', 'Scopus'),
+        ('pubmed', 'PubMed'),
+        ('crossref', 'CrossRef'),
+    ]
+
+    # Primary identifiers
+    api_source = models.CharField(
+        max_length=20,
+        choices=API_SOURCES,
+        db_index=True,
+        help_text="Source API for this record"
+    )
+
+    # API-specific identifier
+    api_id = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="API-specific identifier (DOI, PMID, Scopus ID, etc.)"
+    )
+
+    # Secondary identifiers for cross-referencing
+    doi = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="DOI if available"
+    )
+
+    pmid = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="PubMed ID if available"
+    )
+
+    scopus_id = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Scopus ID if available"
+    )
+
+    # Full API response
+    raw_data = models.JSONField(
+        help_text="Complete API response data"
+    )
+
+    # Processed metadata for quick access
+    title = models.TextField(
+        blank=True,
+        help_text="Publication title extracted from API data"
+    )
+
+    year = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Publication year extracted from API data"
+    )
+
+    authors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Author list extracted from API data"
+    )
+
+    # Cache management
+    lookup_count = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of times this record has been accessed"
+    )
+
+    last_accessed = models.DateTimeField(
+        auto_now=True,
+        help_text="Last time this record was accessed"
+    )
+
+    # Quality and reliability tracking
+    is_complete = models.BooleanField(
+        default=True,
+        help_text="Whether this record contains complete data"
+    )
+
+    api_version = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="API version when record was fetched"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['api_source', 'api_id']),
+            models.Index(fields=['doi']),
+            models.Index(fields=['pmid']),
+            models.Index(fields=['scopus_id']),
+            models.Index(fields=['api_source', 'year']),
+            models.Index(fields=['lookup_count', '-last_accessed']),
+        ]
+        unique_together = ['api_source', 'api_id']
+        ordering = ['-last_accessed', '-lookup_count']
+        verbose_name = 'API Record Cache'
+        verbose_name_plural = 'API Record Cache'
+
+    def __str__(self):
+        title_preview = self.title[:50] + "..." if len(self.title) > 50 else self.title
+        return f"{self.api_source.upper()}: {title_preview} ({self.year or 'No year'})"
+
+    @classmethod
+    def get_cached_record(cls, api_source, api_id=None, doi=None, pmid=None, scopus_id=None):
+        """
+        Retrieve cached record by various identifiers
+
+        Args:
+            api_source: 'scopus', 'pubmed', or 'crossref'
+            api_id: Primary API identifier
+            doi: DOI for cross-API lookup
+            pmid: PubMed ID for cross-API lookup
+            scopus_id: Scopus ID for cross-API lookup
+
+        Returns:
+            APIRecordCache instance or None
+        """
+        # Try primary identifier first
+        if api_id:
+            record = cls.objects.filter(api_source=api_source, api_id=api_id).first()
+            if record:
+                record.lookup_count += 1
+                record.save(update_fields=['lookup_count', 'last_accessed'])
+                return record
+
+        # Try secondary identifiers
+        filters = {}
+        if doi:
+            filters['doi'] = doi.lower()
+        if pmid:
+            filters['pmid'] = str(pmid)
+        if scopus_id:
+            filters['scopus_id'] = str(scopus_id)
+
+        if filters:
+            # Look for any matching record from the same API source first
+            record = cls.objects.filter(api_source=api_source, **filters).first()
+            if record:
+                record.lookup_count += 1
+                record.save(update_fields=['lookup_count', 'last_accessed'])
+                return record
+
+            # Look for records from other APIs if needed for cross-referencing
+            record = cls.objects.filter(**filters).first()
+            if record:
+                record.lookup_count += 1
+                record.save(update_fields=['lookup_count', 'last_accessed'])
+                return record
+
+        return None
+
+    @classmethod
+    def cache_record(cls, api_source, api_id, raw_data, doi=None, pmid=None, scopus_id=None,
+                     title=None, year=None, authors=None, api_version=None, is_complete=True):
+        """
+        Cache an API record with automatic metadata extraction
+
+        Args:
+            api_source: 'scopus', 'pubmed', or 'crossref'
+            api_id: Primary API identifier
+            raw_data: Complete API response
+            doi, pmid, scopus_id: Cross-reference identifiers
+            title, year, authors: Extracted metadata (will be auto-extracted if not provided)
+            api_version: API version string
+            is_complete: Whether record is complete
+
+        Returns:
+            APIRecordCache instance
+        """
+        # Normalize identifiers
+        if doi:
+            doi = doi.lower().strip()
+        if pmid:
+            pmid = str(pmid).strip()
+        if scopus_id:
+            scopus_id = str(scopus_id).strip()
+
+        # Extract metadata if not provided
+        if not title or not year or not authors:
+            extracted = cls._extract_metadata(api_source, raw_data)
+            title = title or extracted.get('title', '')
+            year = year or extracted.get('year')
+            authors = authors or extracted.get('authors', [])
+
+        # Update or create cache entry
+        record, created = cls.objects.update_or_create(
+            api_source=api_source,
+            api_id=api_id,
+            defaults={
+                'raw_data': raw_data,
+                'doi': doi,
+                'pmid': pmid,
+                'scopus_id': scopus_id,
+                'title': title or '',
+                'year': year,
+                'authors': authors or [],
+                'is_complete': is_complete,
+                'api_version': api_version or '',
+            }
+        )
+
+        # Update lookup count separately for existing records
+        if not created:
+            record.lookup_count += 1
+            record.save(update_fields=['lookup_count', 'last_accessed'])
+
+        return record
+
+    @classmethod
+    def _extract_metadata(cls, api_source, raw_data):
+        """
+        Extract title, year, and authors from raw API data
+
+        Args:
+            api_source: 'scopus', 'pubmed', or 'crossref'
+            raw_data: Raw API response data
+
+        Returns:
+            dict with 'title', 'year', 'authors' keys
+        """
+        metadata = {'title': '', 'year': None, 'authors': []}
+
+        if not raw_data:
+            return metadata
+
+        try:
+            if api_source == 'scopus':
+                # Scopus API structure
+                if 'dc:title' in raw_data:
+                    metadata['title'] = raw_data['dc:title']
+                elif 'title' in raw_data:
+                    metadata['title'] = raw_data['title']
+
+                if 'prism:coverDate' in raw_data:
+                    date_str = raw_data['prism:coverDate']
+                    if date_str:
+                        try:
+                            metadata['year'] = int(date_str.split('-')[0])
+                        except (ValueError, IndexError):
+                            pass
+
+                # Extract authors from Scopus format
+                if 'author' in raw_data:
+                    authors = raw_data['author']
+                    if isinstance(authors, list):
+                        for author in authors:
+                            if isinstance(author, dict):
+                                name = author.get('authname', '')
+                                if name:
+                                    metadata['authors'].append({'name': name})
+
+            elif api_source == 'pubmed':
+                # PubMed API structure
+                if 'title' in raw_data:
+                    metadata['title'] = raw_data['title']
+                elif 'ArticleTitle' in raw_data:
+                    metadata['title'] = raw_data['ArticleTitle']
+
+                if 'pubdate' in raw_data:
+                    date_str = raw_data['pubdate']
+                    if date_str:
+                        try:
+                            metadata['year'] = int(date_str.split()[0])
+                        except (ValueError, IndexError):
+                            pass
+
+                # Extract authors from PubMed format
+                if 'authors' in raw_data:
+                    authors = raw_data['authors']
+                    if isinstance(authors, list):
+                        for author in authors:
+                            if isinstance(author, dict):
+                                name = author.get('name', '')
+                                if name:
+                                    metadata['authors'].append({'name': name})
+
+            elif api_source == 'crossref':
+                # CrossRef API structure
+                if 'title' in raw_data and raw_data['title']:
+                    metadata['title'] = raw_data['title'][0] if isinstance(raw_data['title'], list) else raw_data['title']
+
+                if 'published-print' in raw_data:
+                    date_parts = raw_data['published-print'].get('date-parts', [])
+                    if date_parts and date_parts[0]:
+                        metadata['year'] = date_parts[0][0]
+                elif 'published-online' in raw_data:
+                    date_parts = raw_data['published-online'].get('date-parts', [])
+                    if date_parts and date_parts[0]:
+                        metadata['year'] = date_parts[0][0]
+
+                # Extract authors from CrossRef format
+                if 'author' in raw_data:
+                    authors = raw_data['author']
+                    if isinstance(authors, list):
+                        for author in authors:
+                            if isinstance(author, dict):
+                                given = author.get('given', '')
+                                family = author.get('family', '')
+                                name = f"{given} {family}".strip()
+                                if name:
+                                    metadata['authors'].append({'name': name})
+
+        except Exception:
+            # If extraction fails, return empty metadata
+            pass
+
+        return metadata
+
+    @classmethod
+    def bulk_cache_records(cls, records):
+        """
+        Efficiently cache multiple API records
+
+        Args:
+            records: List of dicts with cache_record parameters
+
+        Returns:
+            Number of records cached
+        """
+        cached_count = 0
+
+        for record_data in records:
+            try:
+                cls.cache_record(**record_data)
+                cached_count += 1
+            except Exception:
+                # Skip problematic records
+                continue
+
+        return cached_count
+
+    @classmethod
+    def cleanup_old_records(cls, days_old=365, min_lookup_count=1):
+        """
+        Clean up old, rarely used cache records
+
+        Args:
+            days_old: Remove records older than this many days
+            min_lookup_count: Only remove records with lookup_count <= this value
+
+        Returns:
+            Number of records deleted
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        cutoff_date = timezone.now() - timedelta(days=days_old)
+
+        old_records = cls.objects.filter(
+            last_accessed__lt=cutoff_date,
+            lookup_count__lte=min_lookup_count
+        )
+
+        count = old_records.count()
+        old_records.delete()
+
+        return count
+
+
 class ProfessionalActivity(models.Model):
     """
     Represents professional activities from ORCID including:

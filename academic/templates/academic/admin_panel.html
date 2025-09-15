@@ -124,6 +124,31 @@
                             </button>
                         </div>
 
+                        {% if user.is_superuser and cache_stats %}
+                        <div class="mb-3">
+                            <h6>API Cache Management</h6>
+                            <p class="small text-muted">
+                                Manage external API record cache to speed up re-syncing.
+                                <span class="badge bg-danger text-white">Admin Only</span>
+                            </p>
+                            <div class="small mb-2">
+                                <strong>Cache Statistics:</strong><br>
+                                Total: {{ cache_stats.total_records }} records<br>
+                                Scopus: {{ cache_stats.scopus_records }},
+                                PubMed: {{ cache_stats.pubmed_records }},
+                                CrossRef: {{ cache_stats.crossref_records }}
+                            </div>
+                            <form method="post" action="{% url 'academic:clear_api_cache' %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="confirm" value="DELETE">
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                        onclick="return confirm('This will delete ALL cached API records from Scopus, PubMed, and CrossRef. This action cannot be undone and will slow down future sync operations until the cache is rebuilt. Continue?')">
+                                    <i class="fas fa-trash"></i> Clear API Cache
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+
                         <div class="mb-3">
                             <h6>System Status</h6>
                             <p class="small text-muted">Check system health and performance metrics.</p>

@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils import timezone
 import json
-from .models import AcademicUser, Publication, AuthorCache, ProfessionalActivity
+from .models import AcademicUser, Publication, AuthorCache, ProfessionalActivity, APIRecordCache
 
 
 @admin.register(AcademicUser)
@@ -338,6 +338,173 @@ class AuthorCacheAdmin(admin.ModelAdmin):
         )
         self.message_user(request, f'{updated} authors verification status cleared.')
     clear_verification.short_description = "Clear verification status"
+
+
+@admin.register(APIRecordCache)
+class APIRecordCacheAdmin(admin.ModelAdmin):
+    """
+    Admin interface for APIRecordCache model
+    """
+    list_display = [
+        'title_truncated',
+        'api_source',
+        'year',
+        'api_id_truncated',
+        'has_doi',
+        'has_pmid',
+        'has_scopus_id',
+        'lookup_count',
+        'last_accessed',
+        'is_complete'
+    ]
+
+    list_filter = [
+        'api_source',
+        'year',
+        'is_complete',
+        ('doi', admin.EmptyFieldListFilter),
+        ('pmid', admin.EmptyFieldListFilter),
+        ('scopus_id', admin.EmptyFieldListFilter),
+        'created_at',
+        'last_accessed'
+    ]
+
+    search_fields = [
+        'title',
+        'api_id',
+        'doi',
+        'pmid',
+        'scopus_id'
+    ]
+
+    readonly_fields = [
+        'lookup_count',
+        'last_accessed',
+        'created_at',
+        'updated_at',
+        'formatted_raw_data',
+        'formatted_authors'
+    ]
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('api_source', 'api_id', 'title', 'year')
+        }),
+        ('Cross-Reference Identifiers', {
+            'fields': ('doi', 'pmid', 'scopus_id')
+        }),
+        ('Authors', {
+            'fields': ('formatted_authors',),
+            'classes': ('collapse',)
+        }),
+        ('Cache Management', {
+            'fields': ('is_complete', 'api_version', 'lookup_count', 'last_accessed'),
+            'classes': ('collapse',)
+        }),
+        ('Raw API Data', {
+            'fields': ('formatted_raw_data',),
+            'classes': ('collapse',)
+        }),
+        ('System Information', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+
+    actions = ['clear_selected_cache', 'mark_incomplete', 'mark_complete']
+
+    def title_truncated(self, obj):
+        """Display truncated title"""
+        if not obj.title:
+            return "(No title)"
+        return obj.title[:75] + '...' if len(obj.title) > 75 else obj.title
+    title_truncated.short_description = 'Title'
+
+    def api_id_truncated(self, obj):
+        """Display truncated API ID"""
+        if not obj.api_id:
+            return "(No ID)"
+        return obj.api_id[:30] + '...' if len(obj.api_id) > 30 else obj.api_id
+    api_id_truncated.short_description = 'API ID'
+
+    def has_doi(self, obj):
+        """Check if record has DOI"""
+        return bool(obj.doi)
+    has_doi.boolean = True
+    has_doi.short_description = 'DOI'
+
+    def has_pmid(self, obj):
+        """Check if record has PMID"""
+        return bool(obj.pmid)
+    has_pmid.boolean = True
+    has_pmid.short_description = 'PMID'
+
+    def has_scopus_id(self, obj):
+        """Check if record has Scopus ID"""
+        return bool(obj.scopus_id)
+    has_scopus_id.boolean = True
+    has_scopus_id.short_description = 'Scopus ID'
+
+    def formatted_authors(self, obj):
+        """Display formatted authors list"""
+        if not obj.authors:
+            return "No authors"
+
+        html = "<ol>"
+        for author in obj.authors[:10]:  # Show first 10 authors
+            if isinstance(author, dict):
+                name = author.get('name', 'Unknown')
+                html += f"<li>{name}</li>"
+            else:
+                html += f"<li>{author}</li>"
+
+        if len(obj.authors) > 10:
+            html += f"<li><em>... and {len(obj.authors) - 10} more</em></li>"
+        html += "</ol>"
+
+        return mark_safe(html)
+    formatted_authors.short_description = "Authors"
+
+    def formatted_raw_data(self, obj):
+        """Display formatted raw API data"""
+        if not obj.raw_data:
+            return "No raw data"
+
+        try:
+            # Pretty print JSON with limited depth
+            formatted = json.dumps(obj.raw_data, indent=2, ensure_ascii=False)
+            # Truncate if too long
+            if len(formatted) > 5000:
+                formatted = formatted[:5000] + "\n... (truncated)"
+
+            return format_html('<pre style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">{}</pre>', formatted)
+        except Exception:
+            return "Invalid JSON data"
+    formatted_raw_data.short_description = "Raw API Data"
+
+    def clear_selected_cache(self, request, queryset):
+        """Clear selected cache records"""
+        count = queryset.count()
+        queryset.delete()
+        self.message_user(request, f'{count} cache records cleared.')
+    clear_selected_cache.short_description = "Clear selected cache records"
+
+    def mark_incomplete(self, request, queryset):
+        """Mark selected records as incomplete"""
+        updated = queryset.update(is_complete=False)
+        self.message_user(request, f'{updated} records marked as incomplete.')
+    mark_incomplete.short_description = "Mark as incomplete"
+
+    def mark_complete(self, request, queryset):
+        """Mark selected records as complete"""
+        updated = queryset.update(is_complete=True)
+        self.message_user(request, f'{updated} records marked as complete.')
+    mark_complete.short_description = "Mark as complete"
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        qs = super().get_queryset(request)
+        return qs.order_by('-last_accessed', '-lookup_count')
 
 
 @admin.register(ProfessionalActivity)
