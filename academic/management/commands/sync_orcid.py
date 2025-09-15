@@ -784,14 +784,25 @@ class Command(BaseCommand):
             return None
 
         try:
-            year = date_data.get('year', {}).get('value')
-            month = date_data.get('month', {}).get('value', 1)
-            day = date_data.get('day', {}).get('value', 1)
+            year_obj = date_data.get('year', {})
+            month_obj = date_data.get('month', {})
+            day_obj = date_data.get('day', {})
+
+            year = year_obj.get('value') if year_obj else None
+            month = month_obj.get('value') if month_obj else None
+            day = day_obj.get('value') if day_obj else None
 
             if year:
+                # Convert string values to integers
+                year = int(year)
+                # Use 1 as default for missing month/day
+                month = int(month) if month is not None else 1
+                day = int(day) if day is not None else 1
+
                 from datetime import date
-                return date(int(year), int(month), int(day))
-        except (ValueError, TypeError, AttributeError):
+                return date(year, month, day)
+        except (ValueError, TypeError, AttributeError) as e:
+            self.stdout.write(f'    Warning: Could not parse date {date_data}: {e}')
             pass
 
         return None
