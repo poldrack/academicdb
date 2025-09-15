@@ -16,6 +16,15 @@ class AcademicUserAdmin(UserAdmin):
         ('Academic Profile', {
             'fields': ('orcid_id', 'orcid_token', 'institution', 'department', 'research_areas')
         }),
+        ('Personal Information', {
+            'fields': ('middle_name',)
+        }),
+        ('Address', {
+            'fields': ('address1', 'address2', 'city', 'state', 'zip_code', 'country')
+        }),
+        ('Contact Information', {
+            'fields': ('phone', 'websites')
+        }),
         ('Settings', {
             'fields': ('preferred_citation_style', 'email_notifications')
         }),
@@ -27,6 +36,15 @@ class AcademicUserAdmin(UserAdmin):
     add_fieldsets = UserAdmin.add_fieldsets + (
         ('Academic Profile', {
             'fields': ('orcid_id', 'institution', 'department')
+        }),
+        ('Personal Information', {
+            'fields': ('middle_name',)
+        }),
+        ('Address', {
+            'fields': ('address1', 'address2', 'city', 'state', 'zip_code', 'country')
+        }),
+        ('Contact Information', {
+            'fields': ('phone', 'websites')
         }),
     )
     

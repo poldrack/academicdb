@@ -46,9 +46,62 @@ class AcademicUser(AbstractUser):
     institution = models.CharField(max_length=200, blank=True)
     department = models.CharField(max_length=200, blank=True)
     research_areas = models.JSONField(
-        default=list, 
+        default=list,
         blank=True,
         help_text="List of research areas/keywords"
+    )
+
+    # Personal Information for CV Header
+    middle_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Middle name or initial for CV formatting"
+    )
+
+    # Address Information
+    address1 = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Street address line 1"
+    )
+    address2 = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Street address line 2 (apartment, suite, etc.)"
+    )
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="City"
+    )
+    state = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="State or province"
+    )
+    zip_code = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="ZIP or postal code"
+    )
+    country = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Country"
+    )
+
+    # Contact Information
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Phone number"
+    )
+
+    # Web Presence (JSONField for multiple URLs)
+    websites = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of websites/URLs with labels (e.g., [{'label': 'Personal Website', 'url': 'https://...'}])"
     )
     
     # System Settings

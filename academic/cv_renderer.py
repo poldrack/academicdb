@@ -728,12 +728,20 @@ def get_heading(user):
     # Get name components
     firstname = escape_characters_for_latex(user.first_name or 'First')
     lastname = escape_characters_for_latex(user.last_name or 'Last')
-    middlename = escape_characters_for_latex(getattr(user, 'middle_name', '') or 'M')  # Default middle initial
+    middlename = escape_characters_for_latex(user.middle_name or '')
+
+    # Build name string with proper middle name/initial handling
+    if middlename:
+        # If it's just an initial (1 char), use it as is. If longer, use first initial
+        middle_part = middlename if len(middlename) == 1 else middlename[0]
+        name_string = f"{firstname} {middle_part}. {lastname}"
+    else:
+        name_string = f"{firstname} {lastname}"
 
     # Build heading with proper column layout
     heading = f"""
 \\reversemarginpar
-{{\\LARGE {firstname} {middlename[0] if middlename else ''}. {lastname}}}\\\\[4mm]
+{{\\LARGE {name_string}}}\\\\[4mm]
 \\vspace{{-1cm}}
 
 \\begin{{multicols}}{{2}}
@@ -747,12 +755,23 @@ email: {escape_characters_for_latex(user.email)} \\\\
     if user.orcid_id:
         heading += f"ORCID: \\href{{https://orcid.org/{user.orcid_id}}}{{{user.orcid_id}}} \\\\\n"
 
-    # Add optional fields if available (phone and website can go in second column)
-    if hasattr(user, 'phone') and user.phone:
+    # Add phone number if available
+    if user.phone:
         heading += f"Phone: {escape_characters_for_latex(user.phone)} \\\\\n"
-    if hasattr(user, 'website') and user.website:
-        website_display = user.website.replace('https://', '').replace('http://', '')
-        heading += f"url: \\href{{{user.website}}}{{{escape_characters_for_latex(website_display)}}} \\\\\n"
+
+    # Add websites from the websites JSONField (supporting multiple URLs)
+    if user.websites and isinstance(user.websites, list):
+        for website_entry in user.websites:
+            if isinstance(website_entry, dict) and 'url' in website_entry:
+                url = website_entry['url']
+                label = website_entry.get('label', 'URL')
+                # Remove protocol for display
+                display_url = url.replace('https://', '').replace('http://', '')
+                heading += f"{escape_characters_for_latex(label)}: \\href{{{url}}}{{{escape_characters_for_latex(display_url)}}} \\\\\n"
+            elif isinstance(website_entry, str):
+                # Handle simple string URLs for backward compatibility
+                display_url = website_entry.replace('https://', '').replace('http://', '')
+                heading += f"URL: \\href{{{website_entry}}}{{{escape_characters_for_latex(display_url)}}} \\\\\n"
 
     heading += """\\end{multicols}
 

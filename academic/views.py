@@ -81,6 +81,32 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         else:
             user.research_areas = []
         
+        # Handle personal information
+        user.middle_name = request.POST.get('middle_name', '')
+
+        # Handle address fields
+        user.address1 = request.POST.get('address1', '')
+        user.address2 = request.POST.get('address2', '')
+        user.city = request.POST.get('city', '')
+        user.state = request.POST.get('state', '')
+        user.zip_code = request.POST.get('zip_code', '')
+        user.country = request.POST.get('country', '')
+
+        # Handle contact information
+        user.phone = request.POST.get('phone', '')
+
+        # Handle websites (JSON field)
+        websites_data = []
+        # Get all website entries (we'll look for pairs of label_ and url_ fields)
+        for key in request.POST:
+            if key.startswith('website_label_'):
+                index = key.replace('website_label_', '')
+                label = request.POST.get(f'website_label_{index}', '').strip()
+                url = request.POST.get(f'website_url_{index}', '').strip()
+                if label and url:
+                    websites_data.append({'label': label, 'url': url})
+        user.websites = websites_data
+
         # Handle settings
         user.preferred_citation_style = request.POST.get('citation_style', 'apa')
         user.email_notifications = 'email_notifications' in request.POST

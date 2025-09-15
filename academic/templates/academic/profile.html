@@ -13,11 +13,15 @@
                 <form method="post" action="">
                     {% csrf_token %}
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="first_name" class="form-label">First Name</label>
                             <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}">
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label for="middle_name" class="form-label">Middle Name/Initial</label>
+                            <input type="text" class="form-control" id="middle_name" name="middle_name" value="{{ user.middle_name }}" placeholder="Optional">
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label for="last_name" class="form-label">Last Name</label>
                             <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
                         </div>
@@ -39,10 +43,90 @@
                             <input type="text" class="form-control" id="department" name="department" value="{{ user.department }}">
                         </div>
                     </div>
+
+                    <!-- Address Information -->
+                    <h6 class="mt-4 mb-3 text-muted">Address Information (for CV)</h6>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="address1" class="form-label">Street Address</label>
+                            <input type="text" class="form-control" id="address1" name="address1" value="{{ user.address1 }}" placeholder="123 Main Street">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="address2" class="form-label">Address Line 2</label>
+                            <input type="text" class="form-control" id="address2" name="address2" value="{{ user.address2 }}" placeholder="Suite 456 (optional)">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" name="city" value="{{ user.city }}" placeholder="San Francisco">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="state" class="form-label">State/Province</label>
+                            <input type="text" class="form-control" id="state" name="state" value="{{ user.state }}" placeholder="CA">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="zip_code" class="form-label">ZIP/Postal Code</label>
+                            <input type="text" class="form-control" id="zip_code" name="zip_code" value="{{ user.zip_code }}" placeholder="94102">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" class="form-control" id="country" name="country" value="{{ user.country }}" placeholder="United States">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone }}" placeholder="+1 (555) 123-4567">
+                        </div>
+                    </div>
+
+                    <!-- Website Information -->
+                    <h6 class="mt-4 mb-3 text-muted">Websites & URLs</h6>
+
+                    <div id="websites-container">
+                        {% for website in user.websites %}
+                            <div class="row website-entry">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Label</label>
+                                    <input type="text" class="form-control" name="website_label_{{ forloop.counter0 }}" value="{{ website.label }}" placeholder="Personal Website">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">URL</label>
+                                    <input type="url" class="form-control" name="website_url_{{ forloop.counter0 }}" value="{{ website.url }}" placeholder="https://example.com">
+                                </div>
+                                <div class="col-md-2 mb-3 d-flex align-items-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-website">Remove</button>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="row website-entry">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Label</label>
+                                    <input type="text" class="form-control" name="website_label_0" placeholder="Personal Website">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">URL</label>
+                                    <input type="url" class="form-control" name="website_url_0" placeholder="https://example.com">
+                                </div>
+                                <div class="col-md-2 mb-3 d-flex align-items-end">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-website">Remove</button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" class="btn btn-outline-secondary btn-sm mb-4" id="add-website">
+                        <i class="fas fa-plus"></i> Add Website
+                    </button>
                     
                     <div class="mb-3">
                         <label for="research_areas" class="form-label">Research Areas</label>
-                        <input type="text" class="form-control" id="research_areas" name="research_areas" 
+                        <input type="text" class="form-control" id="research_areas" name="research_areas"
+                               value="{% for area in user.research_areas %}{{ area }}{% if not forloop.last %}, {% endif %}{% endfor %}"
                                placeholder="e.g., Neuroscience, Data Science, Psychology">
                         <div class="form-text">Comma-separated list of your research areas</div>
                     </div>
@@ -198,4 +282,50 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let websiteIndex = {{ user.websites|length|default:1 }};
+
+    // Add website functionality
+    document.getElementById('add-website').addEventListener('click', function() {
+        const container = document.getElementById('websites-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'row website-entry';
+        newRow.innerHTML = `
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Label</label>
+                <input type="text" class="form-control" name="website_label_${websiteIndex}" placeholder="Personal Website">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">URL</label>
+                <input type="url" class="form-control" name="website_url_${websiteIndex}" placeholder="https://example.com">
+            </div>
+            <div class="col-md-2 mb-3 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-website">Remove</button>
+            </div>
+        `;
+        container.appendChild(newRow);
+        websiteIndex++;
+    });
+
+    // Remove website functionality
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-website')) {
+            const websiteContainer = document.getElementById('websites-container');
+            const websiteEntries = websiteContainer.querySelectorAll('.website-entry');
+
+            // Don't remove if it's the last one
+            if (websiteEntries.length > 1) {
+                e.target.closest('.website-entry').remove();
+            } else {
+                // Clear the fields instead of removing
+                const entry = e.target.closest('.website-entry');
+                entry.querySelector('input[name^="website_label_"]').value = '';
+                entry.querySelector('input[name^="website_url_"]').value = '';
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
