@@ -154,6 +154,27 @@ class PublicationListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         """Filter publications to show only those owned by the current user"""
         queryset = Publication.objects.filter(owner=self.request.user)
+
+        # Handle search functionality
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            # Search in title and authors
+            from django.db.models import Q
+
+            # Search in title field
+            title_search = Q(title__icontains=search_query)
+
+            # Search in authors JSON field - check if any author name contains the search term
+            # Using JSONField lookups for PostgreSQL
+            authors_search = Q(authors__icontains=[{'name': search_query}])
+
+            # For more flexible author search, we can also use a raw SQL approach
+            # to search within the JSON array more broadly
+            queryset = queryset.extra(
+                where=["LOWER(title) LIKE %s OR LOWER(authors::text) LIKE %s"],
+                params=[f'%{search_query.lower()}%', f'%{search_query.lower()}%']
+            )
+
         # Include all publications (both ignored and non-ignored)
         return queryset.order_by('-year', 'title')
     
@@ -164,6 +185,8 @@ class PublicationListView(LoginRequiredMixin, ListView):
         # Count ignored and non-ignored publications separately
         context['ignored_count'] = self.get_queryset().filter(is_ignored=True).count()
         context['active_count'] = self.get_queryset().filter(is_ignored=False).count()
+        # Pass search query to template
+        context['search_query'] = self.request.GET.get('search', '').strip()
         return context
 
 

@@ -4,6 +4,9 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.
 
+[x] I would like to add the ability to search for publications using a text field. it should search the title and authors, and show only those publications that match the search term.
+    - FIXED: Added search functionality to publications list view with search form that filters by title and authors. Search preserves pagination and shows appropriate feedback for no results.
+
 [x] There seems to be a problem when preprints from ArXiv are ingested via Pubmed - they don't have a DOI associated with them.  The previous fix for this problem didn't work.  Looking at the raw metadata, it seems that the pubmed import may not be storing sufficient raw metadata to enable the conversion of the LID to a standard DOI link.
     - Remember that it appears that Pubmed doesn't list the arxiv DOI in a standard way, like it does for BioRxiv preprints.  Instead, it lists it with an LID such as arXiv:2306.02183v3.  When ingesting from pubmed, an LID like this should be converted into a standard DOI link, such as https://doi.org/10.48550/arXiv.2306.02183 for this example.
     - FIXED: Enhanced ArXiv LID detection in both Django sync command and legacy pubmed.py to handle LID patterns and convert them to standard DOI format (10.48550/arXiv.XXXX.XXXXX).

@@ -77,6 +77,36 @@
             </div>
         </div>
 
+        <!-- Search Form -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="d-flex align-items-center">
+                    <div class="input-group">
+                        <input type="text"
+                               class="form-control"
+                               name="search"
+                               value="{{ search_query }}"
+                               placeholder="Search publications by title or authors..."
+                               aria-label="Search publications">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                        {% if search_query %}
+                            <a href="{% url 'academic:publication_list' %}" class="btn btn-outline-danger">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        {% endif %}
+                    </div>
+                </form>
+                {% if search_query %}
+                    <small class="text-muted mt-2 d-block">
+                        <i class="fas fa-info-circle"></i>
+                        Showing {{ publication_count }} publication{{ publication_count|pluralize }} matching "<strong>{{ search_query }}</strong>"
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+
         {% if publications %}
             <div class="table-responsive">
                 <table class="table table-hover">
@@ -147,61 +177,75 @@
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1">First</a>
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">First</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">Previous</a>
                         </li>
                     {% endif %}
-                    
+
                     <li class="page-item active">
                         <span class="page-link">
                             Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
                         </span>
                     </li>
-                    
+
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">Next</a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">Last</a>
                         </li>
                     {% endif %}
                 </ul>
             </nav>
             {% endif %}
         {% else %}
-            <div class="alert alert-info">
-                <h4>No publications yet</h4>
-                <p>You haven't added any publications to your database.</p>
-                <hr>
-                <p class="mb-0">
-                    <a href="{% url 'academic:publication_create' %}" class="btn btn-primary">Add your first publication</a>
-                    or
-                    <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="publications">
-                        <button type="submit" class="btn btn-success">Sync from ORCID</button>
-                    </form>
-                    {% if user.has_scopus_id %}
-                    or
-                    <form method="post" action="{% url 'academic:scopus_sync' %}" style="display: inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="publications">
-                        <button type="submit" class="btn btn-info">Sync from Scopus</button>
-                    </form>
-                    {% endif %}
-                    {% if user.has_pubmed_query %}
-                    or
-                    <form method="post" action="{% url 'academic:pubmed_sync' %}" style="display: inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="publications">
-                        <button type="submit" class="btn btn-warning">Sync from PubMed</button>
-                    </form>
-                    {% endif %}
-                </p>
-            </div>
+            {% if search_query %}
+                <div class="alert alert-warning">
+                    <h4><i class="fas fa-search"></i> No publications found</h4>
+                    <p>No publications match your search for "<strong>{{ search_query }}</strong>".</p>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="{% url 'academic:publication_list' %}" class="btn btn-primary">
+                            <i class="fas fa-list"></i> Show all publications
+                        </a>
+                        or try a different search term.
+                    </p>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <h4>No publications yet</h4>
+                    <p>You haven't added any publications to your database.</p>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="{% url 'academic:publication_create' %}" class="btn btn-primary">Add your first publication</a>
+                        or
+                        <form method="post" action="{% url 'academic:orcid_sync' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="publications">
+                            <button type="submit" class="btn btn-success">Sync from ORCID</button>
+                        </form>
+                        {% if user.has_scopus_id %}
+                        or
+                        <form method="post" action="{% url 'academic:scopus_sync' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="publications">
+                            <button type="submit" class="btn btn-info">Sync from Scopus</button>
+                        </form>
+                        {% endif %}
+                        {% if user.has_pubmed_query %}
+                        or
+                        <form method="post" action="{% url 'academic:pubmed_sync' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="publications">
+                            <button type="submit" class="btn btn-warning">Sync from PubMed</button>
+                        </form>
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
         {% endif %}
     </div>
 </div>
