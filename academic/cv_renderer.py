@@ -650,42 +650,15 @@ def get_preprints(user, exclude_dois=None):
     if exclude_dois:
         preprints = preprints.exclude(doi__in=exclude_dois)
 
-    # Get all published papers to check for preprint relations
-    published_papers = Publication.objects.filter(
-        owner=user,
-        is_ignored=False
-    ).exclude(publication_type='preprint')
-
-    # Collect DOIs of preprints that have been published
-    published_preprint_dois = set()
-    for paper in published_papers:
-        # Check if this paper has preprint relations in its metadata
-        if paper.metadata and isinstance(paper.metadata, dict):
-            # Check for Crossref relation data
-            relations = paper.metadata.get('relation', {})
-            if relations:
-                # Look for is-preprint-of or has-preprint relations
-                for relation_type in ['is-version-of', 'has-preprint', 'is-preprint-of']:
-                    if relation_type in relations:
-                        relation_list = relations[relation_type]
-                        if isinstance(relation_list, list):
-                            for rel in relation_list:
-                                if isinstance(rel, dict) and 'id' in rel:
-                                    # Extract DOI from the relation
-                                    preprint_doi = rel['id']
-                                    # Clean the DOI (remove https://doi.org/ prefix if present)
-                                    if preprint_doi.startswith('https://doi.org/'):
-                                        preprint_doi = preprint_doi.replace('https://doi.org/', '')
-                                    elif preprint_doi.startswith('http://doi.org/'):
-                                        preprint_doi = preprint_doi.replace('http://doi.org/', '')
-                                    published_preprint_dois.add(preprint_doi)
-
-    output = ''
     # Filter out preprints that have been published
     unpublished_preprints = []
     for preprint in preprints:
-        if preprint.doi not in published_preprint_dois:
+        # Use the enhanced detection method from the Publication model
+        published_version = Publication.find_published_version_of_preprint(preprint, user)
+        if not published_version:
             unpublished_preprints.append(preprint)
+
+    output = ''
 
     if unpublished_preprints:
         output += """

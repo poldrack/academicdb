@@ -471,14 +471,279 @@ class Publication(models.Model):
         if not doi:
             return False
 
+        # Convert to lowercase for consistent matching
+        doi_lower = doi.lower()
+
         # Known preprint DOI prefixes
         preprint_prefixes = [
             '10.1101',    # bioRxiv
-            '10.48550',   # arXiv
+            '10.48550',   # arXiv (new format)
             '10.31234',   # PsyArXiv
+            '10.21203',   # Research Square preprints
         ]
 
-        return any(doi.startswith(prefix) for prefix in preprint_prefixes)
+        # Check standard preprint prefixes
+        if any(doi_lower.startswith(prefix) for prefix in preprint_prefixes):
+            return True
+
+        # Check for arXiv patterns (both old and new formats)
+        # Old arXiv format: bare IDs like "2306.12345" or with arXiv: prefix
+        # New arXiv format: 10.48550/arXiv.2306.12345
+        import re
+
+        # Pattern for arXiv IDs: YYMM.NNNNN format (optionally with arXiv: prefix)
+        arxiv_patterns = [
+            r'^arxiv:', # arXiv: prefix
+            r'^\d{4}\.\d{4,5}',  # Bare arXiv ID format like 2306.12345
+            r'10\.48550/arxiv\.',  # New DOI format
+        ]
+
+        for pattern in arxiv_patterns:
+            if re.match(pattern, doi_lower):
+                return True
+
+        return False
+
+    @staticmethod
+    def normalize_doi_for_deduplication(doi):
+        """
+        Normalize DOI for deduplication by removing version suffixes
+
+        Examples:
+        - 10.21203/rs.3.rs-264855/v2 -> 10.21203/rs.3.rs-264855
+        - 10.21203/rs.3.rs-264855/v3 -> 10.21203/rs.3.rs-264855
+        - 10.1101/2021.11.26.470115 -> 10.1101/2021.11.26.470115 (unchanged)
+
+        Args:
+            doi (str): DOI to normalize
+
+        Returns:
+            tuple: (base_doi, version_number) or (doi, None) if no version
+        """
+        if not doi:
+            return None, None
+
+        import re
+
+        # Convert to lowercase for consistent matching
+        doi_lower = doi.lower().strip()
+
+        # Pattern to match version suffixes like /v1, /v2, etc.
+        version_pattern = r'^(.*)/v(\d+)$'
+        match = re.match(version_pattern, doi_lower)
+
+        if match:
+            base_doi = match.group(1)
+            version_number = int(match.group(2))
+            return base_doi, version_number
+
+        return doi_lower, None
+
+    @classmethod
+    def find_potential_duplicates_by_doi(cls, doi, user):
+        """
+        Find potential duplicate publications by DOI, including versioned variants
+
+        Args:
+            doi (str): DOI to search for
+            user: User object to filter by
+
+        Returns:
+            QuerySet: Publications that might be duplicates
+        """
+        if not doi:
+            return cls.objects.none()
+
+        base_doi, version = cls.normalize_doi_for_deduplication(doi)
+        if not base_doi:
+            return cls.objects.none()
+
+        # Search for exact DOI and any versioned variants
+        import re
+
+        # Use regex to find DOIs that match the base pattern with any version
+        pattern = f"^{re.escape(base_doi)}(/v\\d+)?$"
+
+        return cls.objects.filter(
+            owner=user,
+            doi__iregex=pattern
+        ).order_by('doi')
+
+    @classmethod
+    def find_published_version_of_preprint(cls, preprint, user):
+        """
+        Find if a preprint has a corresponding published journal article
+
+        Uses multiple strategies:
+        1. Check for explicit relationship metadata
+        2. Match by title similarity and author overlap
+
+        Args:
+            preprint: Publication object that is a preprint
+            user: User object to filter by
+
+        Returns:
+            Publication object if published version found, None otherwise
+        """
+        if not preprint.is_preprint:
+            return None
+
+        # Strategy 1: Check for explicit relationships in metadata
+        if preprint.metadata and isinstance(preprint.metadata, dict):
+            relations = preprint.metadata.get('relation', {})
+            if relations:
+                for relation_type in ['is-preprint-of', 'has-version', 'is-version-of']:
+                    if relation_type in relations:
+                        relation_list = relations[relation_type]
+                        if isinstance(relation_list, list):
+                            for rel in relation_list:
+                                if isinstance(rel, dict) and 'id' in rel:
+                                    # Extract DOI from the relation
+                                    published_doi = rel['id']
+                                    # Clean the DOI
+                                    if published_doi.startswith('https://doi.org/'):
+                                        published_doi = published_doi.replace('https://doi.org/', '')
+                                    elif published_doi.startswith('http://doi.org/'):
+                                        published_doi = published_doi.replace('http://doi.org/', '')
+
+                                    # Find this publication
+                                    published_pub = cls.objects.filter(
+                                        owner=user,
+                                        doi=published_doi,
+                                        is_preprint=False
+                                    ).first()
+                                    if published_pub:
+                                        return published_pub
+
+        # Strategy 2: Look for published articles with matching title and similar authors
+        # Get all non-preprint publications by the same user
+        published_pubs = cls.objects.filter(
+            owner=user,
+            is_preprint=False,
+            is_ignored=False
+        ).exclude(id=preprint.id)
+
+        for pub in published_pubs:
+            if cls._is_likely_published_version(preprint, pub):
+                return pub
+
+        return None
+
+    @classmethod
+    def _is_likely_published_version(cls, preprint, published_pub):
+        """
+        Determine if a published publication is likely the published version of a preprint
+
+        Uses title similarity and author matching
+        """
+        # Check title similarity
+        title_similarity = cls._calculate_title_similarity(preprint.title, published_pub.title)
+        if title_similarity < 0.8:  # Require at least 80% title similarity
+            return False
+
+        # Check author overlap
+        author_overlap = cls._calculate_author_overlap(preprint.authors, published_pub.authors)
+        if author_overlap < 0.5:  # Require at least 50% author overlap
+            return False
+
+        # Check if published version came after preprint
+        if published_pub.year < preprint.year:
+            return False
+
+        return True
+
+    @classmethod
+    def _calculate_title_similarity(cls, title1, title2):
+        """Calculate title similarity using simple word overlap"""
+        if not title1 or not title2:
+            return 0.0
+
+        import re
+
+        # Normalize titles: lowercase, remove punctuation, split into words
+        def normalize_title(title):
+            words = re.findall(r'\b\w+\b', title.lower())
+            # Remove common stop words
+            stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall'}
+            return [word for word in words if word not in stop_words and len(word) > 2]
+
+        words1 = set(normalize_title(title1))
+        words2 = set(normalize_title(title2))
+
+        if not words1 or not words2:
+            return 0.0
+
+        # Calculate Jaccard similarity
+        intersection = len(words1.intersection(words2))
+        union = len(words1.union(words2))
+
+        return intersection / union if union > 0 else 0.0
+
+    @classmethod
+    def _calculate_author_overlap(cls, authors1, authors2):
+        """Calculate author overlap between two publications"""
+        if not authors1 or not authors2:
+            return 0.0
+
+        # Extract author names
+        names1 = set()
+        names2 = set()
+
+        for author in authors1:
+            if isinstance(author, dict):
+                name = author.get('name', '')
+            else:
+                name = str(author)
+            if name:
+                names1.add(cls._normalize_author_name(name))
+
+        for author in authors2:
+            if isinstance(author, dict):
+                name = author.get('name', '')
+            else:
+                name = str(author)
+            if name:
+                names2.add(cls._normalize_author_name(name))
+
+        if not names1 or not names2:
+            return 0.0
+
+        # Calculate Jaccard similarity
+        intersection = len(names1.intersection(names2))
+        union = len(names1.union(names2))
+
+        return intersection / union if union > 0 else 0.0
+
+    @classmethod
+    def _normalize_author_name(cls, name):
+        """Normalize author name for comparison"""
+        if not name:
+            return ""
+
+        import re
+
+        # Convert to lowercase
+        name = name.lower().strip()
+
+        # Remove common suffixes and prefixes
+        name = re.sub(r'\b(jr|sr|ph\.?d|m\.?d|dr)\b\.?', '', name)
+
+        # Remove punctuation
+        name = re.sub(r'[.,\-_\'\"()]', ' ', name)
+
+        # Normalize whitespace
+        name = re.sub(r'\s+', ' ', name).strip()
+
+        # For comparison, use last name + first initial
+        words = name.split()
+        if len(words) >= 2:
+            last_name = words[-1]
+            first_initial = words[0][0] if words[0] else ''
+            return f"{last_name} {first_initial}"
+        elif len(words) == 1:
+            return words[0]
+
+        return name
 
     def detect_preprint_status(self):
         """

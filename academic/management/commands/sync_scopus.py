@@ -236,14 +236,48 @@ class Command(BaseCommand):
                 volume = getattr(pub_data, 'volume', None)
                 page_range = getattr(pub_data, 'pageRange', None)
 
-                # Check if publication exists
+                # Check if publication exists (including versioned variants)
                 existing_pub = None
                 if doi:
+                    # First try exact match
                     existing_pub = Publication.objects.filter(owner=user, doi=doi).first()
-                
+
+                    # If not found, check for versioned variants
+                    if not existing_pub:
+                        potential_duplicates = Publication.find_potential_duplicates_by_doi(doi, user)
+                        if potential_duplicates.exists():
+                            # Get the latest version (highest version number)
+                            latest_pub = None
+                            latest_version = -1
+
+                            for pub in potential_duplicates:
+                                _, version = Publication.normalize_doi_for_deduplication(pub.doi)
+                                if version is None:
+                                    version = 0  # Treat unversioned as v0
+
+                                if version > latest_version:
+                                    latest_version = version
+                                    latest_pub = pub
+
+                            if latest_pub:
+                                # Check if the new DOI has a higher version
+                                _, new_version = Publication.normalize_doi_for_deduplication(doi)
+                                if new_version is None:
+                                    new_version = 0
+
+                                if new_version > latest_version:
+                                    # New DOI is newer, update the existing publication
+                                    existing_pub = latest_pub
+                                    self.stdout.write(f"Updating DOI from {existing_pub.doi} to {doi} (newer version)")
+                                    existing_pub.doi = doi
+                                else:
+                                    # Existing version is newer or same, skip this import
+                                    self.stdout.write(f"Skipping {doi} - newer version {latest_pub.doi} already exists")
+                                    continue
+
                 if not existing_pub and eid:
                     existing_pub = Publication.objects.filter(
-                        owner=user, 
+                        owner=user,
                         identifiers__scopus_eid=eid
                     ).first()
 
