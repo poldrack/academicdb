@@ -580,12 +580,17 @@ def format_publication(pub, debug=False):
         'identifiers': pub.identifiers,
     }
 
-    # Add volume and page information from metadata if available
-    if pub.metadata:
-        # Check for volume and page data in metadata at multiple levels
+    # Add volume and page information, prioritizing first-class fields over metadata
+    # First check for first-class fields (added to address page range issue)
+    pub_data['volume'] = pub.volume or None
+    pub_data['page'] = pub.page_range or None
+
+    # Fall back to metadata if first-class fields are not available
+    if not pub_data['volume'] and pub.metadata:
         pub_data['volume'] = (pub.metadata.get('volume') or
                              (pub.metadata.get('raw_data', {}).get('volume') if isinstance(pub.metadata.get('raw_data'), dict) else None))
 
+    if not pub_data['page'] and pub.metadata:
         pub_data['page'] = (pub.metadata.get('page') or
                            pub.metadata.get('pages') or
                            (pub.metadata.get('raw_data', {}).get('pageRange') if isinstance(pub.metadata.get('raw_data'), dict) else None) or

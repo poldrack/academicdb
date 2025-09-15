@@ -232,6 +232,10 @@ class Command(BaseCommand):
                     getattr(pub_data, 'subtypeDescription', '')
                 )
 
+                # Extract volume and page range for first-class fields
+                volume = getattr(pub_data, 'volume', None)
+                page_range = getattr(pub_data, 'pageRange', None)
+
                 # Check if publication exists
                 existing_pub = None
                 if doi:
@@ -252,6 +256,12 @@ class Command(BaseCommand):
                         'publication_name': getattr(pub_data, 'publicationName', existing_pub.publication_name),
                         'publication_type': pub_type,
                     }
+                    # Only update volume/page_range if not manually edited and new data is available
+                    if volume and not existing_pub.manual_edits.get('volume', False):
+                        api_data['volume'] = volume
+                    if page_range and not existing_pub.manual_edits.get('page_range', False):
+                        api_data['page_range'] = page_range
+
                     existing_pub.save_with_edit_protection(api_data=api_data)
                     updated_count += 1
                     self.stdout.write(f"Updated: {pub_data.title}")
@@ -264,6 +274,8 @@ class Command(BaseCommand):
                         year=year,
                         publication_name=getattr(pub_data, 'publicationName', ''),
                         publication_type=pub_type,
+                        volume=volume,
+                        page_range=page_range,
                         source='scopus',
                         metadata=metadata,
                         authors=authors,

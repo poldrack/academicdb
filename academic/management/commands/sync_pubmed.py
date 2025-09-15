@@ -216,6 +216,8 @@ class Command(BaseCommand):
                         year=parsed_data.get('year', datetime.now().year),
                         publication_name=parsed_data.get('journal', ''),
                         publication_type='journal-article',  # PubMed is primarily journal articles
+                        volume=parsed_data.get('volume'),
+                        page_range=parsed_data.get('page'),
                         source='pubmed',
                         metadata=metadata,
                         authors=authors,
@@ -295,7 +297,13 @@ class Command(BaseCommand):
         # Update abstract if not present
         if parsed_data.get('abstract') and not publication.metadata.get('abstract'):
             publication.metadata['abstract'] = parsed_data['abstract']
-        
+
+        # Update volume and page_range if available and not manually edited
+        if parsed_data.get('volume') and not publication.manual_edits.get('volume', False):
+            publication.volume = parsed_data['volume']
+        if parsed_data.get('page') and not publication.manual_edits.get('page_range', False):
+            publication.page_range = parsed_data['page']
+
         publication.last_api_sync = timezone.now()
         publication.save()
 

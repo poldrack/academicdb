@@ -183,7 +183,7 @@ def get_funding(funding):
                 linkstring = (
                     f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
                 )
-            output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
 
         output += '\\subsection*{Completed:}'
         for e in completed_funding:
@@ -192,7 +192,7 @@ def get_funding(funding):
                 linkstring = (
                     f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
                 )
-            output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
     return output
 
 
@@ -208,6 +208,25 @@ def mk_author_string(authors, maxlen=10, n_to_show=3):
         return ', '.join(authors[:n_to_show]) + ' et al.'
     else:
         return ', '.join(authors) + '. '
+
+
+def get_preprint_server_name(publication_name):
+    """Map preprint publication names to standardized server names"""
+    preprint_mapping = {
+        'Cold Spring Harbor Laboratory': 'bioRxiv',
+        'bioRxiv': 'bioRxiv',
+        'medRxiv': 'medRxiv',
+        'arXiv': 'arXiv',
+        'ChemRxiv': 'ChemRxiv',
+        'OSF Preprints': 'OSF Preprints',
+        'PsyArXiv': 'PsyArXiv',
+        'SocArXiv': 'SocArXiv',
+        'EarthArXiv': 'EarthArXiv',
+        'Research Square': 'Research Square',
+        'SSRN': 'SSRN',
+    }
+
+    return preprint_mapping.get(publication_name, publication_name or 'Preprint Server')
 
 
 def get_publication_outlet(pub):
@@ -237,6 +256,10 @@ def get_publication_outlet(pub):
         if 'volume' in pub and pub['volume'] is not None:
             volstring = f" (Vol. {pub['volume']})"
         return f" \\textit{{{pub['journal']}}}{volstring}. {pubstring}."
+    elif pub['type'] == 'preprint':
+        journal = pub.get('journal', '')
+        server_name = get_preprint_server_name(journal)
+        return f" \\textit{{{server_name} (preprint)}}. "
     else:
         return f"\\textbf{{TBD{pub['type']}}}"
 

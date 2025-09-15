@@ -266,6 +266,20 @@ class Publication(models.Model):
         help_text="Reason for ignoring this publication (optional)"
     )
 
+    # Publication Details (extracted from metadata for easy access)
+    volume = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Journal volume number"
+    )
+    page_range = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Page range (e.g., '123-135', '1-15', 'e12345')"
+    )
+
     # Flexible Metadata (JSON fields for SQLite, will be JSONB in PostgreSQL)
     metadata = models.JSONField(
         default=dict,
@@ -367,7 +381,7 @@ class Publication(models.Model):
     def save_with_edit_protection(self, api_data=None, user_edit=False, edited_fields=None):
         """
         Save publication with protection for manually edited fields
-        
+
         Args:
             api_data: Dictionary of data from external API
             user_edit: Boolean indicating if this is a manual user edit
@@ -377,7 +391,7 @@ class Publication(models.Model):
             # Mark fields as manually edited
             for field_name in edited_fields:
                 self.manual_edits[field_name] = True
-            
+
             # Add to edit history
             self.edit_history.append({
                 'timestamp': timezone.now().isoformat(),
@@ -385,14 +399,21 @@ class Publication(models.Model):
                 'action': 'manual_edit',
             })
             self.manually_edited_at = timezone.now()
-        
+
         if api_data:
             # Only update fields that haven't been manually edited
             for field, value in api_data.items():
                 if not self.manual_edits.get(field, False):
+                    # Special handling for volume and page_range: don't overwrite
+                    # existing non-null values with null/empty values
+                    if field in ['volume', 'page_range']:
+                        current_value = getattr(self, field, None)
+                        if current_value and not value:
+                            # Skip updating if current value exists and new value is null/empty
+                            continue
                     setattr(self, field, value)
             self.last_api_sync = timezone.now()
-        
+
         self.save()
     
     @property
