@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from Bio import Entrez
 
-from academic.models import Publication
+from academic.models import Publication, PMCCache
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class Command(BaseCommand):
             self.stdout.write(f"\nLooking up PMC ID for: {pub.title[:100]}...")
 
             try:
-                pmc_id = self.lookup_pmc_id(pub)
+                pmc_id, was_cached = self.lookup_pmc_id(pub)
 
                 if pmc_id:
                     self.stdout.write(f"  Found PMC ID: {pmc_id}")
@@ -127,12 +127,14 @@ class Command(BaseCommand):
                     self.stdout.write(f"  No PMC ID found")
                     failed_lookups += 1
 
-                # Rate limiting
-                time.sleep(rate_limit)
+                # Rate limiting - only delay if we made an API call (not cache hit)
+                if not was_cached:
+                    time.sleep(rate_limit)
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"  Error: {str(e)}"))
                 failed_lookups += 1
+                # Still apply rate limit on errors since they might be API-related
                 time.sleep(rate_limit)
 
         # Summary
@@ -152,25 +154,40 @@ class Command(BaseCommand):
     def lookup_pmc_id(self, publication):
         """
         Lookup PMC ID for a publication using DOI or PMID
+        First checks cache, then makes API calls if needed
+
+        Returns:
+            tuple: (pmc_id, was_cached) where was_cached is True if result came from cache
         """
         pmc_id = None
 
         # Try PMID first if available (more direct)
         pmid = publication.identifiers.get('pmid') if publication.identifiers else None
         if pmid:
+            # Check cache first
+            cached_pmcid = PMCCache.get_cached_pmcid(pmid, publication.doi)
+            if cached_pmcid:
+                self.stdout.write(f"    Found in cache: {cached_pmcid}")
+                return cached_pmcid, True
+
+            # If not in cache, lookup via API
             pmc_id = self.lookup_pmc_by_pmid(pmid)
             if pmc_id:
-                return pmc_id
+                # Cache the result
+                PMCCache.cache_pmcid_mapping(pmid, pmc_id, publication.doi)
+                return pmc_id, False
 
         # Try DOI if no PMC found via PMID
         if publication.doi and not pmid:  # Only use DOI if we don't have PMID
             pmc_id = self.lookup_pmc_by_doi(publication.doi)
             if pmc_id:
-                return pmc_id
+                # If we found PMID during DOI lookup, also cache that mapping
+                # This will be handled in lookup_pmc_by_doi method
+                return pmc_id, False
 
         # Don't search by title - too unreliable
 
-        return None
+        return None, False
 
     def lookup_pmc_by_doi(self, doi):
         """Lookup PMC ID using DOI via PubMed API"""
@@ -190,7 +207,11 @@ class Command(BaseCommand):
                 pmid = search_result['IdList'][0]
                 # Now look up the PMC ID using the found PMID
                 # But don't print duplicate messages
-                return self.lookup_pmc_by_pmid(pmid, print_message=False)
+                pmc_id = self.lookup_pmc_by_pmid(pmid, print_message=False)
+                if pmc_id:
+                    # Cache the mapping we found
+                    PMCCache.cache_pmcid_mapping(pmid, pmc_id, doi)
+                return pmc_id
 
         except Exception as e:
             logger.warning(f"Error looking up PMC by DOI {doi}: {str(e)}")
