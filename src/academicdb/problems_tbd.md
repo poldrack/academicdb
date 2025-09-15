@@ -4,4 +4,4 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.  
 
-[ ] Download Professional Activities records from the ORCID API when syncing to ORCID, and include these in a separate table. 
+[ ] Develop tools to enable dumping the database to a set of JSON files, and to enable restoration of the database from a set of backup files.  These functions should be accessed by a new Admin tab.

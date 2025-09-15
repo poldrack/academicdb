@@ -1,0 +1,218 @@
+{% extends 'academic/base.html' %}
+{% load static %}
+
+{% block title %}Professional Activities - Academic Database{% endblock %}
+
+{% block extra_css %}
+<style>
+.activity-type-badge {
+    padding: 0.25em 0.5em;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.activity-type-employment { background-color: #d1ecf1; color: #0c5460; }
+.activity-type-education { background-color: #d4edda; color: #155724; }
+.activity-type-qualification { background-color: #fff3cd; color: #856404; }
+.activity-type-invited_position { background-color: #f8d7da; color: #721c24; }
+.activity-type-distinction { background-color: #e2e3e5; color: #383d41; }
+.activity-type-membership { background-color: #cce5f0; color: #004085; }
+.activity-type-service { background-color: #f0e5cc; color: #856404; }
+
+.activity-card {
+    transition: all 0.2s;
+}
+.activity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-briefcase me-2"></i>
+                    Professional Activities
+                </h1>
+                <div class="text-muted">
+                    Total: {{ activity_count }} activities
+                </div>
+            </div>
+
+            {% if activities_by_type %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Activity Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for activity_type, count in activities_by_type.items %}
+                                <div class="col-md-3 col-sm-6 mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <span class="activity-type-badge activity-type-{{ activity_type|lower|slugify }}">
+                                            {{ count }}
+                                        </span>
+                                        <span class="ms-2">{{ activity_type }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if professional_activities %}
+            <div class="row">
+                {% for activity in professional_activities %}
+                <div class="col-lg-6 col-xl-4 mb-4">
+                    <div class="card activity-card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="activity-type-badge activity-type-{{ activity.activity_type }}">
+                                {{ activity.get_activity_type_display }}
+                            </span>
+                            {% if activity.is_current %}
+                            <span class="badge bg-success">Current</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ activity.title }}</h6>
+                            <p class="card-text text-muted">
+                                <i class="fas fa-building me-1"></i>
+                                {{ activity.organization }}
+                                {% if activity.department %}
+                                <br><small class="text-muted">{{ activity.department }}</small>
+                                {% endif %}
+                            </p>
+
+                            {% if activity.city or activity.region or activity.country %}
+                            <p class="card-text">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                <small class="text-muted">
+                                    {% if activity.city %}{{ activity.city }}{% endif %}{% if activity.city and activity.region %}, {% endif %}{% if activity.region %}{{ activity.region }}{% endif %}{% if activity.country and activity.region %}, {% elif activity.country and activity.city %}, {% endif %}{% if activity.country %}{{ activity.country }}{% endif %}
+                                </small>
+                            </p>
+                            {% endif %}
+
+                            <div class="mt-auto">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {% if activity.start_date %}
+                                        {{ activity.start_date|date:"M Y" }}
+                                    {% else %}
+                                        Unknown start
+                                    {% endif %}
+                                    -
+                                    {% if activity.is_current %}
+                                        Present
+                                    {% elif activity.end_date %}
+                                        {{ activity.end_date|date:"M Y" }}
+                                    {% else %}
+                                        Unknown end
+                                    {% endif %}
+                                </small>
+
+                                {% if activity.source == 'orcid' %}
+                                <br><small class="text-success">
+                                    <i class="fab fa-orcid me-1"></i>
+                                    From ORCID
+                                </small>
+                                {% endif %}
+                            </div>
+
+                            {% if activity.description %}
+                            <div class="mt-2">
+                                <small class="text-muted">{{ activity.description|truncatewords:20 }}</small>
+                            </div>
+                            {% endif %}
+
+                            {% if activity.url %}
+                            <div class="mt-2">
+                                <a href="{{ activity.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt"></i> More Info
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Professional activities pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-info text-center" role="alert">
+                        <i class="fas fa-info-circle fa-2x mb-3"></i>
+                        <h5>No Professional Activities Found</h5>
+                        <p class="mb-0">
+                            Your professional activities will appear here once you sync your ORCID profile.
+                            ORCID professional activities include employment history, education, qualifications,
+                            invited positions, distinctions, memberships, and service activities.
+                        </p>
+                        <div class="mt-3">
+                            <a href="{% url 'academic:dashboard' %}" class="btn btn-primary">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Go to Dashboard to Sync
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

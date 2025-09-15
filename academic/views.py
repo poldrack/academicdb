@@ -10,7 +10,7 @@ import logging
 import threading
 import time
 import json
-from .models import Publication, Funding, Teaching, Talk, Conference
+from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
 
 logger = logging.getLogger(__name__)
 
@@ -1205,10 +1205,39 @@ class ConferenceDetailView(LoginRequiredMixin, DetailView):
     template_name = 'academic/conference_detail.html'
     context_object_name = 'conference'
     login_url = '/accounts/login/'
-    
+
     def get_queryset(self):
         """Ensure users can only view their own conferences"""
         return Conference.objects.filter(owner=self.request.user)
+
+
+class ProfessionalActivityListView(LoginRequiredMixin, ListView):
+    """
+    List all professional activities for the current user
+    """
+    model = ProfessionalActivity
+    template_name = 'academic/professional_activity_list.html'
+    context_object_name = 'professional_activities'
+    paginate_by = 20
+    login_url = '/accounts/login/'
+
+    def get_queryset(self):
+        """Filter professional activities to show only those owned by the current user"""
+        return ProfessionalActivity.objects.filter(owner=self.request.user).order_by('-is_current', '-start_date', 'title')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Professional Activities'
+        context['activity_count'] = self.get_queryset().count()
+
+        # Get counts by activity type
+        activities_by_type = {}
+        for activity in self.get_queryset():
+            activity_type = activity.get_activity_type_display()
+            activities_by_type[activity_type] = activities_by_type.get(activity_type, 0) + 1
+
+        context['activities_by_type'] = activities_by_type
+        return context
 
 
 class ConferenceCreateView(LoginRequiredMixin, CreateView):

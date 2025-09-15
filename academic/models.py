@@ -1486,9 +1486,186 @@ class Conference(models.Model):
         ordering = ['-year', 'month', 'title']
         verbose_name = 'Conference Presentation'
         verbose_name_plural = 'Conference Presentations'
-    
+
+
+class ProfessionalActivity(models.Model):
+    """
+    Represents professional activities from ORCID including:
+    - Employments
+    - Education and qualifications
+    - Invited positions and distinctions
+    - Memberships and service
+    """
+    # Owner
+    owner = models.ForeignKey(
+        AcademicUser,
+        on_delete=models.CASCADE,
+        related_name='professional_activities'
+    )
+
+    # Activity Type
+    ACTIVITY_TYPES = [
+        ('employment', 'Employment'),
+        ('education', 'Education'),
+        ('qualification', 'Qualification'),
+        ('invited_position', 'Invited Position'),
+        ('distinction', 'Distinction'),
+        ('membership', 'Membership'),
+        ('service', 'Service'),
+    ]
+
+    activity_type = models.CharField(
+        max_length=50,
+        choices=ACTIVITY_TYPES,
+        help_text="Type of professional activity"
+    )
+
+    # Core Fields
+    title = models.CharField(
+        max_length=500,
+        help_text="Position title or activity name"
+    )
+
+    organization = models.CharField(
+        max_length=500,
+        help_text="Organization or institution name"
+    )
+
+    department = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Department within organization"
+    )
+
+    role = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Role or position type"
+    )
+
+    # Date Fields
+    start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Start date of activity"
+    )
+
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="End date of activity (null for current positions)"
+    )
+
+    is_current = models.BooleanField(
+        default=False,
+        help_text="Is this a current/ongoing activity?"
+    )
+
+    # Location
+    city = models.CharField(max_length=200, blank=True, null=True)
+    region = models.CharField(max_length=200, blank=True, null=True)
+    country = models.CharField(max_length=200, blank=True, null=True)
+
+    # Additional Details
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description of the activity or role"
+    )
+
+    url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="URL for more information"
+    )
+
+    # ORCID Metadata
+    orcid_put_code = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="ORCID put-code for this activity"
+    )
+
+    orcid_path = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="ORCID API path for this activity"
+    )
+
+    orcid_visibility = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="ORCID visibility setting"
+    )
+
+    # Raw ORCID data
+    orcid_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Raw data from ORCID API"
+    )
+
+    # Source tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('orcid', 'ORCID'),
+            ('manual', 'Manual Entry'),
+        ],
+        default='orcid',
+        help_text="Original data source"
+    )
+
+    # Edit tracking
+    manual_edits = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Tracks which fields have been manually edited"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_synced = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last time synced from ORCID"
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'activity_type']),
+            models.Index(fields=['owner', 'is_current']),
+            models.Index(fields=['activity_type', 'start_date']),
+            models.Index(fields=['orcid_put_code']),
+        ]
+        ordering = ['-is_current', '-start_date', 'title']
+        verbose_name = 'Professional Activity'
+        verbose_name_plural = 'Professional Activities'
+        unique_together = [['owner', 'orcid_put_code']]
+
     def __str__(self):
-        return f"{self.title} - {self.location} ({self.year})"
+        date_str = f"{self.start_date.year if self.start_date else 'Unknown'}"
+        if self.is_current:
+            date_str += "-Present"
+        elif self.end_date:
+            date_str += f"-{self.end_date.year}"
+        return f"{self.title} at {self.organization} ({date_str})"
+
+    def save(self, *args, **kwargs):
+        # Auto-detect if current based on end_date
+        if not self.end_date:
+            self.is_current = True
+        else:
+            self.is_current = False
+        super().save(*args, **kwargs)
     
     @property
     def first_author(self):

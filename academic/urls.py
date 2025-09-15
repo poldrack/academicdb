@@ -46,6 +46,9 @@ urlpatterns = [
     path('conferences/<int:pk>/', views.ConferenceDetailView.as_view(), name='conference_detail'),
     path('conferences/<int:pk>/edit/', views.ConferenceUpdateView.as_view(), name='conference_update'),
     path('conferences/spreadsheet/iframe/', views.ConferencesSpreadsheetIframeView.as_view(), name='conferences_spreadsheet_iframe'),
+
+    # Professional Activities URLs
+    path('professional-activities/', views.ProfessionalActivityListView.as_view(), name='professional_activities'),
     
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),

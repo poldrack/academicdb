@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils import timezone
 import json
-from .models import AcademicUser, Publication, AuthorCache
+from .models import AcademicUser, Publication, AuthorCache, ProfessionalActivity
 
 
 @admin.register(AcademicUser)
@@ -320,3 +320,77 @@ class AuthorCacheAdmin(admin.ModelAdmin):
         )
         self.message_user(request, f'{updated} authors verification status cleared.')
     clear_verification.short_description = "Clear verification status"
+
+
+@admin.register(ProfessionalActivity)
+class ProfessionalActivityAdmin(admin.ModelAdmin):
+    """
+    Admin interface for ProfessionalActivity model
+    """
+    list_display = [
+        'title',
+        'activity_type',
+        'organization',
+        'is_current',
+        'start_date',
+        'end_date',
+        'owner',
+        'source'
+    ]
+
+    list_filter = [
+        'activity_type',
+        'is_current',
+        'source',
+        'start_date',
+        'created_at'
+    ]
+
+    search_fields = [
+        'title',
+        'organization',
+        'department',
+        'role',
+        'city',
+        'country',
+        'owner__username',
+        'owner__email'
+    ]
+
+    readonly_fields = [
+        'orcid_put_code',
+        'orcid_path',
+        'orcid_visibility',
+        'created_at',
+        'updated_at',
+        'last_synced'
+    ]
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('owner', 'activity_type', 'title', 'organization', 'department', 'role')
+        }),
+        ('Dates', {
+            'fields': ('start_date', 'end_date', 'is_current')
+        }),
+        ('Location', {
+            'fields': ('city', 'region', 'country')
+        }),
+        ('Additional Information', {
+            'fields': ('description', 'url'),
+            'classes': ('collapse',)
+        }),
+        ('ORCID Metadata', {
+            'fields': ('orcid_put_code', 'orcid_path', 'orcid_visibility', 'source'),
+            'classes': ('collapse',)
+        }),
+        ('System Information', {
+            'fields': ('created_at', 'updated_at', 'last_synced'),
+            'classes': ('collapse',)
+        })
+    )
+
+    def get_queryset(self, request):
+        """Optimize queryset with select_related"""
+        qs = super().get_queryset(request)
+        return qs.select_related('owner').order_by('-is_current', '-start_date')

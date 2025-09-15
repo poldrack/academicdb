@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from academic.models import Publication, Funding
+from academic.models import Publication, Funding, ProfessionalActivity
 
 User = get_user_model()
 
@@ -148,6 +148,10 @@ class Command(BaseCommand):
         # Sync funding sources
         funding_count = self.sync_funding_from_orcid(user, orcid_data)
         self.stdout.write(f'Synced {funding_count} funding records')
+
+        # Sync professional activities
+        activities_count = self.sync_professional_activities_from_orcid(user, orcid_data)
+        self.stdout.write(f'Synced {activities_count} professional activities')
 
         # Update user's last sync time
         if not self.dry_run:
@@ -624,3 +628,170 @@ class Command(BaseCommand):
                 self.style.ERROR(f'  Error creating funding "{title}": {str(e)}')
             )
             return False
+
+    def sync_professional_activities_from_orcid(self, user, orcid_data):
+        """Sync professional activities from ORCID record"""
+        if not orcid_data:
+            return 0
+
+        synced_count = 0
+
+        # Process different activity types
+        activities_to_sync = [
+            ('employments', 'employment'),
+            ('educations', 'education'),
+            ('qualifications', 'qualification'),
+            ('invited-positions', 'invited_position'),
+            ('distinctions', 'distinction'),
+            ('memberships', 'membership'),
+            ('services', 'service'),
+        ]
+
+        for orcid_key, activity_type in activities_to_sync:
+            activities = self.extract_activities_from_orcid(orcid_data, orcid_key)
+
+            for activity_data in activities:
+                try:
+                    if self.create_or_update_professional_activity(user, activity_data, activity_type):
+                        synced_count += 1
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f'  Failed to sync professional activity: {str(e)}')
+                    )
+                    continue
+
+        return synced_count
+
+    def extract_activities_from_orcid(self, orcid_data, activity_type):
+        """Extract professional activities of a specific type from ORCID data"""
+        activities = []
+
+        try:
+            # Navigate to activities-summary in ORCID data
+            activities_summary = orcid_data.get('activities-summary', {})
+
+            # Get the specific activity type section
+            activity_group = activities_summary.get(activity_type, {})
+
+            # Handle different ORCID response structures
+            if 'affiliation-group' in activity_group:
+                # For employments, educations, etc.
+                for group in activity_group.get('affiliation-group', []):
+                    for summary in group.get('summaries', []):
+                        activity = summary.get(activity_type.rstrip('s') + '-summary', {})
+                        if activity:
+                            activities.append(activity)
+            elif 'group' in activity_group:
+                # For memberships, services, etc.
+                for group in activity_group.get('group', []):
+                    for summary in group.get('summaries', []):
+                        activity = summary.get(activity_type.rstrip('s') + '-summary', {})
+                        if activity:
+                            activities.append(activity)
+            elif activity_type in ['employments', 'educations']:
+                # Alternative structure for some records
+                employment_summary = activity_group.get('employment-summary', [])
+                education_summary = activity_group.get('education-summary', [])
+                activities.extend(employment_summary)
+                activities.extend(education_summary)
+
+        except Exception as e:
+            self.stdout.write(
+                self.style.WARNING(f'  Could not extract {activity_type}: {str(e)}')
+            )
+
+        return activities
+
+    def create_or_update_professional_activity(self, user, activity_data, activity_type):
+        """Create or update a professional activity from ORCID data"""
+        if self.dry_run:
+            self.stdout.write(f'  [DRY RUN] Would create/update {activity_type} activity')
+            return True
+
+        from django.utils import timezone
+
+        try:
+            # Extract key fields from ORCID data
+            put_code = activity_data.get('put-code')
+
+            # Organization details
+            organization = activity_data.get('organization', {})
+            org_name = organization.get('name', 'Unknown Organization')
+
+            # Address/location
+            address = organization.get('address', {})
+            city = address.get('city')
+            region = address.get('region')
+            country = address.get('country')
+
+            # Role/title details
+            role_title = activity_data.get('role-title', '')
+            department = activity_data.get('department-name', '')
+
+            # Date handling
+            start_date = self.parse_orcid_date(activity_data.get('start-date'))
+            end_date = self.parse_orcid_date(activity_data.get('end-date'))
+
+            # URL
+            url = activity_data.get('url', {}).get('value') if activity_data.get('url') else None
+
+            # Visibility
+            visibility = activity_data.get('visibility', 'public')
+
+            # Path for API reference
+            path = activity_data.get('path')
+
+            # Check if activity already exists
+            activity, created = ProfessionalActivity.objects.update_or_create(
+                owner=user,
+                orcid_put_code=str(put_code) if put_code else None,
+                defaults={
+                    'activity_type': activity_type,
+                    'title': role_title or activity_type.replace('_', ' ').title(),
+                    'organization': org_name,
+                    'department': department,
+                    'role': role_title,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'city': city,
+                    'region': region,
+                    'country': country,
+                    'url': url,
+                    'orcid_path': path,
+                    'orcid_visibility': visibility,
+                    'orcid_data': activity_data,
+                    'source': 'orcid',
+                    'last_synced': timezone.now(),
+                }
+            )
+
+            if created:
+                self.stdout.write(f'  Created {activity_type}: {role_title} at {org_name}')
+            else:
+                self.stdout.write(f'  Updated {activity_type}: {role_title} at {org_name}')
+
+            return True
+
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'  Error creating/updating activity: {str(e)}')
+            )
+            return False
+
+    def parse_orcid_date(self, date_data):
+        """Parse ORCID date format to Python date object"""
+        if not date_data:
+            return None
+
+        try:
+            year = date_data.get('year', {}).get('value')
+            month = date_data.get('month', {}).get('value', 1)
+            day = date_data.get('day', {}).get('value', 1)
+
+            if year:
+                from datetime import date
+                return date(int(year), int(month), int(day))
+        except (ValueError, TypeError, AttributeError):
+            pass
+
+        return None
