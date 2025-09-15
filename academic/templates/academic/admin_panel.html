@@ -1,0 +1,208 @@
+{% extends 'academic/base.html' %}
+
+{% block title %}Tools & Administration{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-tools"></i> Tools & Administration
+            <small class="text-muted">Manage your data and system settings</small>
+        </h2>
+
+        <!-- User Data Overview -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Your Data Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-primary mb-1">{{ stats.publications }}</div>
+                            <div class="small text-muted">Publications</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-success mb-1">{{ stats.funding }}</div>
+                            <div class="small text-muted">Funding</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-info mb-1">{{ stats.teaching }}</div>
+                            <div class="small text-muted">Teaching</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-warning mb-1">{{ stats.talks }}</div>
+                            <div class="small text-muted">Talks</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-danger mb-1">{{ stats.conferences }}</div>
+                            <div class="small text-muted">Conferences</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="h4 text-secondary mb-1">{{ stats.professional_activities }}</div>
+                            <div class="small text-muted">Activities</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools and Features -->
+        <div class="row">
+            <!-- Data Management -->
+            <div class="col-lg-6 col-md-12 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5><i class="fas fa-database"></i> Data Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Backup, restore, and manage your academic data.</p>
+
+                        <div class="mb-3">
+                            <h6>Database Backup & Restore</h6>
+                            <p class="small text-muted">
+                                Create backups of all your data or restore from previous backups.
+                                {% if backup_stats.backup_count > 0 %}
+                                You have {{ backup_stats.backup_count }} existing backup{{ backup_stats.backup_count|pluralize }}.
+                                {% else %}
+                                No backups found yet.
+                                {% endif %}
+                            </p>
+                            <a href="{% url 'academic:admin_backup' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-save"></i> Backup & Restore
+                            </a>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>Data Export</h6>
+                            <p class="small text-muted">Export your data in various formats for external use.</p>
+                            <button class="btn btn-outline-secondary btn-sm" disabled>
+                                <i class="fas fa-download"></i> Export Data (Coming Soon)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Tools -->
+            <div class="col-lg-6 col-md-12 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cog"></i> System Tools</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Administrative functions and system utilities.</p>
+
+                        {% if user.is_staff %}
+                        <div class="mb-3">
+                            <h6>Django Administration</h6>
+                            <p class="small text-muted">
+                                Access the full Django admin interface for advanced system management.
+                                <span class="badge bg-warning text-dark">Staff Only</span>
+                            </p>
+                            <a href="/admin/" target="_blank" class="btn btn-warning btn-sm">
+                                <i class="fas fa-cogs"></i> Django Admin
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <h6>API Documentation</h6>
+                            <p class="small text-muted">View API endpoints and documentation for developers.</p>
+                            <button class="btn btn-outline-info btn-sm" disabled>
+                                <i class="fas fa-code"></i> API Docs (Coming Soon)
+                            </button>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>System Status</h6>
+                            <p class="small text-muted">Check system health and performance metrics.</p>
+                            <button class="btn btn-outline-success btn-sm" disabled>
+                                <i class="fas fa-heartbeat"></i> Status (Coming Soon)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <form method="post" action="{% url 'academic:comprehensive_sync' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-primary w-100"
+                                    onclick="return confirm('This will sync all your external data sources. Continue?')">
+                                <i class="fas fa-sync"></i><br>
+                                <small>Comprehensive Sync</small>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{% url 'academic:admin_backup' %}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-save"></i><br>
+                            <small>Quick Backup</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{% url 'academic:profile' %}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-user-edit"></i><br>
+                            <small>Edit Profile</small>
+                        </a>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <a href="{% url 'academic:dashboard' %}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-tachometer-alt"></i><br>
+                            <small>Dashboard</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help and Documentation -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-question-circle"></i> Help & Support</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Getting Started</h6>
+                        <ul class="small">
+                            <li>Connect your ORCID account in <a href="{% url 'academic:profile' %}">Profile</a></li>
+                            <li>Set up Scopus and PubMed integration for automatic sync</li>
+                            <li>Use the <a href="{% url 'academic:comprehensive_sync' %}">Comprehensive Sync</a> to populate your data</li>
+                            <li>Regular backups are recommended before major data operations</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Data Sources</h6>
+                        <ul class="small">
+                            <li><strong>ORCID:</strong> Publications, funding, and professional activities</li>
+                            <li><strong>Scopus:</strong> Publications with citation metrics</li>
+                            <li><strong>PubMed:</strong> Biomedical publications</li>
+                            <li><strong>CrossRef:</strong> Publication metadata enrichment</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

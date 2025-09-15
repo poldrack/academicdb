@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponse, FileResponse
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.core.management import call_command
@@ -10,6 +10,10 @@ import logging
 import threading
 import time
 import json
+import os
+from pathlib import Path
+from io import StringIO
+import sys
 from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
 
 logger = logging.getLogger(__name__)
@@ -1365,4 +1369,256 @@ class ConferencesSpreadsheetIframeView(LoginRequiredMixin, TemplateView):
         # Allow this view to be displayed in an iframe from the same origin
         response['X-Frame-Options'] = 'SAMEORIGIN'
         return response
+
+
+# Admin Views for Tools and Administration
+
+class AdminPanelView(LoginRequiredMixin, TemplateView):
+    """
+    Main admin/tools panel providing access to various administrative functions
+    """
+    template_name = 'academic/admin_panel.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Tools & Administration'
+
+        # Count user's data for stats
+        user = self.request.user
+        context['stats'] = {
+            'publications': user.publications.count() if hasattr(user, 'publications') else 0,
+            'funding': user.funding.count() if hasattr(user, 'funding') else 0,
+            'teaching': user.teaching.count() if hasattr(user, 'teaching') else 0,
+            'talks': user.talks.count() if hasattr(user, 'talks') else 0,
+            'conferences': user.conferences.count() if hasattr(user, 'conferences') else 0,
+            'professional_activities': user.professional_activities.count() if hasattr(user, 'professional_activities') else 0,
+        }
+
+        # Check backup directory status
+        backup_root = Path('backups')
+        context['backup_stats'] = {
+            'backup_dir_exists': backup_root.exists(),
+            'backup_count': len(list(backup_root.glob('backup_*'))) if backup_root.exists() else 0,
+        }
+
+        return context
+
+
+class AdminBackupView(LoginRequiredMixin, TemplateView):
+    """
+    Admin interface for database backup and restore
+    """
+    template_name = 'admin/backup_restore.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Database Backup & Restore'
+
+        # List existing backup directories
+        backup_root = Path('backups')
+        backups = []
+
+        if backup_root.exists():
+            for backup_dir in sorted(backup_root.glob('backup_*'), reverse=True):
+                if backup_dir.is_dir():
+                    info_file = backup_dir / 'backup_info.json'
+                    if info_file.exists():
+                        try:
+                            with open(info_file, 'r') as f:
+                                backup_info = json.load(f)
+
+                            # Calculate backup size
+                            total_size = sum(f.stat().st_size for f in backup_dir.rglob('*.json'))
+                            size_mb = total_size / (1024 * 1024)
+
+                            backups.append({
+                                'name': backup_dir.name,
+                                'path': str(backup_dir),
+                                'date': backup_info.get('backup_date', 'Unknown'),
+                                'users': backup_info.get('total_users', 'Unknown'),
+                                'format': backup_info.get('backup_format', 'Unknown'),
+                                'size_mb': round(size_mb, 2),
+                                'stats': backup_info.get('stats', {}),
+                                'files': len(backup_info.get('files', [])) + 1  # +1 for backup_info.json
+                            })
+                        except (json.JSONDecodeError, OSError):
+                            # Invalid backup, skip
+                            continue
+
+        context['backups'] = backups
+        return context
+
+
+class AdminBackupCreateView(LoginRequiredMixin, View):
+    """
+    Handle backup creation requests from admin
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        """Create a new backup"""
+        backup_format = request.POST.get('format', 'separate')
+        exclude_cache = 'exclude_cache' in request.POST
+        user_id = request.POST.get('user_id')
+
+        # Capture command output
+        old_stdout = sys.stdout
+        sys.stdout = captured_output = StringIO()
+
+        try:
+            # Build command arguments
+            args = ['--format', backup_format]
+            if exclude_cache:
+                args.append('--exclude-cache')
+            if user_id and user_id.strip():
+                args.extend(['--user-id', user_id])
+
+            call_command('backup_data', *args, verbosity=1)
+            output = captured_output.getvalue()
+
+            # Parse the output to get backup directory
+            backup_dir = None
+            for line in output.split('\n'):
+                if 'Directory:' in line:
+                    backup_dir = line.split('Directory:')[1].strip()
+                    break
+
+            if backup_dir:
+                messages.success(request, f'Backup created successfully in: {backup_dir}')
+            else:
+                messages.success(request, 'Backup created successfully!')
+
+            logger.info(f"Admin backup created by user {request.user.id}: {output}")
+
+        except Exception as e:
+            messages.error(request, f'Backup failed: {str(e)}')
+            logger.error(f"Admin backup failed for user {request.user.id}: {str(e)}")
+        finally:
+            sys.stdout = old_stdout
+
+        return redirect('academic:admin_backup')
+
+
+class AdminBackupRestoreView(LoginRequiredMixin, View):
+    """
+    Handle restore requests from admin
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        """Restore from a backup"""
+        backup_dir = request.POST.get('backup_dir')
+        merge = 'merge' in request.POST
+        exclude_users = 'exclude_users' in request.POST
+        exclude_cache = 'exclude_cache' in request.POST
+        user_id = request.POST.get('user_id')
+
+        if not backup_dir:
+            messages.error(request, 'No backup directory specified')
+            return redirect('academic:admin_backup')
+
+        # Safety check
+        confirmation = request.POST.get('confirmation', '').lower()
+        if confirmation != 'restore database':
+            messages.error(request, 'Invalid confirmation. You must type "restore database" exactly to confirm.')
+            return redirect('academic:admin_backup')
+
+        # Capture command output
+        old_stdout = sys.stdout
+        sys.stdout = captured_output = StringIO()
+
+        try:
+            # Build command arguments
+            args = ['--backup-dir', backup_dir]
+            if merge:
+                args.append('--merge')
+            if exclude_users:
+                args.append('--exclude-users')
+            if exclude_cache:
+                args.append('--exclude-cache')
+            if user_id and user_id.strip():
+                args.extend(['--user-id', user_id])
+
+            call_command('restore_data', *args, verbosity=1)
+            output = captured_output.getvalue()
+
+            if 'Restore completed!' in output:
+                messages.success(request, 'Database restored successfully!')
+            else:
+                messages.success(request, 'Restore operation completed.')
+
+            logger.info(f"Admin restore performed by user {request.user.id}: {output}")
+
+        except Exception as e:
+            messages.error(request, f'Restore failed: {str(e)}')
+            logger.error(f"Admin restore failed for user {request.user.id}: {str(e)}")
+        finally:
+            sys.stdout = old_stdout
+
+        return redirect('academic:admin_backup')
+
+
+class AdminBackupDownloadView(LoginRequiredMixin, View):
+    """
+    Download backup files from admin interface
+    """
+    login_url = '/accounts/login/'
+
+    def get(self, request, backup_name):
+        """Download a backup as zip file"""
+        backup_dir = Path('backups') / backup_name
+
+        if not backup_dir.exists() or not backup_dir.is_dir():
+            messages.error(request, f'Backup {backup_name} not found')
+            return redirect('academic:admin_backup')
+
+        # Create zip file in memory
+        import zipfile
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{backup_name}.zip"'
+
+        with zipfile.ZipFile(response, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for file_path in backup_dir.rglob('*.json'):
+                zip_file.write(file_path, file_path.relative_to(backup_dir))
+
+        return response
+
+
+class AdminBackupDeleteView(LoginRequiredMixin, View):
+    """
+    Delete backup from admin interface
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request, backup_name):
+        """Delete a backup directory"""
+        backup_dir = Path('backups') / backup_name
+
+        if not backup_dir.exists():
+            messages.error(request, f'Backup {backup_name} not found')
+            return redirect('academic:admin_backup')
+
+        # Safety check
+        confirmation = request.POST.get('confirmation', '').lower()
+        if confirmation != 'delete backup':
+            messages.error(request, 'Invalid confirmation. You must type "delete backup" exactly to confirm.')
+            return redirect('academic:admin_backup')
+
+        try:
+            # Remove the backup directory and all its contents
+            import shutil
+            shutil.rmtree(backup_dir)
+
+            messages.success(request, f'Backup {backup_name} deleted successfully')
+            logger.info(f"Admin deleted backup {backup_name} by user {request.user.id}")
+
+        except Exception as e:
+            messages.error(request, f'Failed to delete backup: {str(e)}')
+            logger.error(f"Failed to delete backup {backup_name} by user {request.user.id}: {str(e)}")
+
+        return redirect('academic:admin_backup')
 

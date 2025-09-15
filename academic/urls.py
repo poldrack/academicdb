@@ -61,4 +61,12 @@ urlpatterns = [
     path('sync/status/', views.SyncStatusView.as_view(), name='sync_status'),
     path('sync/progress/', views.SyncProgressStreamView.as_view(), name='sync_progress'),
     path('publications/clear/', views.ClearPublicationsView.as_view(), name='clear_publications'),
+
+    # Tools & Administration URLs
+    path('tools/', views.AdminPanelView.as_view(), name='admin_panel'),
+    path('tools/backup/', views.AdminBackupView.as_view(), name='admin_backup'),
+    path('tools/backup/create/', views.AdminBackupCreateView.as_view(), name='admin_backup_create'),
+    path('tools/backup/restore/', views.AdminBackupRestoreView.as_view(), name='admin_backup_restore'),
+    path('tools/backup/download/<str:backup_name>/', views.AdminBackupDownloadView.as_view(), name='admin_backup_download'),
+    path('tools/backup/delete/<str:backup_name>/', views.AdminBackupDeleteView.as_view(), name='admin_backup_delete'),
 ]

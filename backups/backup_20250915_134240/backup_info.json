@@ -1,0 +1,19 @@
+{
+  "backup_date": "2025-09-15T13:42:40.087618",
+  "backup_format": "combined",
+  "total_users": 1,
+  "user_ids": [
+    1
+  ],
+  "files": [
+    "complete_backup.json"
+  ],
+  "stats": {
+    "publications": 5,
+    "funding": 0,
+    "teaching": 0,
+    "talks": 0,
+    "conferences": 0,
+    "professional_activities": 0
+  }
+}

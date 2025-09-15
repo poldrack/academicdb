@@ -1,0 +1,296 @@
+[
+{
+  "model": "academic.teaching",
+  "pk": 10,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Advanced Statistical Modeling",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.719Z",
+    "updated_at": "2025-09-15T12:55:26.719Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 9,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Brain Networks",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.718Z",
+    "updated_at": "2025-09-15T12:55:26.718Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 8,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Cognitive Neuroscience",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.718Z",
+    "updated_at": "2025-09-15T12:55:26.718Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 14,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Computer Methods for Experimental Psychology",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.722Z",
+    "updated_at": "2025-09-15T12:55:26.722Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 11,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Functional Neuroimaging",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.719Z",
+    "updated_at": "2025-09-15T12:55:26.719Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 13,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Human Learning and Memory",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.721Z",
+    "updated_at": "2025-09-15T12:55:26.721Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 12,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Neuroeconomics",
+    "level": "graduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.720Z",
+    "updated_at": "2025-09-15T12:55:26.720Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 6,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Cognitive Neuroscience of Memory",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.717Z",
+    "updated_at": "2025-09-15T12:55:26.717Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 7,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Functional MRI Laboratory",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.717Z",
+    "updated_at": "2025-09-15T12:55:26.717Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 5,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Introduction to Cognitive Science",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.716Z",
+    "updated_at": "2025-09-15T12:55:26.716Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 1,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Introduction to Statistics",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.697Z",
+    "updated_at": "2025-09-15T12:55:26.697Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 3,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Judgment and Decision Making",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.715Z",
+    "updated_at": "2025-09-15T12:55:26.715Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 4,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Reading the Brain (Intro Seminar)",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.715Z",
+    "updated_at": "2025-09-15T12:55:26.715Z"
+  }
+},
+{
+  "model": "academic.teaching",
+  "pk": 2,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "name": "Research Methods in Psychology",
+    "level": "undergraduate",
+    "course_number": "",
+    "semester": "",
+    "year": null,
+    "institution": "",
+    "enrollment": null,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:26.714Z",
+    "updated_at": "2025-09-15T12:55:26.714Z"
+  }
+}
+]

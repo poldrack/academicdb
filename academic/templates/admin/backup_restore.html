@@ -1,0 +1,292 @@
+{% extends 'academic/base.html' %}
+
+{% block title %}Database Backup & Restore - Admin{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fas fa-database"></i> Database Backup & Restore
+            <small class="text-muted">Admin Panel</small>
+        </h2>
+
+        <!-- Create Backup Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-plus"></i> Create New Backup</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'academic:admin_backup_create' %}" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-md-4">
+                        <label for="format" class="form-label">Backup Format</label>
+                        <select class="form-select" name="format" id="format">
+                            <option value="separate">Separate Files</option>
+                            <option value="combined">Combined File</option>
+                        </select>
+                        <div class="form-text">
+                            Separate: Creates individual JSON files per model.<br>
+                            Combined: Creates one comprehensive JSON file.
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="user_id" class="form-label">User ID (Optional)</label>
+                        <input type="number" class="form-control" name="user_id" id="user_id"
+                               placeholder="Leave empty for all users">
+                        <div class="form-text">Backup specific user only</div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="exclude_cache" id="exclude_cache">
+                            <label class="form-check-label" for="exclude_cache">
+                                Exclude Author Cache
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Backup
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Existing Backups Section -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-archive"></i> Existing Backups</h5>
+            </div>
+            <div class="card-body">
+                {% if backups %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Backup Name</th>
+                                    <th>Date</th>
+                                    <th>Users</th>
+                                    <th>Format</th>
+                                    <th>Size</th>
+                                    <th>Statistics</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for backup in backups %}
+                                <tr>
+                                    <td>
+                                        <code>{{ backup.name }}</code>
+                                    </td>
+                                    <td>
+                                        {{ backup.date|slice:":19"|date:"Y-m-d H:i" }}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ backup.users }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ backup.format }}</span>
+                                    </td>
+                                    <td>
+                                        {{ backup.size_mb }} MB
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            {% for model, count in backup.stats.items %}
+                                                <div>{{ model }}: {{ count }}</div>
+                                            {% empty %}
+                                                No stats available
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group-vertical btn-group-sm" role="group">
+                                            <!-- Restore Button -->
+                                            <button type="button" class="btn btn-success btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#restoreModal"
+                                                    data-backup-name="{{ backup.name }}"
+                                                    data-backup-path="{{ backup.path }}">
+                                                <i class="fas fa-upload"></i> Restore
+                                            </button>
+
+                                            <!-- Download Button -->
+                                            <a href="{% url 'academic:admin_backup_download' backup.name %}"
+                                               class="btn btn-info btn-sm">
+                                                <i class="fas fa-download"></i> Download
+                                            </a>
+
+                                            <!-- Delete Button -->
+                                            <button type="button" class="btn btn-danger btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteModal"
+                                                    data-backup-name="{{ backup.name }}">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No backups found. Create your first backup above.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Modal -->
+<div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restoreModalLabel">
+                    <i class="fas fa-upload"></i> Restore Database
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'academic:admin_backup_restore' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="backup_dir" id="restore_backup_dir">
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This will restore data from the selected backup.
+                        By default, existing data will be cleared unless you select "Merge" option.
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="restore_user_id" class="form-label">User ID (Optional)</label>
+                            <input type="number" class="form-control" name="user_id" id="restore_user_id"
+                                   placeholder="Leave empty for all users">
+                            <div class="form-text">Restore specific user only</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="merge" id="restore_merge">
+                                <label class="form-check-label" for="restore_merge">
+                                    Merge with existing data
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="exclude_users" id="restore_exclude_users">
+                                <label class="form-check-label" for="restore_exclude_users">
+                                    Skip user profiles
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="exclude_cache" id="restore_exclude_cache">
+                                <label class="form-check-label" for="restore_exclude_cache">
+                                    Skip author cache
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label for="restore_confirmation" class="form-label">
+                            <strong>Type "restore database" to confirm:</strong>
+                        </label>
+                        <input type="text" class="form-control" name="confirmation" id="restore_confirmation"
+                               placeholder="restore database" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-upload"></i> Restore Database
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-trash"></i> Delete Backup
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" id="deleteForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This will permanently delete the backup.
+                        This action cannot be undone.
+                    </div>
+
+                    <p>You are about to delete backup: <strong id="delete_backup_name"></strong></p>
+
+                    <div class="mt-3">
+                        <label for="delete_confirmation" class="form-label">
+                            <strong>Type "delete backup" to confirm:</strong>
+                        </label>
+                        <input type="text" class="form-control" name="confirmation" id="delete_confirmation"
+                               placeholder="delete backup" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete Backup
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle restore modal
+    var restoreModal = document.getElementById('restoreModal');
+    restoreModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var backupName = button.getAttribute('data-backup-name');
+        var backupPath = button.getAttribute('data-backup-path');
+
+        var modal = this;
+        modal.querySelector('#restore_backup_dir').value = backupPath;
+        modal.querySelector('.modal-title').innerHTML = '<i class="fas fa-upload"></i> Restore: ' + backupName;
+    });
+
+    // Handle delete modal
+    var deleteModal = document.getElementById('deleteModal');
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var backupName = button.getAttribute('data-backup-name');
+
+        var modal = this;
+        modal.querySelector('#delete_backup_name').textContent = backupName;
+        modal.querySelector('#deleteForm').action = "{% url 'academic:admin_backup_delete' 'BACKUP_NAME' %}".replace('BACKUP_NAME', backupName);
+    });
+
+    // Clear confirmation inputs when modals are hidden
+    restoreModal.addEventListener('hidden.bs.modal', function() {
+        this.querySelector('#restore_confirmation').value = '';
+    });
+
+    deleteModal.addEventListener('hidden.bs.modal', function() {
+        this.querySelector('#delete_confirmation').value = '';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "first_name": "",
+    "last_name": "",
+    "orcid_id": "0000-0002-6558-4504",
+    "institution": "",
+    "department": "",
+    "research_areas": [],
+    "preferred_citation_style": "apa",
+    "email_notifications": true,
+    "scopus_id": "7006924084",
+    "pubmed_query": "Poldrack RA[Author]",
+    "skip_dois": null,
+    "last_orcid_sync": "2025-09-15T03:15:28.946140+00:00",
+    "date_joined": "2025-09-15T03:06:32.825629+00:00"
+  },
+  {
+    "id": 2,
+    "username": "russell",
+    "email": "poldrack@gmail.com",
+    "first_name": "Russell",
+    "last_name": "Poldrack",
+    "orcid_id": "0000-0001-6755-0259",
+    "institution": "",
+    "department": "",
+    "research_areas": [],
+    "preferred_citation_style": "apa",
+    "email_notifications": false,
+    "scopus_id": "7004739390",
+    "pubmed_query": "poldrack-r",
+    "skip_dois": "10.4324/9780203764442-1\r\n10.3205/dgkh000170\r\n10.1101/2023.09.27.559869\r\n10.1093/braincomms/fcae120\r\n10.1038/mp.2016.244\r\n10.26913/70302016.0109.0007\r\n10.1016/j.neuron.2016.10.037",
+    "last_orcid_sync": "2025-09-15T13:28:37.197130+00:00",
+    "date_joined": "2025-09-15T03:43:33.479068+00:00"
+  }
+]

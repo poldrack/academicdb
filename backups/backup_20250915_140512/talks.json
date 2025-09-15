@@ -1,0 +1,2762 @@
+[
+{
+  "model": "academic.talk",
+  "pk": 2,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2025,
+    "place": "Chulalongkorn University, Bangkok, Thailand",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.439Z",
+    "updated_at": "2025-09-15T12:55:34.439Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 1,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2025,
+    "place": "National University of Singapore",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.431Z",
+    "updated_at": "2025-09-15T12:55:34.431Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 3,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2025,
+    "place": "University of Hong Kong",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.441Z",
+    "updated_at": "2025-09-15T12:55:34.441Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 9,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "Center for Brain Health, University of Texas Dallas",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.451Z",
+    "updated_at": "2025-09-15T12:55:34.451Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 7,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "Kyoto University, Japan",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.449Z",
+    "updated_at": "2025-09-15T12:55:34.449Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 8,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "Paris Brain Institute",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.450Z",
+    "updated_at": "2025-09-15T12:55:34.450Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 12,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "Univerity of Alabama at Birmingham*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.454Z",
+    "updated_at": "2025-09-15T12:55:34.454Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 5,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "Universita degli Studi di Padova, Italy",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.444Z",
+    "updated_at": "2025-09-15T12:55:34.444Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 10,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "University of California at Berkeley",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.452Z",
+    "updated_at": "2025-09-15T12:55:34.452Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 4,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "University of Copenhagen, Denmark",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.443Z",
+    "updated_at": "2025-09-15T12:55:34.443Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 6,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "University of Milano-Bicocca, Italy",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.448Z",
+    "updated_at": "2025-09-15T12:55:34.448Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 11,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2024,
+    "place": "Washington University, St. Louis*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.453Z",
+    "updated_at": "2025-09-15T12:55:34.453Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 14,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2023,
+    "place": "Oxford Big Data Institute",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.457Z",
+    "updated_at": "2025-09-15T12:55:34.457Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 13,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2023,
+    "place": "University College London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.456Z",
+    "updated_at": "2025-09-15T12:55:34.456Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 15,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2023,
+    "place": "University of Tubingen*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.458Z",
+    "updated_at": "2025-09-15T12:55:34.458Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 17,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2022,
+    "place": "Brigham and Womens Hospital*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.461Z",
+    "updated_at": "2025-09-15T12:55:34.461Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 19,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2022,
+    "place": "Tehran University of Medical Sciences*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.463Z",
+    "updated_at": "2025-09-15T12:55:34.463Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 18,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2022,
+    "place": "University of Alabama at Birmingham*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.462Z",
+    "updated_at": "2025-09-15T12:55:34.462Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 16,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2022,
+    "place": "University of Michigan*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.460Z",
+    "updated_at": "2025-09-15T12:55:34.460Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 23,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "King's College London*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.467Z",
+    "updated_at": "2025-09-15T12:55:34.467Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 21,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "Purdue University*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.465Z",
+    "updated_at": "2025-09-15T12:55:34.465Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 25,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "SUNY Binghamton*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.469Z",
+    "updated_at": "2025-09-15T12:55:34.469Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 26,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "University of Connecticut*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.469Z",
+    "updated_at": "2025-09-15T12:55:34.469Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 22,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "University of Florida*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.466Z",
+    "updated_at": "2025-09-15T12:55:34.466Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 24,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "University of Texas Rio Grande Valley*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.468Z",
+    "updated_at": "2025-09-15T12:55:34.468Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 20,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2021,
+    "place": "University of Zurich*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.464Z",
+    "updated_at": "2025-09-15T12:55:34.464Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 29,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2020,
+    "place": "Florida International University*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.472Z",
+    "updated_at": "2025-09-15T12:55:34.472Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 31,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2020,
+    "place": "Max Planck Institute for Human Cognitive and Brain Sciences, Leipzig, Germany*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.474Z",
+    "updated_at": "2025-09-15T12:55:34.474Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 32,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2020,
+    "place": "UC Davis*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.475Z",
+    "updated_at": "2025-09-15T12:55:34.475Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 30,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2020,
+    "place": "University Medical Center, Hamburg, Germany*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.473Z",
+    "updated_at": "2025-09-15T12:55:34.473Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 27,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2020,
+    "place": "University of Colorado, Boulder*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.470Z",
+    "updated_at": "2025-09-15T12:55:34.470Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 28,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2020,
+    "place": "University of Virginia, Biomedical Data Science Program*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.471Z",
+    "updated_at": "2025-09-15T12:55:34.471Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 36,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "Ecole Normale Superieure (Paris)*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.477Z",
+    "updated_at": "2025-09-15T12:55:34.477Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 34,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "IMT Lucca (Italy)",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.476Z",
+    "updated_at": "2025-09-15T12:55:34.476Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 37,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "Johns Hopkins University (Biostatistics)*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.479Z",
+    "updated_at": "2025-09-15T12:55:34.479Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 39,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "Johns Hopkins University (ECE)*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.480Z",
+    "updated_at": "2025-09-15T12:55:34.480Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 38,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "NIMH Machine Learning Group*",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.479Z",
+    "updated_at": "2025-09-15T12:55:34.479Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 35,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "Tel Aviv University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.477Z",
+    "updated_at": "2025-09-15T12:55:34.477Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 33,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2019,
+    "place": "UCLA",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.475Z",
+    "updated_at": "2025-09-15T12:55:34.475Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 41,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2018,
+    "place": "Icahn School of Medicine at Mt. Sinai",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.481Z",
+    "updated_at": "2025-09-15T12:55:34.481Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 40,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2018,
+    "place": "Penn State University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.481Z",
+    "updated_at": "2025-09-15T12:55:34.481Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 43,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2018,
+    "place": "University of Miami.",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.483Z",
+    "updated_at": "2025-09-15T12:55:34.483Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 42,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2018,
+    "place": "University of Wisconsin",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.482Z",
+    "updated_at": "2025-09-15T12:55:34.482Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 44,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2017,
+    "place": "Caltech",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.483Z",
+    "updated_at": "2025-09-15T12:55:34.483Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 47,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2017,
+    "place": "Ghent University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.485Z",
+    "updated_at": "2025-09-15T12:55:34.485Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 48,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2017,
+    "place": "Harvard University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.489Z",
+    "updated_at": "2025-09-15T12:55:34.490Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 49,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2017,
+    "place": "National University, Singapore",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.491Z",
+    "updated_at": "2025-09-15T12:55:34.491Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 46,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2017,
+    "place": "University of Maryland",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.485Z",
+    "updated_at": "2025-09-15T12:55:34.485Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 45,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2017,
+    "place": "University of Pennsylvania",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.484Z",
+    "updated_at": "2025-09-15T12:55:34.484Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 53,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2016,
+    "place": "Dartmouth University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.495Z",
+    "updated_at": "2025-09-15T12:55:34.495Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 52,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2016,
+    "place": "Duke University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.494Z",
+    "updated_at": "2025-09-15T12:55:34.494Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 51,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2016,
+    "place": "MRC Cognition and Brain Unit, Cambridge",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.493Z",
+    "updated_at": "2025-09-15T12:55:34.493Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 54,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2016,
+    "place": "Rutgers-Newark",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.498Z",
+    "updated_at": "2025-09-15T12:55:34.498Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 50,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2016,
+    "place": "Wellcome Trust Center for Neuroscience, University College, London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.492Z",
+    "updated_at": "2025-09-15T12:55:34.492Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 58,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2015,
+    "place": "Cornell University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.538Z",
+    "updated_at": "2025-09-15T12:55:34.538Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 57,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2015,
+    "place": "Montreal Neurological Institute",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.532Z",
+    "updated_at": "2025-09-15T12:55:34.532Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 55,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2015,
+    "place": "Tel Aviv University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.499Z",
+    "updated_at": "2025-09-15T12:55:34.499Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 56,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2015,
+    "place": "University Medical Center, Utrecht, Netherlands",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.500Z",
+    "updated_at": "2025-09-15T12:55:34.500Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 59,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2014,
+    "place": "Laureate Insitute, Tulsa, OK",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.540Z",
+    "updated_at": "2025-09-15T12:55:34.540Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 61,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2014,
+    "place": "Michigan State University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.545Z",
+    "updated_at": "2025-09-15T12:55:34.545Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 60,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2014,
+    "place": "Yale University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.543Z",
+    "updated_at": "2025-09-15T12:55:34.543Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 69,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "Carnegie-Mellon University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.558Z",
+    "updated_at": "2025-09-15T12:55:34.558Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 62,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "Columbia University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.546Z",
+    "updated_at": "2025-09-15T12:55:34.546Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 71,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "Mt. Sinai School of Medicine",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.560Z",
+    "updated_at": "2025-09-15T12:55:34.560Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 68,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "NIDA",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.556Z",
+    "updated_at": "2025-09-15T12:55:34.556Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 67,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "NIMH",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.555Z",
+    "updated_at": "2025-09-15T12:55:34.555Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 64,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "Rotman Research Institute, Toronto",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.550Z",
+    "updated_at": "2025-09-15T12:55:34.550Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 66,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "UCLA",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.554Z",
+    "updated_at": "2025-09-15T12:55:34.554Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 63,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "UT San Antonio",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.548Z",
+    "updated_at": "2025-09-15T12:55:34.548Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 65,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "University of Michigan",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.551Z",
+    "updated_at": "2025-09-15T12:55:34.551Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 70,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "University of Oregon",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.559Z",
+    "updated_at": "2025-09-15T12:55:34.559Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 72,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2013,
+    "place": "Washington University, St. Louis",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.561Z",
+    "updated_at": "2025-09-15T12:55:34.561Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 74,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2012,
+    "place": "Ohio State University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.563Z",
+    "updated_at": "2025-09-15T12:55:34.563Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 75,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2012,
+    "place": "Stanford University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.565Z",
+    "updated_at": "2025-09-15T12:55:34.565Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 76,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2012,
+    "place": "Tokyo Institute of Technology",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.566Z",
+    "updated_at": "2025-09-15T12:55:34.566Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 73,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2012,
+    "place": "University of Texas at Dallas",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.562Z",
+    "updated_at": "2025-09-15T12:55:34.562Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 82,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "Brown University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.572Z",
+    "updated_at": "2025-09-15T12:55:34.572Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 78,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "Cambridge University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.567Z",
+    "updated_at": "2025-09-15T12:55:34.567Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 80,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "Georgia Tech University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.570Z",
+    "updated_at": "2025-09-15T12:55:34.570Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 83,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "Humboldt University (Berlin)",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.573Z",
+    "updated_at": "2025-09-15T12:55:34.573Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 84,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "National Taiwan University (Taipei).",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.574Z",
+    "updated_at": "2025-09-15T12:55:34.574Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 79,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "Oxford University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.569Z",
+    "updated_at": "2025-09-15T12:55:34.569Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 77,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "University College London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.566Z",
+    "updated_at": "2025-09-15T12:55:34.566Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 81,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2011,
+    "place": "University of Georgia",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.571Z",
+    "updated_at": "2025-09-15T12:55:34.571Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 90,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "Auburn University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.579Z",
+    "updated_at": "2025-09-15T12:55:34.579Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 85,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "Beijing Normal University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.574Z",
+    "updated_at": "2025-09-15T12:55:34.574Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 86,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "Duke-NUS School of Medicine, Singapore",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.576Z",
+    "updated_at": "2025-09-15T12:55:34.576Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 87,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "Princeton University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.577Z",
+    "updated_at": "2025-09-15T12:55:34.577Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 91,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "Texas A\\&M University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.579Z",
+    "updated_at": "2025-09-15T12:55:34.579Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 88,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "UC Davis",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.577Z",
+    "updated_at": "2025-09-15T12:55:34.577Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 89,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2010,
+    "place": "University of Maryland",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.578Z",
+    "updated_at": "2025-09-15T12:55:34.578Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 95,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2009,
+    "place": "Baylor College of Medicine",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.582Z",
+    "updated_at": "2025-09-15T12:55:34.582Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 93,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2009,
+    "place": "UC San Diego",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.581Z",
+    "updated_at": "2025-09-15T12:55:34.581Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 92,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2009,
+    "place": "University of Pennsylvania",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.580Z",
+    "updated_at": "2025-09-15T12:55:34.580Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 94,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2009,
+    "place": "University of Texas at Austin",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.581Z",
+    "updated_at": "2025-09-15T12:55:34.581Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 103,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "Cal Tech",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.587Z",
+    "updated_at": "2025-09-15T12:55:34.587Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 104,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "Neurospin (Orsay, France)",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.587Z",
+    "updated_at": "2025-09-15T12:55:34.587Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 105,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "Oxford University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.588Z",
+    "updated_at": "2025-09-15T12:55:34.588Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 97,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "SUNY Stony Brook",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.583Z",
+    "updated_at": "2025-09-15T12:55:34.583Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 106,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "University College London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.589Z",
+    "updated_at": "2025-09-15T12:55:34.589Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 99,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "University of Illinois at Chicago",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.585Z",
+    "updated_at": "2025-09-15T12:55:34.585Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 101,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "University of Missouri-Columbia",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.586Z",
+    "updated_at": "2025-09-15T12:55:34.586Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 100,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "University of Texas at Austin",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.585Z",
+    "updated_at": "2025-09-15T12:55:34.585Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 96,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "University of Vermont",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.583Z",
+    "updated_at": "2025-09-15T12:55:34.583Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 98,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "Vanderbilt University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.584Z",
+    "updated_at": "2025-09-15T12:55:34.584Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 102,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2008,
+    "place": "Washington University-St. Louis",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.586Z",
+    "updated_at": "2025-09-15T12:55:34.586Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 107,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2007,
+    "place": "Duke University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.589Z",
+    "updated_at": "2025-09-15T12:55:34.589Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 110,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2007,
+    "place": "MIT",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.591Z",
+    "updated_at": "2025-09-15T12:55:34.591Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 108,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2007,
+    "place": "New York University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.590Z",
+    "updated_at": "2025-09-15T12:55:34.590Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 111,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2007,
+    "place": "University College London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.592Z",
+    "updated_at": "2025-09-15T12:55:34.592Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 109,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2007,
+    "place": "University of Texas",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.591Z",
+    "updated_at": "2025-09-15T12:55:34.591Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 114,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2006,
+    "place": "Ben Gurion University (Beer Sheva, Israel)",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.594Z",
+    "updated_at": "2025-09-15T12:55:34.594Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 113,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2006,
+    "place": "Johns Hopkins University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.593Z",
+    "updated_at": "2025-09-15T12:55:34.593Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 112,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2006,
+    "place": "Salk  Institute",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.593Z",
+    "updated_at": "2025-09-15T12:55:34.593Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 116,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2005,
+    "place": "Medical College of Wisconsin",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.595Z",
+    "updated_at": "2025-09-15T12:55:34.595Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 115,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2005,
+    "place": "University of Arizona",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.594Z",
+    "updated_at": "2025-09-15T12:55:34.594Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 117,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2005,
+    "place": "Washington University-St. Louis, Karolinska Institute, Lund University (Sweden), Danish Technical University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.596Z",
+    "updated_at": "2025-09-15T12:55:34.596Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 121,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2004,
+    "place": "Colorado State University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.599Z",
+    "updated_at": "2025-09-15T12:55:34.599Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 118,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2004,
+    "place": "Rotman Research Institute, University of Toronto",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.596Z",
+    "updated_at": "2025-09-15T12:55:34.596Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 119,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2004,
+    "place": "University of California, San Diego",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.597Z",
+    "updated_at": "2025-09-15T12:55:34.597Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 120,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2004,
+    "place": "University of Colorado, Boulder",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.598Z",
+    "updated_at": "2025-09-15T12:55:34.598Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 122,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2004,
+    "place": "University of Illinois at Urbana-Champaign",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.599Z",
+    "updated_at": "2025-09-15T12:55:34.599Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 124,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2003,
+    "place": "Max Planck Institute for Cognitive Neuroscience, Leipzig, Germany",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.601Z",
+    "updated_at": "2025-09-15T12:55:34.601Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 123,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2003,
+    "place": "NIMH, Clinical Brain Disorders Branch",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.600Z",
+    "updated_at": "2025-09-15T12:55:34.600Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 125,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2003,
+    "place": "University of California at Irvine, Center for Neurobiology of Learning and Memory,",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.601Z",
+    "updated_at": "2025-09-15T12:55:34.601Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 126,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2002,
+    "place": "Learning and the Brain conference, Cambridge, MA",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.602Z",
+    "updated_at": "2025-09-15T12:55:34.602Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 127,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2002,
+    "place": "Los Alamos National Laboratory, Center for Nonlinear Studies",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.602Z",
+    "updated_at": "2025-09-15T12:55:34.602Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 128,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2001,
+    "place": "Institute for Cognitive Neuroscience, London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.603Z",
+    "updated_at": "2025-09-15T12:55:34.603Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 129,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2001,
+    "place": "Wellcome Department of Cognitive Neurology, London",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.604Z",
+    "updated_at": "2025-09-15T12:55:34.604Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 132,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2000,
+    "place": "Boston University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.623Z",
+    "updated_at": "2025-09-15T12:55:34.623Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 133,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2000,
+    "place": "Boston VA Medical Center",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.628Z",
+    "updated_at": "2025-09-15T12:55:34.628Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 131,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2000,
+    "place": "MIT",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.607Z",
+    "updated_at": "2025-09-15T12:55:34.607Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 130,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 2000,
+    "place": "University of Connecticut",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.606Z",
+    "updated_at": "2025-09-15T12:55:34.606Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 134,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 1999,
+    "place": "Center for Psychological Studies, Berkeley, CA",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.630Z",
+    "updated_at": "2025-09-15T12:55:34.630Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 135,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 1999,
+    "place": "Harvard University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.631Z",
+    "updated_at": "2025-09-15T12:55:34.631Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 136,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 1997,
+    "place": "University of California at Berkeley",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.632Z",
+    "updated_at": "2025-09-15T12:55:34.632Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 137,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 1996,
+    "place": "University of California at Santa Cruz",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.633Z",
+    "updated_at": "2025-09-15T12:55:34.633Z"
+  }
+},
+{
+  "model": "academic.talk",
+  "pk": 138,
+  "fields": {
+    "owner": [
+      "russell"
+    ],
+    "year": 1994,
+    "place": "Rice University",
+    "title": "",
+    "date": null,
+    "invited": true,
+    "virtual": false,
+    "additional_info": {},
+    "source": "manual",
+    "manual_edits": {},
+    "created_at": "2025-09-15T12:55:34.633Z",
+    "updated_at": "2025-09-15T12:55:34.633Z"
+  }
+}
+]
