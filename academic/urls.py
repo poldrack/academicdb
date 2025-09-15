@@ -69,4 +69,8 @@ urlpatterns = [
     path('tools/backup/restore/', views.AdminBackupRestoreView.as_view(), name='admin_backup_restore'),
     path('tools/backup/download/<str:backup_name>/', views.AdminBackupDownloadView.as_view(), name='admin_backup_download'),
     path('tools/backup/delete/<str:backup_name>/', views.AdminBackupDeleteView.as_view(), name='admin_backup_delete'),
+
+    # CV Generation URLs
+    path('cv/', views.CVPreviewView.as_view(), name='cv_preview'),
+    path('cv/download/<str:format_type>/', views.CVView.as_view(), name='cv_download'),
 ]

@@ -1622,3 +1622,97 @@ class AdminBackupDeleteView(LoginRequiredMixin, View):
 
         return redirect('academic:admin_backup')
 
+
+class CVView(LoginRequiredMixin, View):
+    """
+    Generate and download CV in LaTeX or PDF format
+    """
+    login_url = '/accounts/login/'
+
+    def get(self, request, format_type='tex'):
+        """
+        Handle CV generation requests
+
+        Args:
+            format_type: 'tex' for LaTeX source, 'pdf' for compiled PDF
+        """
+        from .cv_renderer import generate_cv_latex, compile_latex_to_pdf
+
+        user = request.user
+        exclude_dois = request.GET.get('exclude_dois', '').split(',') if request.GET.get('exclude_dois') else None
+
+        try:
+            # Generate LaTeX content
+            latex_content = generate_cv_latex(user, exclude_dois)
+
+            if format_type == 'tex':
+                # Return LaTeX source
+                response = HttpResponse(latex_content, content_type='text/plain')
+                response['Content-Disposition'] = f'attachment; filename="cv_{user.username}.tex"'
+                return response
+
+            elif format_type == 'pdf':
+                # Compile to PDF
+                compilation_result = compile_latex_to_pdf(latex_content)
+
+                if compilation_result['success']:
+                    # Return PDF file
+                    with open(compilation_result['pdf_path'], 'rb') as pdf_file:
+                        response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+                        response['Content-Disposition'] = f'attachment; filename="cv_{user.username}.pdf"'
+
+                    # Clean up temporary files
+                    try:
+                        import shutil
+                        shutil.rmtree(compilation_result['output_dir'])
+                    except:
+                        pass
+
+                    return response
+                else:
+                    # PDF compilation failed - return error page or LaTeX with error message
+                    messages.error(request, f'PDF compilation failed: {compilation_result["error"]}')
+                    messages.info(request, 'You can download the LaTeX source and compile it manually.')
+
+                    # Still offer the LaTeX file
+                    response = HttpResponse(latex_content, content_type='text/plain')
+                    response['Content-Disposition'] = f'attachment; filename="cv_{user.username}.tex"'
+                    return response
+
+            else:
+                # Unknown format
+                messages.error(request, f'Unknown format: {format_type}')
+                return redirect('academic:dashboard')
+
+        except Exception as e:
+            logger.error(f"CV generation failed for user {user.id}: {str(e)}")
+            messages.error(request, f'CV generation failed: {str(e)}')
+            return redirect('academic:dashboard')
+
+
+class CVPreviewView(LoginRequiredMixin, TemplateView):
+    """
+    Preview CV generation interface
+    """
+    template_name = 'academic/cv_preview.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Generate CV'
+        context['user'] = self.request.user
+
+        # Get counts for sections
+        user = self.request.user
+        context['stats'] = {
+            'publications': Publication.objects.filter(owner=user, is_ignored=False).count(),
+            'funding': Funding.objects.filter(owner=user).count(),
+            'teaching': Teaching.objects.filter(owner=user).count(),
+            'talks': Talk.objects.filter(owner=user).count(),
+            'conferences': Conference.objects.filter(owner=user).count(),
+            'employment': ProfessionalActivity.objects.filter(owner=user, activity_type='employment').count(),
+            'education': ProfessionalActivity.objects.filter(owner=user, activity_type='education').count(),
+        }
+
+        return context
+
