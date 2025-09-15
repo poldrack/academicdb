@@ -19,23 +19,35 @@ def escape_characters_for_latex(data):
     """
     Escape special characters for LaTeX
     Handles both strings and dictionaries
+    Avoids double-escaping already escaped characters
     """
     if isinstance(data, str):
-        # Escape LaTeX special characters
-        latex_chars = {
-            '&': r'\&',
-            '%': r'\%',
-            '$': r'\$',
-            '#': r'\#',
-            '_': r'\_',
-            '{': r'\{',
-            '}': r'\}',
-            '~': r'\textasciitilde{}',
-            '^': r'\textasciicircum{}',
-        }
+        import re
         result = data
-        for char, escaped in latex_chars.items():
-            result = result.replace(char, escaped)
+
+        # Check if the string appears to already be LaTeX-escaped
+        # If it contains escaped characters, don't re-escape
+        if ('\\&' in result or '\\%' in result or '\\$' in result or
+            '\\#' in result or '\\_' in result or '\\{' in result or
+            '\\}' in result or '\\textasciitilde{}' in result or
+            '\\textasciicircum{}' in result):
+            # String appears to already be escaped, return as-is
+            return result
+
+        # Only escape if not already escaped
+        # Use negative lookbehind to avoid double-escaping
+        result = re.sub(r'(?<!\\)&', r'\\&', result)
+        result = re.sub(r'(?<!\\)%', r'\\%', result)
+        result = re.sub(r'(?<!\\)\$', r'\\$', result)
+        result = re.sub(r'(?<!\\)#', r'\\#', result)
+        result = re.sub(r'(?<!\\)_', r'\\_', result)
+        result = re.sub(r'(?<!\\)\{', r'\\{', result)
+        result = re.sub(r'(?<!\\)\}', r'\\}', result)
+
+        # Handle ~ and ^ carefully
+        result = result.replace('~', r'\textasciitilde{}')
+        result = result.replace('^', r'\textasciicircum{}')
+
         return result
     elif isinstance(data, dict):
         return {key: escape_characters_for_latex(value) for key, value in data.items()}
@@ -71,7 +83,11 @@ def get_education(user):
 
             # Format location
             location = f"{e.city}, {e.country}" if e.city and e.country else e.organization
-            output += f"\\textit{{{date_range}}}: {e.title}, {e.organization}, {location}\n\n"
+            # Escape LaTeX characters
+            escaped_title = escape_characters_for_latex(e.title)
+            escaped_organization = escape_characters_for_latex(e.organization)
+            escaped_location = escape_characters_for_latex(location)
+            output += f"\\textit{{{date_range}}}: {escaped_title}, {escaped_organization}, {escaped_location}\n\n"
     return output
 
 
@@ -99,8 +115,10 @@ def get_employment(user):
             else:
                 date_range = str(start_year) if start_year else 'Unknown'
 
-            dept_string = f" ({e.department})" if e.department else ''
-            output += f"\\textit{{{date_range}}}: {e.title}{dept_string}, {e.organization}\n\n"
+            dept_string = f" ({escape_characters_for_latex(e.department)})" if e.department else ''
+            escaped_title = escape_characters_for_latex(e.title)
+            escaped_organization = escape_characters_for_latex(e.organization)
+            output += f"\\textit{{{date_range}}}: {escaped_title}{dept_string}, {escaped_organization}\n\n"
     return output
 
 
@@ -125,7 +143,9 @@ def get_distinctions(user):
                 date_str = str(e.end_date.year)
             else:
                 date_str = 'Unknown'
-            output += f"\\textit{{{date_str}}}: {e.title}, {e.organization}\n\n"
+            escaped_title = escape_characters_for_latex(e.title)
+            escaped_organization = escape_characters_for_latex(e.organization)
+            output += f"\\textit{{{date_str}}}: {escaped_title}, {escaped_organization}\n\n"
     return output
 
 
@@ -142,7 +162,7 @@ def get_memberships(user):
 \\section*{Professional societies}
 \\noindent
 """
-        orgs = [m.organization for m in memberships]
+        orgs = [escape_characters_for_latex(m.organization) for m in memberships]
         output += ', '.join(orgs) + '\n\n'
     return output
 
@@ -171,7 +191,9 @@ def get_service(user):
             else:
                 date_range = str(start_year) if start_year else 'Unknown'
 
-            output += f"{e.title}, {e.organization}, {date_range}\n\n"
+            escaped_title = escape_characters_for_latex(e.title)
+            escaped_organization = escape_characters_for_latex(e.organization)
+            output += f"{escaped_title}, {escaped_organization}, {date_range}\n\n"
     return output
 
 
@@ -201,7 +223,11 @@ def get_conferences(user):
                 title += '.'
             location = talk.location.rstrip('.').rstrip(' ').rstrip(',')
             month_str = talk.month if talk.month else ''
-            output += f"\\textit{{{title}}} {location}, {month_str}.\n\n"
+            # Escape LaTeX characters
+            escaped_title = escape_characters_for_latex(title)
+            escaped_location = escape_characters_for_latex(location)
+            escaped_month = escape_characters_for_latex(month_str)
+            output += f"\\textit{{{escaped_title}}} {escaped_location}, {escaped_month}.\n\n"
     return output
 
 
@@ -224,7 +250,8 @@ def get_talks(user):
             location = talk.place
             if talk.virtual:
                 location += '*'
-            talk_locations.append(location)
+            escaped_location = escape_characters_for_latex(location)
+            talk_locations.append(escaped_location)
         output += ', '.join(talk_locations) + '\n\n'
     return output
 
@@ -243,7 +270,7 @@ def get_teaching(user):
         if level_entries.exists():
             level_display = level.capitalize()
             output += f'\\textit{{{level_display}}}: '
-            courses = [entry.name for entry in level_entries]
+            courses = [escape_characters_for_latex(entry.name) for entry in level_entries]
             output += f"{', '.join(courses)}\\vspace{{2mm}}\n\n"
     return output
 
@@ -258,12 +285,12 @@ def get_funding(user):
 
     for f in funding:
         fund_data = {
-            'role': f.get_role_display(),
-            'organization': f.agency,
-            'title': f.title,
+            'role': escape_characters_for_latex(f.get_role_display()),
+            'organization': escape_characters_for_latex(f.agency),
+            'title': escape_characters_for_latex(f.title),
             'start_date': f.start_date.year if f.start_date else 'Unknown',
             'end_date': f.end_date.year if f.end_date else 'Present',
-            'id': f.grant_number or '',
+            'id': escape_characters_for_latex(f.grant_number) if f.grant_number else '',
             'url': ''  # Add if URL field exists in model
         }
 
@@ -284,14 +311,14 @@ def get_funding(user):
             linkstring = ''
             if e.get('url') and e['url']:
                 linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
-            output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
 
         output += '\\subsection*{Completed:}'
         for e in completed_funding:
             linkstring = ''
             if e.get('url') and e['url']:
                 linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
-            output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title'].capitalize()}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
     return output
 
 
@@ -421,16 +448,37 @@ def mk_author_string(authors, maxlen=10, n_to_show=3):
             else:
                 name = str(author)
 
-            # Standardize the name format
+            # Standardize the name format and escape LaTeX characters
             standardized_name = standardize_author_name(name.strip())
-            author_names.append(standardized_name)
+            escaped_name = escape_characters_for_latex(standardized_name)
+            author_names.append(escaped_name)
 
         if len(author_names) > maxlen:
             return ', '.join(author_names[:n_to_show]) + ' et al.'
         else:
             return ', '.join(author_names) + '. '
     else:
-        return str(authors) + '. '
+        escaped_authors = escape_characters_for_latex(str(authors))
+        return escaped_authors + '. '
+
+
+def get_preprint_server_name(publication_name):
+    """Map preprint publication names to standardized server names"""
+    preprint_mapping = {
+        'Cold Spring Harbor Laboratory': 'bioRxiv',
+        'bioRxiv': 'bioRxiv',
+        'medRxiv': 'medRxiv',
+        'arXiv': 'arXiv',
+        'ChemRxiv': 'ChemRxiv',
+        'OSF Preprints': 'OSF Preprints',
+        'PsyArXiv': 'PsyArXiv',
+        'SocArXiv': 'SocArXiv',
+        'EarthArXiv': 'EarthArXiv',
+        'Research Square': 'Research Square',
+        'SSRN': 'SSRN',
+    }
+
+    return preprint_mapping.get(publication_name, publication_name or 'Preprint Server')
 
 
 def get_publication_outlet(pub_data):
@@ -440,7 +488,8 @@ def get_publication_outlet(pub_data):
     # Get journal/venue name from publication_name field or metadata
     journal = pub_data.get('journal') or pub_data.get('publication_name', '')
     if journal:
-        journal = journal.replace('&amp;', '\\&')
+        # Escape LaTeX characters properly instead of just handling &amp;
+        journal = escape_characters_for_latex(journal)
 
     pub_type = pub_data.get('type') or pub_data.get('publication_type', 'journal-article')
 
@@ -449,30 +498,41 @@ def get_publication_outlet(pub_data):
         page = pub_data.get('page') or pub_data.get('pages')
 
         if volume:
-            volstring = f", {volume}"
+            escaped_volume = escape_characters_for_latex(str(volume))
+            volstring = f", {escaped_volume}"
         if page:
-            pagestring = f", {page}"
+            escaped_page = escape_characters_for_latex(str(page))
+            pagestring = f", {escaped_page}"
         return f" \\textit{{{journal}{volstring}}}{pagestring}. "
     elif pub_type == 'book-chapter':
         volume = pub_data.get('volume')
         page = pub_data.get('page') or pub_data.get('pages')
 
         if volume:
-            volstring = f" (Vol. {volume})"
+            escaped_volume = escape_characters_for_latex(str(volume))
+            volstring = f" (Vol. {escaped_volume})"
         if page:
-            pagestring = f", {page}"
+            escaped_page = escape_characters_for_latex(str(page))
+            pagestring = f", {escaped_page}"
         return f" In \\textit{{{journal}{volstring}}}{pagestring}. "
     elif pub_type == 'book':
         publisher = pub_data.get('publisher', '')
         volume = pub_data.get('volume')
 
         if volume:
-            volstring = f" (Vol. {volume})"
+            escaped_volume = escape_characters_for_latex(str(volume))
+            volstring = f" (Vol. {escaped_volume})"
         if publisher:
-            pubstring = f"{publisher}"
+            escaped_publisher = escape_characters_for_latex(publisher)
+            pubstring = f"{escaped_publisher}"
         return f" \\textit{{{journal}}}{volstring}. {pubstring}."
+    elif pub_type == 'preprint':
+        server_name = get_preprint_server_name(journal)
+        escaped_server_name = escape_characters_for_latex(server_name)
+        return f" \\textit{{{escaped_server_name} (preprint)}}. "
     else:
-        return f"\\textbf{{TBD{pub_type}}}"
+        escaped_type = escape_characters_for_latex(pub_type)
+        return f"\\textbf{{TBD{escaped_type}}}"
 
 
 def format_publication(pub, debug=False):
@@ -490,26 +550,30 @@ def format_publication(pub, debug=False):
         'identifiers': pub.identifiers,
     }
 
-    # Create formatted citation
+    # Create formatted citation with escaped content
     authors_str = mk_author_string(pub.authors)
     outlet_str = get_publication_outlet(pub_data)
+    escaped_title = escape_characters_for_latex(pub.title)
 
     # Build citation
-    output = f"{authors_str}({pub.year}). \\textit{{{pub.title}}}.{outlet_str}"
+    output = f"{authors_str}({pub.year}). \\textit{{{escaped_title}}}.{outlet_str}"
 
-    # Add links and identifiers
+    # Add links and identifiers (URLs should NOT be escaped for LaTeX)
     with suppress(KeyError, AttributeError):
         pmcid = pub.identifiers.get('pmcid') or pub.identifiers.get('PMCID')
         if pmcid:
             pmcid = pmcid.replace('PMC', '')
+            # PMCIDs are numeric, so no escaping needed
             output += f" \\href{{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{pmcid}}}{{OA}}"
         elif pub.metadata.get('freetoread') in ['publisherhybridgold', 'publisherfree2read']:
+            # DOI URLs should not be escaped
             output += f" \\href{{https://doi.org/{pub.doi}}}{{OA}}"
 
     if pub.doi and 'nodoi' not in pub.doi.lower():
+        # DOI URLs should not be escaped
         output += f" \\href{{https://doi.org/{pub.doi}}}{{DOI}}"
 
-    # Add additional links
+    # Add additional links (URLs should NOT be escaped for LaTeX)
     if pub.links:
         if pub.links.get('Data'):
             output += f" \\href{{{pub.links['Data']}}}{{Data}}"
@@ -522,12 +586,79 @@ def format_publication(pub, debug=False):
     return output
 
 
+def get_preprints(user, exclude_dois=None):
+    """Get preprints data for CV (separate section)"""
+    preprints = Publication.objects.filter(
+        owner=user,
+        is_ignored=False,
+        publication_type='preprint'
+    ).order_by('-year')
+
+    if exclude_dois:
+        preprints = preprints.exclude(doi__in=exclude_dois)
+
+    # Get all published papers to check for preprint relations
+    published_papers = Publication.objects.filter(
+        owner=user,
+        is_ignored=False
+    ).exclude(publication_type='preprint')
+
+    # Collect DOIs of preprints that have been published
+    published_preprint_dois = set()
+    for paper in published_papers:
+        # Check if this paper has preprint relations in its metadata
+        if paper.metadata and isinstance(paper.metadata, dict):
+            # Check for Crossref relation data
+            relations = paper.metadata.get('relation', {})
+            if relations:
+                # Look for is-preprint-of or has-preprint relations
+                for relation_type in ['is-version-of', 'has-preprint', 'is-preprint-of']:
+                    if relation_type in relations:
+                        relation_list = relations[relation_type]
+                        if isinstance(relation_list, list):
+                            for rel in relation_list:
+                                if isinstance(rel, dict) and 'id' in rel:
+                                    # Extract DOI from the relation
+                                    preprint_doi = rel['id']
+                                    # Clean the DOI (remove https://doi.org/ prefix if present)
+                                    if preprint_doi.startswith('https://doi.org/'):
+                                        preprint_doi = preprint_doi.replace('https://doi.org/', '')
+                                    elif preprint_doi.startswith('http://doi.org/'):
+                                        preprint_doi = preprint_doi.replace('http://doi.org/', '')
+                                    published_preprint_dois.add(preprint_doi)
+
+    output = ''
+    # Filter out preprints that have been published
+    unpublished_preprints = []
+    for preprint in preprints:
+        if preprint.doi not in published_preprint_dois:
+            unpublished_preprints.append(preprint)
+
+    if unpublished_preprints:
+        output += """
+\\section*{Preprints}
+\\noindent
+"""
+        # Sort preprints by first author's last name
+        unpublished_preprints.sort(key=lambda pub: extract_first_author_lastname(pub.authors))
+
+        for pub in unpublished_preprints:
+            # Skip corrections/errata
+            if any(term in pub.title for term in ['Corrigendum', 'Author Correction', 'Erratum']):
+                continue
+
+            # format_publication handles escaping internally
+            output += format_publication(pub)
+
+    return output
+
+
 def get_publications(user, exclude_dois=None):
-    """Get publications data for CV"""
+    """Get publications data for CV (excluding preprints)"""
     publications = Publication.objects.filter(
         owner=user,
         is_ignored=False
-    ).order_by('-year')
+    ).exclude(publication_type='preprint').order_by('-year')
 
     if exclude_dois:
         publications = publications.exclude(doi__in=exclude_dois)
@@ -552,8 +683,7 @@ def get_publications(user, exclude_dois=None):
             if any(term in pub.title for term in ['Corrigendum', 'Author Correction', 'Erratum']):
                 continue
 
-            # Escape LaTeX characters
-            pub = escape_characters_for_latex(pub)
+            # format_publication handles escaping internally
             output += format_publication(pub)
 
     return output
@@ -561,43 +691,68 @@ def get_publications(user, exclude_dois=None):
 
 def get_heading(user):
     """Generate CV heading from user profile"""
-    # Build address from user profile
+    # Build full address from user profile
     address_lines = []
-    if user.institution:
-        address_lines.append(user.institution)
     if user.department:
-        address_lines.append(user.department)
+        address_lines.append(escape_characters_for_latex(user.department))
+    if user.institution:
+        address_lines.append(escape_characters_for_latex(user.institution))
 
-    # Build address string
+    # Add street address if available
+    if hasattr(user, 'address1') and user.address1:
+        address_lines.append(escape_characters_for_latex(user.address1))
+    if hasattr(user, 'address2') and user.address2:
+        address_lines.append(escape_characters_for_latex(user.address2))
+
+    # Add city, state, zip if available
+    city_state_zip = []
+    if hasattr(user, 'city') and user.city:
+        city_state_zip.append(escape_characters_for_latex(user.city))
+    if hasattr(user, 'state') and user.state:
+        city_state_zip.append(escape_characters_for_latex(user.state))
+    if hasattr(user, 'zip_code') and user.zip_code:
+        city_state_zip.append(escape_characters_for_latex(user.zip_code))
+
+    if city_state_zip:
+        address_lines.append(', '.join(city_state_zip))
+
+    # Add country if available
+    if hasattr(user, 'country') and user.country:
+        address_lines.append(escape_characters_for_latex(user.country))
+
+    # Build address string for first column
     address = ''
     for addr_line in address_lines:
         address += f'{addr_line}\\\\\n'
 
     # Get name components
-    firstname = user.first_name or 'First'
-    lastname = user.last_name or 'Last'
-    middlename = getattr(user, 'middle_name', '') or 'M'  # Default middle initial
+    firstname = escape_characters_for_latex(user.first_name or 'First')
+    lastname = escape_characters_for_latex(user.last_name or 'Last')
+    middlename = escape_characters_for_latex(getattr(user, 'middle_name', '') or 'M')  # Default middle initial
 
-    # Build heading
+    # Build heading with proper column layout
     heading = f"""
 \\reversemarginpar
-{{\\LARGE {firstname.capitalize()} {middlename[0].upper()}. {lastname.capitalize()}}}\\\\[4mm]
+{{\\LARGE {firstname} {middlename[0] if middlename else ''}. {lastname}}}\\\\[4mm]
 \\vspace{{-1cm}}
 
 \\begin{{multicols}}{{2}}
 {address}
 \\columnbreak
 
-email: {user.email} \\\\
+email: {escape_characters_for_latex(user.email)} \\\\
 """
 
-    # Add optional fields if available
-    if hasattr(user, 'phone') and user.phone:
-        heading += f"Phone: {user.phone} \\\\\n"
-    if hasattr(user, 'website') and user.website:
-        heading += f"url: \\href{{{user.website}}}{{{user.website.replace('https://', '').replace('http://', '')}}} \\\\\n"
+    # Add ORCID (should be in second column with email)
     if user.orcid_id:
         heading += f"ORCID: \\href{{https://orcid.org/{user.orcid_id}}}{{{user.orcid_id}}} \\\\\n"
+
+    # Add optional fields if available (phone and website can go in second column)
+    if hasattr(user, 'phone') and user.phone:
+        heading += f"Phone: {escape_characters_for_latex(user.phone)} \\\\\n"
+    if hasattr(user, 'website') and user.website:
+        website_display = user.website.replace('https://', '').replace('http://', '')
+        heading += f"url: \\href{{{user.website}}}{{{escape_characters_for_latex(website_display)}}} \\\\\n"
 
     heading += """\\end{multicols}
 
@@ -685,6 +840,7 @@ def generate_cv_latex(user, exclude_dois=None):
     doc += get_service(user)
     doc += get_funding(user)
     doc += get_teaching(user)
+    doc += get_preprints(user, exclude_dois)  # Add preprints before publications
     doc += get_publications(user, exclude_dois)
     doc += get_conferences(user)
     doc += get_talks(user)
@@ -714,8 +870,32 @@ def compile_latex_to_pdf(latex_content, output_dir=None):
 
     # Compile with xelatex
     try:
+        # Use full path to xelatex to avoid PATH issues in web server context
+        xelatex_paths = [
+            '/Library/TeX/texbin/xelatex',  # macOS
+            '/usr/bin/xelatex',             # Linux
+            '/usr/local/bin/xelatex',       # Linux alternative
+            'xelatex'                       # fallback to PATH
+        ]
+
+        xelatex_cmd = None
+        for path in xelatex_paths:
+            if os.path.exists(path) or path == 'xelatex':
+                xelatex_cmd = path
+                break
+
+        if not xelatex_cmd:
+            return {
+                'success': False,
+                'pdf_path': None,
+                'tex_path': tex_path,
+                'log': '',
+                'error': 'xelatex not found in standard locations',
+                'output_dir': output_dir
+            }
+
         result = subprocess.run([
-            'xelatex',
+            xelatex_cmd,
             '-halt-on-error',
             '-output-directory', output_dir,
             'cv.tex'
@@ -723,18 +903,27 @@ def compile_latex_to_pdf(latex_content, output_dir=None):
         cwd=output_dir,
         capture_output=True,
         text=True,
-        timeout=60
+        timeout=60,
+        env={**os.environ, 'PATH': '/Library/TeX/texbin:/usr/bin:/usr/local/bin:' + os.environ.get('PATH', '')}
         )
 
         pdf_path = os.path.join(output_dir, 'cv.pdf')
         success = result.returncode == 0 and os.path.exists(pdf_path)
+
+        # Enhanced error reporting
+        error_message = result.stderr
+        if not success:
+            if result.returncode != 0:
+                error_message = f"xelatex failed with return code {result.returncode}: {result.stderr}"
+            if not os.path.exists(pdf_path):
+                error_message += f" (PDF file not created at {pdf_path})"
 
         return {
             'success': success,
             'pdf_path': pdf_path if success else None,
             'tex_path': tex_path,
             'log': result.stdout,
-            'error': result.stderr,
+            'error': error_message,
             'output_dir': output_dir
         }
 
