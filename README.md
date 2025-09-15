@@ -1,149 +1,275 @@
-## *academicdb*: An academic database builder
+# Academic Database Management System
 
-Why build your CV by hand when you can create it programmatically?  This package uses a set of APIs (including Scopus, ORCID, CrossRef, and Pubmed) to generate a database of academic acheivements, and provides a tool to render those into a professional-looking CV.  Perhaps more importantly, it provides a database of collaborators, which can be used to generate the notorious NSF collaborators spreadsheet. 
+A comprehensive Django-based academic database management system for researchers to track publications, funding, teaching, talks, and conferences with seamless integration to academic APIs.
 
-### Installing academicdb
+## Features
 
-To install the current version:
+### Core Functionality
 
-```
-pip install academicdb
-```
+- **ORCID Authentication**: Secure login via ORCID OAuth
+- **Publication Management**: Track and manage academic publications with full metadata
+- **Funding Tracking**: Manage grants and funding sources with role and status tracking
+- **Teaching Records**: Document courses taught with enrollment and institution details
+- **Talks & Conferences**: Track invited talks and conference presentations
+- **Multi-Source Synchronization**: Automated data import from ORCID, PubMed, Scopus, and CrossRef
+- **Spreadsheet Interface**: Excel-like bulk editing for efficient data management
+- **CSV Import/Export**: Bulk data operations with custom field mapping
+- **Edit Protection**: Manual edits preserved during API synchronization
 
-In addition to the Python packages required by academicdb (which should be automatically installed), you will also need a MongoDB server to host the database.  There are two relatively easy alternatives:
+### Key Integrations
 
-- [Install MongoDB](https://www.mongodb.com/docs/manual/installation/) on your own system. 
-- Create a free cloud MongoDB instance [here](https://www.mongodb.com/cloud).
+- **ORCID**: Authentication and publication/funding synchronization
+- **PubMed**: Query-based publication discovery and metadata enrichment
+- **Scopus**: Author ID-based publication retrieval and citation data
+- **CrossRef**: DOI metadata enrichment and publication type detection
 
-The former is easier, but I prefer the latter because it allows the database to accessed from any system. 
+## Installation
 
-Rendering the CV after building the database requires that LaTeX be installed on your system and available from the command line.  There are various LaTeX distributions depending on your operating system.
+### Prerequisites
 
-_Note: If you get an error that the font Tex Gyre Termes is not installed when executing `render_cv`, you can install it using Homebrew like so:_
-```{bash}
-$ brew tap homebrew/cask-fonts
-$ brew install --cask font-tex-gyre-termes
-```
+- Python 3.9+
+- PostgreSQL 12+
+- ORCID API credentials (for authentication)
+- Scopus API key (optional, for Scopus integration)
 
-### Configuring academicdb
+### Setup
 
-To use academicdb, you must first set up some configuration files, which will reside in `~/.academicdb`.  The most important is `config.toml`, which contains all of the details about you that are used to retrieve your information.  Here are the contents of mine as an example:
-
-```
-[researcher]
-lastname = "poldrack"
-middlename = "alan"
-firstname = "russell"
-email = "russpold@stanford.edu"
-orcid = "0000-0001-6755-0259"
-query = "poldrack-r"
-url = "http://poldrack.github.io"
-twitter = "@russpoldrack"
-github = "http://github.com/poldrack"
-phone = "650-497-8488"
-scholar_id = "RbmLvDIAAAAJ"
-scopus_id = "7004739390"
-address = [
-    "Stanford University",
-    "Department of Psychology",
-    "Building 420",
-    "450 Jane Stanford Way",
-    "Stanford, CA, 94305-2130",
-]
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/academicdb2.git
+cd academicdb2
 ```
 
-Most of this should be self-explanatory. There are several identifiers that you need to specify:
-
-- **ORCID**: This is a unique identifier for researchers.  If you don't already have an ORCID you can get one [here](http://orcid.org).  You will need to enter information about your education, employment, invited position and distinctions, and memberships and service into your ORCID account since that is where academicdb looks for that information.
-- **Google Scholar**: You will also need to retrieve your Google Scholar ID.  Once you have set up your profile, go to the "My Profile" page.  The URL from that page contains your id: for example, my URL is *https://scholar.google.com/citations?user=RbmLvDIAAAAJ&hl=en* and the ID is *RbmLvDIAAAAJ*.  
-- **Scopus**: Scopus is a service run by Elsevier. It provides a service that is not available from anywhere else: For each reference it provides a set of unique identifiers for the coauthors, which can be used to retreive their affilation information.  This is essential for generating the NSF collaborators spreadsheet.
-
-### cloud MongoDB setup
-
-If you are going to use a cloud MongoDB server, you will need to add the following lines to your `config.toml`:
-
-```
-[mongo]
-CONNECT_STRING = 'mongodb+srv://<username>:<password>@<server>'
+2. Install dependencies using uv:
+```bash
+uv sync
 ```
 
-The cloud provider should provide you with the connection string that you can paste into this variable.
-
-## Obtaining an API key for Scopus
-
-  You will need to obtain an API key to access the Scopus database, which you can obtain from [http://dev.elsevier.com/myapikey.html](http://dev.elsevier.com/myapikey.html).  This is used by the [pybliometrics](https://pybliometrics.readthedocs.io/en/stable/) package to access the APIs. Note that this key will only work if you are on your institution's network and the institution has the appropriate license with Elsevier.  You can also request an institutional token from Elsevier if you wish to use the APIs from outside of your institution's network.
-
-  The first time you use the package, you will be asked by pybliometrics to enter your API key (and InstToken if you have one), which will be stored in `~/.pybliometrics/config.ini` for reuse.
-
-## specifying additional information
-
-There are a number of pieces of information that are difficult to reliably obtain from ORCID or other APIs, so they must be specified in a set of text files, which should be saved in the base directory that is specified when the command line `dbbuilder` tool is used.  See the `examples` directory for examples of each of these.
-
-- `editorial.csv`: information about editorial roles
-- `talks.csv`: information about non-conference talks at other institutions
-- `conference.csv`: Information about conference talks
-- `teaching.csv`: Information about teaching
-- `funding.csv`: Information about grant funding
-
-In addition, there may be references (including books, book chapters, and published conference papers) that are not detected by the automated search and need to be added by hand, using a file called `additional_pubs.csv` in the base directory.  
-
-Finally there is a file called `links.csv` that allows one to specify links related to individual publications, such as [OSF](http://osf.io)  repositories, shared code, and shared data.  These links will be rendered in the CV alongside the publications.
-
-## Building the database
-
-To build the database, you use the `dbbuilder` command line tool.  The simplest usage is:
-
-```
-dbbuilder -b <base directory for files and output>
+3. Set up environment variables:
+```bash
+# Create .env file with:
+DATABASE_URL=postgresql://user:password@localhost/academicdb
+SECRET_KEY=your-secret-key
+ORCID_CLIENT_ID=your-orcid-client-id
+ORCID_CLIENT_SECRET=your-orcid-client-secret
+SCOPUS_API_KEY=your-scopus-api-key  # Optional
 ```
 
-The full usage for the script is:
-
-```
-usage: dbbuilder [-h] [-c CONFIGDIR] -b BASEDIR [-d] [-o] [--no_add_pubs] [--no_add_info] [--nodb] [-t] [--bad_dois_file BAD_DOIS_FILE]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c CONFIGDIR, --configdir CONFIGDIR
-                        directory for config files
-  -b BASEDIR, --basedir BASEDIR
-                        base directory
-  -d, --debug           log debug messages
-  -o, --overwrite       overwrite existing database
-  --no_add_pubs         do not get publications
-  --no_add_info         do not add additional information from csv files
-  --nodb                do not write to database
-  -t, --test            test mode (limit number of publications)
-  --bad_dois_file BAD_DOIS_FILE
-                        file with bad dois to remove
+4. Run database migrations:
+```bash
+uv run python manage.py migrate
 ```
 
-## Rendering the CV 
-
-The render the CV after building the database, use the `render_cv` command line tool.  The simplest usage is:
-
-```
-render_cv
+5. Create a superuser (optional):
+```bash
+uv run python manage.py createsuperuser
 ```
 
-This will create a LaTeX version of the CV and then render it using `xelatex`. 
-
-The full usage is:
-
-```
-usage: render_cv [-h] [-c CONFIGDIR] [-f FORMAT] [-d OUTDIR] [-o OUTFILE] [--no_render]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c CONFIGDIR, --configdir CONFIGDIR
-                        directory for config files
-  -d OUTDIR, --outdir OUTDIR
-                        output dir
-  -o OUTFILE, --outfile OUTFILE
-                        output file stem
-  --no_render           do not render the output file (only create .tex)
+6. Run the development server:
+```bash
+uv run python manage.py runserver
 ```
 
-## Creating the NSF collaborators spreadsheet
+Visit http://localhost:8000 to access the application.
 
-To create a list of collaborators from the last 4 years and their affiliations, as needed for NSF grant submissions, simply type `get_collaborators` once the database has been built.  This will create a file called `nsf_collaborators.csv`.  You will still need to complete the remainder of the [NSF COA template](https://www.nsf.gov/bfa/dias/policy/coa/coa_template.xlsx) and then paste the contents of the created file into Table 4 in that template.  *NOTE:* Please closely doublecheck the output to make sure that it has worked properly, as this feature has not been extensively tested.
+## Usage
+
+### Web Interface
+
+1. **Login**: Authenticate using your ORCID account
+2. **Dashboard**: View sync status and statistics
+3. **Publications**: Manage your publication list with search and filtering
+4. **Funding**: Track grants and funding sources
+5. **Teaching/Talks/Conferences**: Use spreadsheet interfaces for bulk editing
+6. **Sync**: Import data from external sources with real-time progress tracking
+
+### API Endpoints
+
+The application provides RESTful APIs for programmatic access:
+
+- `/api/v1/publications/` - Publication CRUD operations
+- `/api/v1/teaching/` - Teaching record management
+- `/api/v1/talks/` - Talk record management
+- `/api/v1/conferences/` - Conference presentation management
+
+All endpoints require authentication and return user-scoped data.
+
+## Management Commands
+
+The system includes comprehensive Django management commands for data operations:
+
+### Data Synchronization
+
+```bash
+# Comprehensive sync from all sources
+uv run python manage.py comprehensive_sync [--user-id ID]
+
+# Sync from specific sources
+uv run python manage.py sync_orcid [--user-id ID]
+uv run python manage.py sync_pubmed --user-id ID [--query "search query"]
+uv run python manage.py sync_scopus --user-id ID [--scopus-id SCOPUS_ID]
+
+# Enhanced Scopus sync with author ID capture
+uv run python manage.py sync_scopus_enhanced --user-id ID
+```
+
+### Data Enrichment
+
+```bash
+# Enrich with CrossRef metadata
+uv run python manage.py enrich_crossref [--user-id ID]
+
+# Enrich with PubMed data
+uv run python manage.py enrich_pubmed --email your@email.com [--user-id ID]
+
+# Add Scopus author IDs
+uv run python manage.py enrich_author_scopus_ids [--user-id ID]
+
+# Lookup PMC IDs
+uv run python manage.py lookup_pmc_ids [--user-id ID]
+```
+
+### Data Management
+
+```bash
+# Clear data (with confirmation)
+uv run python manage.py clear_publications --user-id ID --confirm
+uv run python manage.py clear_funding --user-id ID --confirm
+
+# Import CSV data
+uv run python manage.py import_csv --user-id ID --teaching-file teaching.csv
+
+# Backup database
+uv run python manage.py backup_db [--output-dir backups/]
+```
+
+### Data Quality
+
+```bash
+# Deduplicate DOIs
+uv run python manage.py deduplicate_doi_case [--auto-merge]
+
+# Detect preprints
+uv run python manage.py detect_preprints
+
+# Consolidate author cache
+uv run python manage.py consolidate_author_cache
+
+# Extract coauthors
+uv run python manage.py extract_coauthors --user-id ID
+```
+
+### Diagnostics
+
+```bash
+# Test sync performance
+uv run python manage.py test_sync_diagnostic --user-id ID
+
+# Populate author cache
+uv run python manage.py populate_author_cache --user-id ID
+```
+
+### Common Command Options
+
+Most commands support these options:
+- `--dry-run`: Preview changes without modifying data
+- `--user-id ID`: Target specific user
+- `--force`: Override safety checks
+- `--rate-limit N`: API call throttling (seconds)
+
+## Data Models
+
+### Core Models
+
+- **AcademicUser**: Extended user model with ORCID integration and academic profile
+- **Publication**: Flexible publication tracking with JSONB metadata fields
+- **Funding**: Grant and funding source management
+- **Teaching**: Course and teaching activity records
+- **Talk**: Invited talks and speaking engagements
+- **Conference**: Conference presentations and papers
+- **AuthorCache**: Intelligent author name normalization and matching
+
+### Key Features
+
+- **User Data Isolation**: All data scoped to authenticated users
+- **Edit Protection**: Manual edits preserved during API synchronization
+- **Flexible Metadata**: JSONB fields for varying API response structures
+- **Full-Text Search**: PostgreSQL text search capabilities
+- **Audit Trails**: Comprehensive edit history tracking
+
+## Architecture
+
+- **Framework**: Django 4.2+ with PostgreSQL
+- **Authentication**: django-allauth with ORCID OAuth
+- **Frontend**: Bootstrap 5 with minimal JavaScript
+- **API**: Django REST Framework
+- **Database**: PostgreSQL with JSONB for flexible schemas
+- **Background Tasks**: Threading for long-running operations
+- **Real-time Updates**: Server-Sent Events for progress tracking
+
+## Development
+
+### Project Structure
+
+```
+academicdb2/
+├── academic/                 # Main Django app
+│   ├── models.py            # Database models
+│   ├── views.py             # Web and API views
+│   ├── serializers.py       # DRF serializers
+│   ├── management/          # Management commands
+│   │   └── commands/        # Individual command files
+│   └── templates/           # Django templates
+├── academicdb_web/          # Django project settings
+├── src/academicdb/          # Legacy CLI tools (preserved)
+└── manage.py               # Django management script
+```
+
+### Testing
+
+Run tests with:
+```bash
+uv run python manage.py test
+```
+
+### Contributing
+
+1. Create a feature branch
+2. Write failing tests first (TDD)
+3. Implement minimal code to pass tests
+4. Ensure user data isolation
+5. Submit pull request
+
+## Performance Targets
+
+- Dashboard load: <2 seconds
+- Publication search: <500ms
+- API responses: <200ms median
+- Support 50+ concurrent users
+- Handle 10,000+ publications per user
+
+## Security
+
+- ORCID OAuth for authentication
+- User data isolation at database level
+- CSRF protection for all forms
+- Input validation for external API data
+- Comprehensive audit trails
+
+## Legacy CLI Tool
+
+The original academicdb command-line tool is preserved in `src/academicdb/` for compatibility. It provides:
+
+- `dbbuilder`: Build academic database from APIs
+- `render_cv`: Generate LaTeX/PDF CV from database
+- `get_collaborators`: Create NSF collaborators spreadsheet
+
+See [Legacy CLI Documentation](src/academicdb/README.md) for details on the original MongoDB-based tool.
+
+## License
+
+[Specify your license here]
+
+## Support
+
+For issues and feature requests, please use the GitHub issue tracker.
