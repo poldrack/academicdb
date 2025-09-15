@@ -497,6 +497,17 @@ def get_publication_outlet(pub_data):
         volume = pub_data.get('volume')
         page = pub_data.get('page') or pub_data.get('pages')
 
+        # Also check in metadata if not found at top level
+        if not volume and pub_data.get('metadata'):
+            volume = (pub_data['metadata'].get('volume') or
+                     (pub_data['metadata'].get('raw_data', {}).get('volume') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None))
+        if not page and pub_data.get('metadata'):
+            page = (pub_data['metadata'].get('page') or
+                   pub_data['metadata'].get('pages') or
+                   (pub_data['metadata'].get('raw_data', {}).get('pageRange') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None) or
+                   (pub_data['metadata'].get('raw_data', {}).get('page') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None) or
+                   (pub_data['metadata'].get('raw_data', {}).get('pages') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None))
+
         if volume:
             escaped_volume = escape_characters_for_latex(str(volume))
             volstring = f", {escaped_volume}"
@@ -508,6 +519,17 @@ def get_publication_outlet(pub_data):
         volume = pub_data.get('volume')
         page = pub_data.get('page') or pub_data.get('pages')
 
+        # Also check in metadata if not found at top level
+        if not volume and pub_data.get('metadata'):
+            volume = (pub_data['metadata'].get('volume') or
+                     (pub_data['metadata'].get('raw_data', {}).get('volume') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None))
+        if not page and pub_data.get('metadata'):
+            page = (pub_data['metadata'].get('page') or
+                   pub_data['metadata'].get('pages') or
+                   (pub_data['metadata'].get('raw_data', {}).get('pageRange') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None) or
+                   (pub_data['metadata'].get('raw_data', {}).get('page') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None) or
+                   (pub_data['metadata'].get('raw_data', {}).get('pages') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None))
+
         if volume:
             escaped_volume = escape_characters_for_latex(str(volume))
             volstring = f" (Vol. {escaped_volume})"
@@ -518,6 +540,14 @@ def get_publication_outlet(pub_data):
     elif pub_type == 'book':
         publisher = pub_data.get('publisher', '')
         volume = pub_data.get('volume')
+
+        # Also check in metadata if not found at top level
+        if not publisher and pub_data.get('metadata'):
+            publisher = (pub_data['metadata'].get('publisher', '') or
+                        (pub_data['metadata'].get('raw_data', {}).get('publisher', '') if isinstance(pub_data['metadata'].get('raw_data'), dict) else ''))
+        if not volume and pub_data.get('metadata'):
+            volume = (pub_data['metadata'].get('volume') or
+                     (pub_data['metadata'].get('raw_data', {}).get('volume') if isinstance(pub_data['metadata'].get('raw_data'), dict) else None))
 
         if volume:
             escaped_volume = escape_characters_for_latex(str(volume))
@@ -550,13 +580,31 @@ def format_publication(pub, debug=False):
         'identifiers': pub.identifiers,
     }
 
+    # Add volume and page information from metadata if available
+    if pub.metadata:
+        # Check for volume and page data in metadata at multiple levels
+        pub_data['volume'] = (pub.metadata.get('volume') or
+                             (pub.metadata.get('raw_data', {}).get('volume') if isinstance(pub.metadata.get('raw_data'), dict) else None))
+
+        pub_data['page'] = (pub.metadata.get('page') or
+                           pub.metadata.get('pages') or
+                           (pub.metadata.get('raw_data', {}).get('pageRange') if isinstance(pub.metadata.get('raw_data'), dict) else None) or
+                           (pub.metadata.get('raw_data', {}).get('page') if isinstance(pub.metadata.get('raw_data'), dict) else None) or
+                           (pub.metadata.get('raw_data', {}).get('pages') if isinstance(pub.metadata.get('raw_data'), dict) else None))
+
+        # Also map the journal name from metadata if not in publication_name
+        if not pub_data['publication_name'] and pub.metadata.get('journal'):
+            pub_data['journal'] = pub.metadata.get('journal')
+        elif pub_data['publication_name']:
+            pub_data['journal'] = pub_data['publication_name']
+
     # Create formatted citation with escaped content
     authors_str = mk_author_string(pub.authors)
     outlet_str = get_publication_outlet(pub_data)
     escaped_title = escape_characters_for_latex(pub.title)
 
     # Build citation
-    output = f"{authors_str}({pub.year}). \\textit{{{escaped_title}}}.{outlet_str}"
+    output = f"{authors_str}({pub.year}). {escaped_title}.{outlet_str}"
 
     # Add links and identifiers (URLs should NOT be escaped for LaTeX)
     with suppress(KeyError, AttributeError):
