@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from Bio import Entrez
 import requests
 
-from academic.models import Publication
+from academic.models import Publication, APIRecordCache
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,21 @@ class Command(BaseCommand):
                         continue
 
                 pmid = parsed_data.get('PMID')
-                
+
+                # Cache the raw PubMed data for future use
+                if pmid:
+                    try:
+                        APIRecordCache.cache_record(
+                            api_source='pubmed',
+                            api_id=pmid,
+                            raw_data=pub_data,
+                            doi=doi,
+                            pmid=pmid
+                        )
+                        self.stdout.write(f"    Cached PubMed data for PMID: {pmid}")
+                    except Exception as e:
+                        logger.warning(f"Failed to cache PubMed data for PMID {pmid}: {str(e)}")
+
                 if not doi and not pmid:
                     self.stdout.write(
                         self.style.WARNING(f"Skipping publication without DOI or PMID: {parsed_data.get('title', 'Unknown')}")

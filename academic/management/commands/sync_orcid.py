@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from academic.models import Publication, Funding, ProfessionalActivity
+from academic.models import Publication, Funding, ProfessionalActivity, APIRecordCache
 
 User = get_user_model()
 
@@ -197,29 +197,45 @@ class Command(BaseCommand):
             return None
 
     def fetch_crossref_data(self, doi):
-        """Fetch publication details from CrossRef API"""
+        """Fetch publication details from CrossRef API with caching"""
         try:
-            # Use CrossRef API to get publication details
-            headers = {
-                'User-Agent': 'Academic Database (mailto:support@example.com)',
-                'Accept': 'application/json'
-            }
-            
-            url = f'https://api.crossref.org/works/{doi}'
-            
-            self.stdout.write(f'    Fetching CrossRef data for: {doi}')
-            
-            response = requests.get(url, headers=headers, timeout=10)
-            
-            if response.status_code == 404:
-                self.stdout.write(f'    DOI not found in CrossRef: {doi}')
-                return None
-                
-            response.raise_for_status()
-            data = response.json()
-            
-            # Extract publication data from CrossRef response
-            work = data.get('message', {})
+            # First check if we have this record in cache
+            cached_record = APIRecordCache.get_cached_record('crossref', doi=doi)
+
+            if cached_record and cached_record.raw_data:
+                self.stdout.write(f'    Found CrossRef data in cache for: {doi}')
+                work = cached_record.raw_data
+            else:
+                # Not in cache, fetch from API
+                headers = {
+                    'User-Agent': 'Academic Database (mailto:support@example.com)',
+                    'Accept': 'application/json'
+                }
+
+                url = f'https://api.crossref.org/works/{doi}'
+
+                self.stdout.write(f'    Fetching CrossRef data from API for: {doi}')
+
+                response = requests.get(url, headers=headers, timeout=10)
+
+                if response.status_code == 404:
+                    self.stdout.write(f'    DOI not found in CrossRef: {doi}')
+                    return None
+
+                response.raise_for_status()
+                data = response.json()
+
+                # Extract publication data from CrossRef response
+                work = data.get('message', {})
+
+                # Cache the record for future use
+                APIRecordCache.cache_record(
+                    api_source='crossref',
+                    api_id=doi,
+                    raw_data=work,
+                    doi=doi
+                )
+                self.stdout.write(f'    Cached CrossRef data for: {doi}')
             
             # Extract title - ensure we always have a title
             title_list = work.get('title', [])
@@ -341,7 +357,12 @@ class Command(BaseCommand):
             self.stdout.write(
                 f'  Publication already exists: {doi}'
             )
-            # Could add logic here to update from external APIs
+            # Check if we have cached CrossRef data that could enrich this publication
+            cached_record = APIRecordCache.get_cached_record('crossref', doi=doi)
+            if cached_record and cached_record.raw_data:
+                self.stdout.write(f'    Found cached CrossRef data for existing publication: {doi}')
+                # Could add logic here to update existing publication with cached data
+                # For now, just acknowledge that the cache is available
             return False
 
         if self.dry_run:

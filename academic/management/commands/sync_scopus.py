@@ -11,7 +11,7 @@ from pybliometrics.scopus import AuthorRetrieval, ScopusSearch
 import pybliometrics
 import requests
 
-from academic.models import Publication
+from academic.models import Publication, APIRecordCache
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +139,29 @@ class Command(BaseCommand):
                         continue
 
                 eid = pub_data.eid if hasattr(pub_data, 'eid') else None
+
+                # Cache the raw Scopus data for future use
+                scopus_id = eid if eid else doi  # Use EID as primary Scopus identifier, fallback to DOI
+                if scopus_id:
+                    try:
+                        # Convert pub_data to dictionary for caching
+                        pub_dict = {}
+                        for attr in dir(pub_data):
+                            if not attr.startswith('_') and hasattr(pub_data, attr):
+                                value = getattr(pub_data, attr)
+                                if not callable(value):
+                                    pub_dict[attr] = value
+
+                        APIRecordCache.cache_record(
+                            api_source='scopus',
+                            api_id=scopus_id,
+                            raw_data=pub_dict,
+                            doi=doi,
+                            scopus_id=eid
+                        )
+                        self.stdout.write(f"    Cached Scopus data for: {scopus_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to cache Scopus data for {scopus_id}: {str(e)}")
 
                 if not doi and not eid:
                     self.stdout.write(

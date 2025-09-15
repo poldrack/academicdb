@@ -1451,17 +1451,46 @@ class AdminPanelView(LoginRequiredMixin, TemplateView):
             'backup_count': len(list(backup_root.glob('backup_*'))) if backup_root.exists() else 0,
         }
 
-        # API Cache statistics (only for superusers)
-        if user.is_superuser:
-            from .models import APIRecordCache
+        # API Cache statistics (user-specific)
+        from .models import APIRecordCache, Publication
+        from django.db.models import Q
+
+        # Get DOIs from user's publications
+        user_dois = list(Publication.objects.filter(
+            owner=user,
+            doi__isnull=False
+        ).exclude(doi='').values_list('doi', flat=True))
+
+        # Get PMIDs from user's publications
+        user_pmids = []
+        for pub in Publication.objects.filter(owner=user):
+            if pub.identifiers and 'pmid' in pub.identifiers:
+                user_pmids.append(str(pub.identifiers['pmid']))
+
+        # Build query for user's cache records
+        cache_query = Q()
+        if user_dois:
+            normalized_dois = [doi.lower() for doi in user_dois]
+            cache_query |= Q(doi__in=normalized_dois)
+        if user_pmids:
+            cache_query |= Q(pmid__in=user_pmids)
+
+        # Get user-specific cache stats
+        if cache_query:
+            user_cache = APIRecordCache.objects.filter(cache_query)
             context['cache_stats'] = {
-                'total_records': APIRecordCache.objects.count(),
-                'scopus_records': APIRecordCache.objects.filter(api_source='scopus').count(),
-                'pubmed_records': APIRecordCache.objects.filter(api_source='pubmed').count(),
-                'crossref_records': APIRecordCache.objects.filter(api_source='crossref').count(),
+                'total_records': user_cache.count(),
+                'scopus_records': user_cache.filter(api_source='scopus').count(),
+                'pubmed_records': user_cache.filter(api_source='pubmed').count(),
+                'crossref_records': user_cache.filter(api_source='crossref').count(),
             }
         else:
-            context['cache_stats'] = None
+            context['cache_stats'] = {
+                'total_records': 0,
+                'scopus_records': 0,
+                'pubmed_records': 0,
+                'crossref_records': 0,
+            }
 
         return context
 
@@ -1781,16 +1810,13 @@ class CVPreviewView(LoginRequiredMixin, TemplateView):
 class ClearAPICacheView(LoginRequiredMixin, View):
     """
     Handle clearing all API cache records (Scopus, PubMed, CrossRef)
-    Only admin users can access this view as it affects all users
+    Users can clear cache records related to their own publications
     """
     login_url = '/accounts/login/'
 
     def post(self, request):
-        """Clear all API cache records"""
-        # Only allow superusers to clear the global cache
-        if not request.user.is_superuser:
-            messages.error(request, 'Only administrators can clear the API cache.')
-            return redirect('academic:dashboard')
+        """Clear all API cache records for the current user's publications"""
+        user = request.user
 
         # Security check - require confirmation parameter
         if request.POST.get('confirm') != 'DELETE':
@@ -1798,31 +1824,146 @@ class ClearAPICacheView(LoginRequiredMixin, View):
             return redirect('academic:admin_panel')
 
         try:
-            from .models import APIRecordCache
+            from .models import APIRecordCache, Publication
 
-            # Get cache statistics before deletion
-            total_records = APIRecordCache.objects.count()
-            scopus_records = APIRecordCache.objects.filter(api_source='scopus').count()
-            pubmed_records = APIRecordCache.objects.filter(api_source='pubmed').count()
-            crossref_records = APIRecordCache.objects.filter(api_source='crossref').count()
+            # Get DOIs from user's publications
+            user_dois = list(Publication.objects.filter(
+                owner=user,
+                doi__isnull=False
+            ).exclude(doi='').values_list('doi', flat=True))
 
-            # Delete all cache records
-            deleted_count = APIRecordCache.objects.all().delete()[0]
+            # Get PMIDs from user's publications
+            user_pmids = []
+            for pub in Publication.objects.filter(owner=user):
+                if pub.identifiers and 'pmid' in pub.identifiers:
+                    user_pmids.append(str(pub.identifiers['pmid']))
+
+            # Build query to find cache records related to user's publications
+            from django.db.models import Q
+            query = Q()
+
+            # Add DOI-based filtering
+            if user_dois:
+                # Normalize DOIs for comparison
+                normalized_dois = [doi.lower() for doi in user_dois]
+                query |= Q(doi__in=normalized_dois)
+
+            # Add PMID-based filtering
+            if user_pmids:
+                query |= Q(pmid__in=user_pmids)
+
+            # Get cache records related to user's publications
+            records_to_delete = APIRecordCache.objects.filter(query) if query else APIRecordCache.objects.none()
+
+            # Count by source before deletion
+            scopus_records = records_to_delete.filter(api_source='scopus').count()
+            pubmed_records = records_to_delete.filter(api_source='pubmed').count()
+            crossref_records = records_to_delete.filter(api_source='crossref').count()
+            total_records = records_to_delete.count()
+
+            if total_records == 0:
+                messages.info(request, 'No cache records found for your publications.')
+                return redirect('academic:admin_panel')
+
+            # Delete the cache records
+            deleted_count = records_to_delete.delete()[0]
 
             # Log the action
-            logger.info(f"Admin user {request.user.id} ({request.user.username}) cleared {deleted_count} API cache records")
+            logger.info(f"User {user.id} ({user.username}) cleared {deleted_count} API cache records for their publications")
 
             # Success message with breakdown
             messages.success(
                 request,
-                f'Successfully cleared {deleted_count} API cache records: '
+                f'Successfully cleared {deleted_count} API cache records for your publications: '
                 f'{scopus_records} Scopus, {pubmed_records} PubMed, {crossref_records} CrossRef. '
                 f'Future API calls will be slower until the cache is rebuilt.'
             )
 
         except Exception as e:
             messages.error(request, f'Failed to clear API cache: {str(e)}')
-            logger.error(f"Error clearing API cache by user {request.user.id}: {str(e)}")
+            logger.error(f"Error clearing API cache for user {user.id}: {str(e)}")
+
+        return redirect('academic:admin_panel')
+
+
+class ClearSpecificAPICacheView(LoginRequiredMixin, View):
+    """
+    Handle clearing specific API cache records (CrossRef, Scopus, or PubMed)
+    Users can clear cache records related to their own publications
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request, api_source):
+        """Clear specific API cache records for the current user's publications"""
+        user = request.user
+
+        # Validate API source
+        valid_sources = ['crossref', 'scopus', 'pubmed']
+        if api_source not in valid_sources:
+            messages.error(request, f'Invalid API source: {api_source}')
+            return redirect('academic:admin_panel')
+
+        # Security check - require confirmation parameter
+        if request.POST.get('confirm') != 'DELETE':
+            messages.error(request, f'Confirmation required to clear {api_source.title()} cache.')
+            return redirect('academic:admin_panel')
+
+        try:
+            from .models import APIRecordCache, Publication
+
+            # Get DOIs from user's publications
+            user_dois = list(Publication.objects.filter(
+                owner=user,
+                doi__isnull=False
+            ).exclude(doi='').values_list('doi', flat=True))
+
+            # Get PMIDs from user's publications
+            user_pmids = []
+            for pub in Publication.objects.filter(owner=user):
+                if pub.identifiers and 'pmid' in pub.identifiers:
+                    user_pmids.append(str(pub.identifiers['pmid']))
+
+            # Build query to find cache records related to user's publications
+            from django.db.models import Q
+            query = Q()
+
+            # Add DOI-based filtering
+            if user_dois:
+                # Normalize DOIs for comparison
+                normalized_dois = [doi.lower() for doi in user_dois]
+                query |= Q(doi__in=normalized_dois)
+
+            # Add PMID-based filtering for PubMed cache
+            if api_source == 'pubmed' and user_pmids:
+                query |= Q(pmid__in=user_pmids)
+
+            # Filter by API source and user's publication identifiers
+            records_to_delete = APIRecordCache.objects.filter(
+                api_source=api_source
+            ).filter(query) if query else APIRecordCache.objects.none()
+
+            record_count = records_to_delete.count()
+
+            if record_count == 0:
+                messages.info(request, f'No {api_source.title()} cache records found for your publications.')
+                return redirect('academic:admin_panel')
+
+            # Delete the specific cache records
+            deleted_count = records_to_delete.delete()[0]
+
+            # Log the action
+            logger.info(f"User {user.id} ({user.username}) cleared {deleted_count} {api_source} cache records for their publications")
+
+            # Success message
+            messages.success(
+                request,
+                f'Successfully cleared {deleted_count} {api_source.title()} cache records for your publications. '
+                f'Future {api_source} API calls will be slower until the cache is rebuilt.'
+            )
+
+        except Exception as e:
+            messages.error(request, f'Failed to clear {api_source.title()} cache: {str(e)}')
+            logger.error(f"Error clearing {api_source} cache for user {user.id}: {str(e)}")
 
         return redirect('academic:admin_panel')
 

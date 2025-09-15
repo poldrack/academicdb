@@ -124,28 +124,79 @@
                             </button>
                         </div>
 
-                        {% if user.is_superuser and cache_stats %}
+                        {% if cache_stats %}
                         <div class="mb-3">
                             <h6>API Cache Management</h6>
                             <p class="small text-muted">
-                                Manage external API record cache to speed up re-syncing.
-                                <span class="badge bg-danger text-white">Admin Only</span>
+                                Manage cached API records for your publications. The cache speeds up re-syncing by avoiding redundant API calls.
                             </p>
-                            <div class="small mb-2">
-                                <strong>Cache Statistics:</strong><br>
-                                Total: {{ cache_stats.total_records }} records<br>
-                                Scopus: {{ cache_stats.scopus_records }},
-                                PubMed: {{ cache_stats.pubmed_records }},
-                                CrossRef: {{ cache_stats.crossref_records }}
+                            <div class="small mb-3">
+                                <strong>Your Cache Statistics:</strong><br>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>CrossRef:</strong> {{ cache_stats.crossref_records }} records
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Scopus:</strong> {{ cache_stats.scopus_records }} records
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>PubMed:</strong> {{ cache_stats.pubmed_records }} records
+                                    </div>
+                                </div>
+                                <small class="text-muted">Total: {{ cache_stats.total_records }} records</small>
                             </div>
-                            <form method="post" action="{% url 'academic:clear_api_cache' %}" class="d-inline">
-                                {% csrf_token %}
-                                <input type="hidden" name="confirm" value="DELETE">
-                                <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        onclick="return confirm('This will delete ALL cached API records from Scopus, PubMed, and CrossRef. This action cannot be undone and will slow down future sync operations until the cache is rebuilt. Continue?')">
-                                    <i class="fas fa-trash"></i> Clear API Cache
-                                </button>
-                            </form>
+
+                            <!-- Individual Cache Clear Buttons -->
+                            <div class="mb-2">
+                                <strong class="small">Clear Your Cached Records:</strong>
+                            </div>
+                            <div class="btn-group-vertical btn-group-sm w-100 mb-2" role="group">
+                                <!-- CrossRef Cache Button -->
+                                <form method="post" action="{% url 'academic:clear_specific_api_cache' 'crossref' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="confirm" value="DELETE">
+                                    <button type="submit" class="btn btn-outline-warning btn-sm w-100"
+                                            onclick="return confirm('Clear CrossRef cache records for your publications? This will slow down CrossRef lookups until cache is rebuilt.')"
+                                            {% if cache_stats.crossref_records == 0 %}disabled{% endif %}>
+                                        <i class="fas fa-times-circle"></i> Clear My CrossRef Cache
+                                    </button>
+                                </form>
+
+                                <!-- Scopus Cache Button -->
+                                <form method="post" action="{% url 'academic:clear_specific_api_cache' 'scopus' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="confirm" value="DELETE">
+                                    <button type="submit" class="btn btn-outline-info btn-sm w-100"
+                                            onclick="return confirm('Clear Scopus cache records for your publications? This will slow down Scopus lookups until cache is rebuilt.')"
+                                            {% if cache_stats.scopus_records == 0 %}disabled{% endif %}>
+                                        <i class="fas fa-times-circle"></i> Clear My Scopus Cache
+                                    </button>
+                                </form>
+
+                                <!-- PubMed Cache Button -->
+                                <form method="post" action="{% url 'academic:clear_specific_api_cache' 'pubmed' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="confirm" value="DELETE">
+                                    <button type="submit" class="btn btn-outline-success btn-sm w-100"
+                                            onclick="return confirm('Clear PubMed cache records for your publications? This will slow down PubMed lookups until cache is rebuilt.')"
+                                            {% if cache_stats.pubmed_records == 0 %}disabled{% endif %}>
+                                        <i class="fas fa-times-circle"></i> Clear My PubMed Cache
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Clear All Button -->
+                            <div class="mt-2">
+                                <form method="post" action="{% url 'academic:clear_api_cache' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="confirm" value="DELETE">
+                                    <button type="submit" class="btn btn-danger btn-sm w-100"
+                                            onclick="return confirm('Clear ALL cached API records for your publications from Scopus, PubMed, and CrossRef? This will slow down future sync operations until the cache is rebuilt.')"
+                                            {% if cache_stats.total_records == 0 %}disabled{% endif %}>
+                                        <i class="fas fa-trash"></i> Clear All My API Caches
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                         {% endif %}
 

@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db import models
-from academic.models import Publication
+from academic.models import Publication, APIRecordCache
 
 User = get_user_model()
 
@@ -147,22 +147,56 @@ class Command(BaseCommand):
         return list(queryset.select_related('owner'))
 
     def fetch_crossref_records(self, dois):
-        """Fetch CrossRef records for multiple DOIs"""
+        """Fetch CrossRef records for multiple DOIs with intelligent caching"""
         self.stdout.write(f'  Fetching CrossRef data for {len(dois)} DOIs...')
-        
-        try:
-            crossref_records = crossref_utils.get_crossref_records(dois)
-            self.stdout.write(f'  Retrieved {len(crossref_records)} CrossRef records')
-            return crossref_records
-            
-        except Exception as e:
-            self.stdout.write(
-                self.style.ERROR(
-                    f'Error fetching CrossRef records: {str(e)}'
+
+        crossref_records = {}
+        uncached_dois = []
+        cache_hits = 0
+
+        # First, check cache for each DOI
+        for doi in dois:
+            cached_record = APIRecordCache.get_cached_record('crossref', doi=doi)
+            if cached_record and cached_record.raw_data:
+                crossref_records[doi] = cached_record.raw_data
+                cache_hits += 1
+            else:
+                uncached_dois.append(doi)
+
+        if cache_hits > 0:
+            self.stdout.write(f'  Found {cache_hits} records in cache')
+
+        # Fetch uncached DOIs from API
+        if uncached_dois:
+            self.stdout.write(f'  Fetching {len(uncached_dois)} DOIs from CrossRef API...')
+            try:
+                api_records = crossref_utils.get_crossref_records(uncached_dois)
+
+                # Cache the new records and add to results
+                for doi, record in api_records.items():
+                    # Cache the record for future use
+                    APIRecordCache.cache_record(
+                        api_source='crossref',
+                        api_id=doi,
+                        raw_data=record,
+                        doi=doi
+                    )
+                    crossref_records[doi] = record
+
+                self.stdout.write(f'  Retrieved and cached {len(api_records)} new CrossRef records')
+
+            except Exception as e:
+                self.stdout.write(
+                    self.style.ERROR(
+                        f'Error fetching CrossRef records from API: {str(e)}'
+                    )
                 )
-            )
-            logger.exception('Error fetching CrossRef records')
-            return {}
+                logger.exception('Error fetching CrossRef records from API')
+
+        total_retrieved = len(crossref_records)
+        self.stdout.write(f'  Total records available: {total_retrieved} ({cache_hits} from cache, {total_retrieved - cache_hits} from API)')
+
+        return crossref_records
 
     def enrich_publication(self, publication, crossref_record):
         """Enrich a single publication with CrossRef data"""
