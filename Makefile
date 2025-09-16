@@ -55,16 +55,16 @@ docker-run:
 	docker run -d \
 		--name academicdb \
 		-p 8000:8000 \
-		-v ${DBDIR}:${DBDIR} \
-		-e SQLITE_PATH=${DBDIR}/db.sqlite3 \
+		-v ${DBDIR}:/app/data \
+		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		academicdb:latest
 
 docker-run-admin:
 	docker run -d \
 		--name academicdb \
 		-p 8000:8000 \
-		-v ${DBDIR}:${DBDIR} \
-		-e SQLITE_PATH=${DBDIR}/db.sqlite3 \
+		-v ${DBDIR}:/app/data \
+		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		-e DJANGO_SUPERUSER_USERNAME=admin \
 		-e DJANGO_SUPERUSER_EMAIL=admin@example.com \
 		-e DJANGO_SUPERUSER_PASSWORD=secure_password \
@@ -93,8 +93,8 @@ docker-run-orcid:
 	docker run -d \
 		--name academicdb \
 		-p 8000:8000 \
-		-v ${DBDIR}:${DBDIR} \
-		-e SQLITE_PATH=${DBDIR}/db.sqlite3 \
+		-v ${DBDIR}:/app/data \
+		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		-e DJANGO_SUPERUSER_USERNAME=admin \
 		-e DJANGO_SUPERUSER_EMAIL=admin@example.com \
 		-e DJANGO_SUPERUSER_PASSWORD=secure_password \
