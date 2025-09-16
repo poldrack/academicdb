@@ -864,13 +864,19 @@ class Publication(models.Model):
         """
         from django.conf import settings
         from django.db.models import Q
+        import os
 
-        # Check if we're using PostgreSQL with search features
+        # Force SQLite search unless explicitly using PostgreSQL
+        use_postgres = os.getenv('USE_POSTGRES', 'false').lower() == 'true'
         engine = settings.DATABASES['default']['ENGINE']
 
-        if engine == 'django.db.backends.postgresql' and HAS_POSTGRES_FEATURES:
+        # Only use PostgreSQL search if both conditions are met:
+        # 1. Environment variable USE_POSTGRES=true
+        # 2. Database engine is PostgreSQL
+        if use_postgres and engine == 'django.db.backends.postgresql' and HAS_POSTGRES_FEATURES:
             return cls._postgresql_search(query, user)
         else:
+            # Use SQLite search for all other cases
             return cls._sqlite_search(query, user)
 
     @classmethod
