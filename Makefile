@@ -1,3 +1,12 @@
+HOMEDIR=/Users/poldrack
+DBDIR = ${HOMEDIR}/.cache/academicdb
+
+# Load environment variables from .env file if it exists
+ifneq (,$(wildcard .env))
+    include .env
+    export
+endif
+
 test:
 	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest tests -v
 
@@ -33,4 +42,95 @@ restore-latest:
 		echo "Restoring database from $$LATEST_BACKUP with --clean option..."; \
 		uv run python manage.py restore_db "$$LATEST_BACKUP" --clean -y; \
 	fi
+
+# Docker commands
+docker-build:
+	docker build -t academicdb:latest .
+
+docker-run:
+	docker run -d \
+		--name academicdb \
+		-p 8000:8000 \
+		-v ${DBDIR}:${DBDIR} \
+		-e SQLITE_PATH=${DBDIR}/db.sqlite3 \
+		academicdb:latest
+
+docker-run-admin:
+	docker run -d \
+		--name academicdb \
+		-p 8000:8000 \
+		-v ${DBDIR}:${DBDIR} \
+		-e SQLITE_PATH=${DBDIR}/db.sqlite3 \
+		-e DJANGO_SUPERUSER_USERNAME=admin \
+		-e DJANGO_SUPERUSER_EMAIL=admin@example.com \
+		-e DJANGO_SUPERUSER_PASSWORD=secure_password \
+		academicdb:latest
+
+docker-run-orcid:
+	@if [ -z "$(ORCID_CLIENT_ID)" ] || [ -z "$(ORCID_CLIENT_SECRET)" ]; then \
+		echo "❌ Error: ORCID credentials required"; \
+		echo ""; \
+		if [ -f .env ]; then \
+			echo "Found .env file but ORCID credentials are missing or empty."; \
+			echo "Please add to your .env file:"; \
+			echo "  ORCID_CLIENT_ID=your-actual-client-id"; \
+			echo "  ORCID_CLIENT_SECRET=your-actual-client-secret"; \
+		else \
+			echo "Please create a .env file with:"; \
+			echo "  ORCID_CLIENT_ID=your-actual-client-id"; \
+			echo "  ORCID_CLIENT_SECRET=your-actual-client-secret"; \
+		fi; \
+		echo ""; \
+		echo "Get credentials from: https://orcid.org/developer-tools"; \
+		exit 1; \
+	fi
+	@echo "🚀 Starting container with ORCID authentication..."
+	@echo "   ORCID Client ID: $(ORCID_CLIENT_ID)"
+	docker run -d \
+		--name academicdb \
+		-p 8000:8000 \
+		-v ${DBDIR}:${DBDIR} \
+		-e SQLITE_PATH=${DBDIR}/db.sqlite3 \
+		-e DJANGO_SUPERUSER_USERNAME=admin \
+		-e DJANGO_SUPERUSER_EMAIL=admin@example.com \
+		-e DJANGO_SUPERUSER_PASSWORD=secure_password \
+		-e ORCID_CLIENT_ID=$(ORCID_CLIENT_ID) \
+		-e ORCID_CLIENT_SECRET=$(ORCID_CLIENT_SECRET) \
+		academicdb:latest
+
+docker-stop:
+	docker stop academicdb
+
+docker-remove:
+	docker rm academicdb
+
+docker-clean:
+	docker stop academicdb || true
+	docker rm academicdb || true
+
+docker-logs:
+	docker logs academicdb
+
+docker-shell:
+	docker exec -it academicdb bash
+
+docker-restart:
+	docker restart academicdb
+
+docker-status:
+	docker ps | grep academicdb || echo "Container not running"
+
+docker-setup-orcid:
+	@echo "🔧 ORCID Setup Helper"
+	@echo ""
+	@echo "1. Go to: https://orcid.org/developer-tools"
+	@echo "2. Create a new application with:"
+	@echo "   - Name: Academic Database"
+	@echo "   - Website: http://127.0.0.1:8000"
+	@echo "   - Redirect URI: http://127.0.0.1:8000/accounts/orcid/login/callback/"
+	@echo "3. Copy your Client ID and Client Secret"
+	@echo "4. Run:"
+	@echo "   export ORCID_CLIENT_ID=your-client-id"
+	@echo "   export ORCID_CLIENT_SECRET=your-client-secret"
+	@echo "   make docker-clean && make docker-run-orcid"
 

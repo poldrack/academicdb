@@ -34,13 +34,13 @@ class Command(BaseCommand):
             pk=1,
             defaults={
                 'domain': '127.0.0.1:8000',
-                'name': 'Academic Database (Dev)'
+                'name': 'Academic Database (Local)'
             }
         )
-        
+
         if not created:
             site.domain = '127.0.0.1:8000'
-            site.name = 'Academic Database (Dev)'
+            site.name = 'Academic Database (Local)'
             site.save()
             
         self.stdout.write(f'Site configured: {site.domain}')

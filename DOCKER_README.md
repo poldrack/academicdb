@@ -55,6 +55,18 @@ docker run -d \
   -e DJANGO_SUPERUSER_EMAIL=admin@example.com \
   -e DJANGO_SUPERUSER_PASSWORD=secure_password \
   academicdb:latest
+
+# With ORCID authentication (requires ORCID app registration)
+docker run -d \
+  --name academicdb \
+  -p 8000:8000 \
+  -v academicdb_data:/app/data \
+  -e DJANGO_SUPERUSER_USERNAME=admin \
+  -e DJANGO_SUPERUSER_EMAIL=admin@example.com \
+  -e DJANGO_SUPERUSER_PASSWORD=secure_password \
+  -e ORCID_CLIENT_ID=your-client-id \
+  -e ORCID_CLIENT_SECRET=your-client-secret \
+  academicdb:latest
 ```
 
 ### Option 2: PostgreSQL (Production)
@@ -83,6 +95,8 @@ docker-compose up -d
 | `DJANGO_SUPERUSER_USERNAME` | - | Create admin user on startup |
 | `DJANGO_SUPERUSER_EMAIL` | - | Admin user email |
 | `DJANGO_SUPERUSER_PASSWORD` | - | Admin user password |
+| `ORCID_CLIENT_ID` | - | ORCID OAuth client ID for authentication |
+| `ORCID_CLIENT_SECRET` | - | ORCID OAuth client secret |
 
 ### Volume Mounts
 
@@ -91,6 +105,27 @@ docker-compose up -d
 | `/app/data` | SQLite database and user data |
 | `/app/media` | Uploaded files and generated CVs |
 | `/app/staticfiles` | Web assets (CSS, JS, images) |
+
+## 🔐 ORCID Authentication Setup
+
+To enable ORCID login (required for academic users):
+
+1. **Register your application** at https://orcid.org/developer-tools
+2. **Set redirect URI** to: `http://127.0.0.1:8000/accounts/orcid/login/callback/`
+3. **Get your credentials** (Client ID and Client Secret)
+4. **Run with ORCID enabled**:
+
+```bash
+docker run -d \
+  --name academicdb \
+  -p 8000:8000 \
+  -v academicdb_data:/app/data \
+  -e ORCID_CLIENT_ID=your-client-id \
+  -e ORCID_CLIENT_SECRET=your-client-secret \
+  academicdb:latest
+```
+
+**Note**: Without ORCID credentials, users can only log in with Django admin accounts.
 
 ## 📖 Full Documentation
 

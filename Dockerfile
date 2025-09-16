@@ -30,14 +30,13 @@ RUN useradd --create-home --shell /bin/bash appuser
 RUN mkdir -p /app/data /app/media /app/staticfiles /app/logs && \
     chown -R appuser:appuser /app
 
-# Copy and install Python dependencies
-COPY pyproject.toml ./
+# Copy application code first
+COPY . .
+
+# Install Python dependencies
 RUN pip install --upgrade pip && \
     pip install -e . && \
     pip install gunicorn whitenoise
-
-# Copy application code
-COPY . .
 
 # Set ownership of app directory
 RUN chown -R appuser:appuser /app
@@ -49,14 +48,14 @@ USER appuser
 ENV DJANGO_SETTINGS_MODULE=academicdb_web.settings.docker \
     USE_POSTGRES=false \
     DEBUG=false \
-    SQLITE_PATH=/app/data/db.sqlite3 \
-    SECRET_KEY=change-me-in-production-via-environment-variable
+    SQLITE_PATH=/app/data/db.sqlite3
 
 # Collect static files
 RUN python manage.py collectstatic --noinput --clear
 
-# Create initial database and run migrations
-RUN python manage.py migrate
+# Copy migration setup script
+COPY --chown=appuser:appuser docker/setup_migrations.py /app/
+RUN chmod +x /app/setup_migrations.py
 
 # Create superuser script
 COPY --chown=appuser:appuser docker/create_superuser.py /app/

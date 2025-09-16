@@ -4,7 +4,11 @@ This file contains settings optimized for Docker deployments.
 """
 
 import os
+from django.core.management.utils import get_random_secret_key
 from .base import *
+
+# Generate a secret key if not provided
+SECRET_KEY = os.getenv('SECRET_KEY') or get_random_secret_key()
 
 # Override settings for Docker environment
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
