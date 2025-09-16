@@ -735,24 +735,68 @@ class Publication(models.Model):
 
         import re
 
+        # Save the original name for capitalization pattern detection
+        original_name = name.strip()
+
         # Convert to lowercase
         name = name.lower().strip()
 
         # Remove common suffixes and prefixes
         name = re.sub(r'\b(jr|sr|ph\.?d|m\.?d|dr)\b\.?', '', name)
 
-        # Remove punctuation
+        # Handle comma-separated names (Last, First) format
+        if ',' in name:
+            parts = name.split(',', 1)
+            if len(parts) == 2:
+                last_name = parts[0].strip()
+                first_part = parts[1].strip()
+                # Remove punctuation from each part
+                last_name = re.sub(r'[.\-_\'\"()]', ' ', last_name)
+                first_part = re.sub(r'[.\-_\'\"()]', ' ', first_part)
+                # Normalize whitespace
+                last_name = re.sub(r'\s+', ' ', last_name).strip()
+                first_part = re.sub(r'\s+', ' ', first_part).strip()
+
+                # Get first initial
+                first_words = first_part.split()
+                first_initial = first_words[0][0] if first_words and first_words[0] else ''
+
+                # Clean last name to get actual surname
+                last_words = last_name.split()
+                surname = last_words[-1] if last_words else last_name
+
+                return f"{surname} {first_initial}"
+
+        # Remove punctuation for non-comma separated names
         name = re.sub(r'[.,\-_\'\"()]', ' ', name)
 
         # Normalize whitespace
         name = re.sub(r'\s+', ' ', name).strip()
 
         # For comparison, use last name + first initial
+        # Check original capitalization pattern to detect "Surname INITIALS" format
+        original_words = original_name.split()
+
         words = name.split()
         if len(words) >= 2:
-            last_name = words[-1]
-            first_initial = words[0][0] if words[0] else ''
-            return f"{last_name} {first_initial}"
+            # Check if this might be "Surname Initials" format (e.g., "Quah SKL")
+            # Heuristic: if the last word was originally all capitals/initials and <= 4 chars,
+            # and the first word is longer, then first word is likely the surname
+            last_word_was_caps = (len(original_words) >= 2 and
+                                  original_words[-1].replace('.', '').replace(' ', '').isupper())
+
+            if (len(words[-1]) <= 4 and
+                last_word_was_caps and
+                len(words[0]) > len(words[-1])):
+                # "Surname Initials" format
+                surname = words[0]
+                first_initial = words[-1][0] if words[-1] else ''
+                return f"{surname} {first_initial}"
+            else:
+                # Standard "First Last" format
+                last_name = words[-1]  # Last word is surname
+                first_initial = words[0][0] if words[0] else ''
+                return f"{last_name} {first_initial}"
         elif len(words) == 1:
             return words[0]
 

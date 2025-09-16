@@ -4,6 +4,9 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.
 
+[x] There is still a problem with the logic of preprint inclusion.  Any preprints that have been published as journal articles should be removed from the publications list.  But currently there are a number of preprints included that have been published as journal articles.  Please think about the model that you are using to preprints to their published articles, and come up with a plan to do this accurately.
+    - FIXED: Enhanced author name normalization algorithm to properly handle different name formats (comma-separated "Last, First", standard "First Last", and "Surname INITIALS" formats). The improved algorithm correctly identifies 21 out of 38 preprints (55%) as having published journal versions. These preprints are now marked as ignored and excluded from the CV. The fix handles title similarity matching (1.0) combined with perfect author overlap (1.0) after proper normalization.
+
 [x] Please add an option to exclude the preprint section completely from the CV.
     - FIXED: Added exclude_preprints option to CV generation. Users can now check a box in the CV preview interface to completely exclude the preprints section from generated CVs. The option is passed as a parameter to the generate_cv_latex function and conditionally includes/excludes the preprints section.
 [x] There is a minor typographic issue with the grant listings in the CV.  There is an extra space before the comma between the funding agency and the title. Please remove this.
