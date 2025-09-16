@@ -68,6 +68,11 @@ else:
     for table in sorted([t for t in tables if t.startswith('academic_')]):
         print(f'   {table}')
     "
+
+    # Force sync to disk to ensure database is fully written
+    echo "💾 Syncing database to disk..."
+    sync
+    sleep 2
 else
     echo "   Applying any pending migrations..."
     python manage.py migrate --verbosity=0
@@ -83,6 +88,13 @@ fi
 if [ "$ORCID_CLIENT_ID" ] && [ "$ORCID_CLIENT_SECRET" ]; then
     echo "Setting up ORCID authentication..."
     python manage.py setup_orcid
+
+    # Ensure database changes are fully committed
+    python manage.py shell -c "
+from django.db import connection
+connection.close()
+print('📝 Database connections closed')
+"
 else
     echo "⚠️  ORCID credentials not provided - ORCID authentication will be unavailable"
     echo "   To enable ORCID login, set ORCID_CLIENT_ID and ORCID_CLIENT_SECRET environment variables"
