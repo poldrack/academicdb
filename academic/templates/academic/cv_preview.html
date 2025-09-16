@@ -62,6 +62,17 @@
                     If PDF compilation fails, you can download the LaTeX source and compile it locally.
                 </div>
 
+                <div class="mb-3">
+                    <h5>CV Options</h5>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="excludePreprints">
+                        <label class="form-check-label" for="excludePreprints">
+                            Exclude preprints section completely
+                        </label>
+                        <div class="form-text">When checked, preprints will not appear in the CV at all.</div>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-md-6">
                         <div class="card">
@@ -164,6 +175,40 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const pdfBtn = document.getElementById('pdf-download-btn');
+    const texBtn = document.querySelector('a[href*="tex"]'); // Simplified selector
+    const excludePreprints = document.getElementById('excludePreprints');
+
+    console.log('PDF button found:', !!pdfBtn);
+    console.log('TEX button found:', !!texBtn);
+    console.log('Checkbox found:', !!excludePreprints);
+
+    function updateDownloadUrls() {
+        const excludeParam = excludePreprints.checked ? '?exclude_preprints=true' : '';
+        console.log('Updating URLs with param:', excludeParam);
+
+        if (pdfBtn) {
+            const baseUrl = pdfBtn.href.split('?')[0];
+            const newUrl = baseUrl + excludeParam;
+            console.log('PDF URL: ' + pdfBtn.href + ' -> ' + newUrl);
+            pdfBtn.href = newUrl;
+        }
+
+        if (texBtn) {
+            const baseUrl = texBtn.href.split('?')[0];
+            const newUrl = baseUrl + excludeParam;
+            console.log('TEX URL: ' + texBtn.href + ' -> ' + newUrl);
+            texBtn.href = newUrl;
+        }
+    }
+
+    // Update URLs when checkbox changes
+    if (excludePreprints) {
+        excludePreprints.addEventListener('change', function() {
+            console.log('Checkbox changed to:', this.checked);
+            updateDownloadUrls();
+        });
+        updateDownloadUrls(); // Initial update
+    }
 
     if (pdfBtn) {
         pdfBtn.addEventListener('click', function() {

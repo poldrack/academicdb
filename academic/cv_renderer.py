@@ -148,8 +148,13 @@ def get_education(user):
             else:
                 date_range = str(start_year) if start_year else 'Unknown'
 
-            # Format location
-            location = f"{e.city}, {e.country}" if e.city and e.country else e.organization
+            # Format location (city and region only, no country)
+            location_parts = []
+            if e.city:
+                location_parts.append(e.city)
+            if e.region:
+                location_parts.append(e.region)
+            location = ", ".join(location_parts) if location_parts else e.organization
             # Escape LaTeX characters
             escaped_title = escape_characters_for_latex(e.title)
             escaped_organization = escape_characters_for_latex(e.organization)
@@ -385,7 +390,7 @@ def get_funding(user):
             linkstring = ''
             if e.get('url') and e['url']:
                 linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
-            output += f"{e['role']}, {e['organization'].rstrip()} {linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            output += f"{e['role']}, {e['organization'].rstrip()}{linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
     return output
 
 
@@ -927,17 +932,21 @@ def get_latex_footer():
 """
 
 
-def generate_cv_latex(user, exclude_dois=None):
+def generate_cv_latex(user, exclude_dois=None, exclude_preprints=False):
     """
     Generate complete LaTeX CV document for a user
 
     Args:
         user: AcademicUser instance
         exclude_dois: List of DOIs to exclude from publications
+        exclude_preprints: Boolean to exclude the preprints section entirely
 
     Returns:
         str: Complete LaTeX document
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"generate_cv_latex called with exclude_preprints={exclude_preprints}")
     # Get LaTeX document structure
     header = get_latex_header()
     footer = get_latex_footer()
@@ -952,7 +961,8 @@ def generate_cv_latex(user, exclude_dois=None):
     doc += get_service(user)
     doc += get_funding(user)
     doc += get_teaching(user)
-    doc += get_preprints(user, exclude_dois)  # Add preprints before publications
+    if not exclude_preprints:
+        doc += get_preprints(user, exclude_dois)  # Add preprints before publications
     doc += get_publications(user, exclude_dois)
     doc += get_conferences(user)
     doc += get_talks(user)

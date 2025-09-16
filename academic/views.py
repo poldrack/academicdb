@@ -1730,10 +1730,12 @@ class CVView(LoginRequiredMixin, View):
 
         user = request.user
         exclude_dois = request.GET.get('exclude_dois', '').split(',') if request.GET.get('exclude_dois') else None
+        exclude_preprints = request.GET.get('exclude_preprints', '').lower() in ['true', '1', 'on']
+        logger.info(f"CV generation for user {user.id}: exclude_preprints={exclude_preprints}, param_value='{request.GET.get('exclude_preprints', '')}'")
 
         try:
             # Generate LaTeX content
-            latex_content = generate_cv_latex(user, exclude_dois)
+            latex_content = generate_cv_latex(user, exclude_dois, exclude_preprints)
 
             if format_type == 'tex':
                 # Return LaTeX source

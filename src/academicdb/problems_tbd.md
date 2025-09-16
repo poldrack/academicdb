@@ -4,6 +4,15 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.
 
+[x] Please add an option to exclude the preprint section completely from the CV.
+    - FIXED: Added exclude_preprints option to CV generation. Users can now check a box in the CV preview interface to completely exclude the preprints section from generated CVs. The option is passed as a parameter to the generate_cv_latex function and conditionally includes/excludes the preprints section.
+[x] There is a minor typographic issue with the grant listings in the CV.  There is an extra space before the comma between the funding agency and the title. Please remove this.
+    - FIXED: Removed extra space before comma in completed funding entries by fixing the format string in get_funding function. Changed `{e['organization'].rstrip()} {linkstring}` to `{e['organization'].rstrip()}{linkstring}` to eliminate the unwanted space.
+[x] For the education and training section, please give the city and state only, no country listing.
+    - FIXED: Modified get_education function to only include city and state in location formatting. Changed from `f"{e.city}, {e.country}"` to properly formatted city and state combination, excluding country information entirely.
+
+
+
 [x] I would like to cache all of the full records from Scopus, Pubmed, and Crossref that are obtained while syncing, and save them to a separate table that will not be deleted when the publications are deleted. This is order to speed up re-syncing. Instead there should be a separate button in the Tools page to delete these caches.  Remove any rate-limiting delays for items that are found in the cache.
     - FIXED: Implemented APIRecordCache model to store full API records from Scopus, PubMed, and CrossRef. Records are cached independently of publication records and persist when publications are deleted. Added cache management interface in Tools page for administrators to view cache statistics and clear cache. Cache supports intelligent lookup by multiple identifiers (API ID, DOI, PMID, Scopus ID) with automatic metadata extraction and lookup count tracking.
 
