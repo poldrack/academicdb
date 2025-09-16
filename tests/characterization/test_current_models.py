@@ -62,17 +62,18 @@ class TestCurrentModelBehavior:
             title="Test Publication",
             doi="10.1234/test.publication",
             year=2024,
-            journal="Test Journal"
+            publication_name="Test Journal",
+            authors=[{"name": "Test Author"}]  # Required field
         )
 
         assert pub.owner == user
         assert pub.title == "Test Publication"
         assert pub.doi == "10.1234/test.publication"
         assert pub.year == 2024
-        assert pub.journal == "Test Journal"
+        assert pub.publication_name == "Test Journal"
 
-        # Check default values
-        assert pub.authors == []  # Should be empty list by default
+        # Check default values - authors was provided so won't be empty
+        assert len(pub.authors) == 1  # We provided one author
         assert pub.metadata == {}  # Should be empty dict by default
         assert pub.manual_edits == {}  # Should be empty dict by default
         assert pub.edit_history == []  # Should be empty list by default
@@ -185,16 +186,18 @@ class TestCurrentModelBehavior:
 
         conference = Conference.objects.create(
             owner=user,
-            name="International Conference on AI",
+            title="International Conference on AI",  # Changed from 'name' to 'title'
+            authors="John Doe, Jane Smith",  # Added required 'authors' field
             location="San Francisco, CA",
-            date="2024-06-15",
-            role="PC Member"
+            year=2024  # Changed from 'date' to 'year'
+            # Removed 'role' as it doesn't exist in the Conference model
         )
 
         assert conference.owner == user
-        assert conference.name == "International Conference on AI"
+        assert conference.title == "International Conference on AI"
+        assert conference.authors == "John Doe, Jane Smith"
         assert conference.location == "San Francisco, CA"
-        assert conference.role == "PC Member"
+        assert conference.year == 2024
 
     def test_model_string_representations(self):
         """Document how models convert to strings."""

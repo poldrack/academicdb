@@ -65,25 +65,25 @@ class TestEditPreservation:
         pub = PublicationFactory(
             owner=user,
             title="Manual Title",
-            journal="Manual Journal",
+            publication_name="Manual Journal",
             year=2024
         )
 
-        # Mark title and journal as manually edited
-        pub.manual_edits = {"title": True, "journal": True}
+        # Mark title and publication_name as manually edited
+        pub.manual_edits = {"title": True, "publication_name": True}
         pub.save()
 
         # Simulate API sync data (this would come from external APIs)
         api_sync_data = {
             "title": "API Title",  # Should NOT override manual edit
-            "journal": "API Journal",  # Should NOT override manual edit
+            "publication_name": "API Journal",  # Should NOT override manual edit
             "year": 2023,  # Should update (not manually edited)
             "volume": "42",  # Should add (new field)
         }
 
         # Simulate the sync process that preserves manual edits
         original_title = pub.title
-        original_journal = pub.journal
+        original_publication_name = pub.publication_name
 
         for field, value in api_sync_data.items():
             if not pub.manual_edits.get(field, False):
@@ -94,7 +94,7 @@ class TestEditPreservation:
 
         # Manual edits should be preserved
         assert pub.title == original_title  # "Manual Title"
-        assert pub.journal == original_journal  # "Manual Journal"
+        assert pub.publication_name == original_publication_name  # "Manual Journal"
 
         # Non-manual fields should be updated
         assert pub.year == 2023
@@ -106,7 +106,7 @@ class TestEditPreservation:
         pub = PublicationFactory(
             owner=user,
             title="Manual Title",
-            journal="Auto Journal",
+            publication_name="Auto Journal",
             year=2024,
             volume="10"
         )
@@ -118,7 +118,7 @@ class TestEditPreservation:
         # API sync should preserve title but update everything else
         api_data = {
             "title": "New API Title",
-            "journal": "New API Journal",
+            "publication_name": "New API Journal",
             "year": 2023,
             "volume": "20"
         }
@@ -135,7 +135,7 @@ class TestEditPreservation:
 
         # Only title should be preserved
         assert pub.title == original_title
-        assert pub.journal == "New API Journal"
+        assert pub.publication_name == "New API Journal"
         assert pub.year == 2023
         assert pub.volume == "20"
 
@@ -163,7 +163,7 @@ class TestEditPreservation:
                 "user_id": user.id
             },
             {
-                "field": "journal",
+                "field": "publication_name",
                 "old_value": "Old Journal",
                 "new_value": "New Journal",
                 "timestamp": "2024-01-03T09:15:00Z",
@@ -293,11 +293,11 @@ class TestEditPreservation:
         pub.save()
         assert pub.title == "API Title"
 
-        # Test with None manual_edits
-        pub.manual_edits = None
+        # Test with empty dict manual_edits (the model default)
+        pub.manual_edits = {}
         pub.save()
 
-        # Should handle None gracefully
+        # Should handle empty dict gracefully
         for field, value in api_data.items():
             manual_edits = pub.manual_edits or {}
             if not manual_edits.get(field, False):

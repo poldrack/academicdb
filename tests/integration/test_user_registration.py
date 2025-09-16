@@ -153,7 +153,7 @@ class TestUserRegistrationFlow(TestCase):
         user.save()
         
         # Verify connection
-        self.assertTrue(user.is_orcid_connected())
+        self.assertTrue(user.is_orcid_connected)
     
     def test_complete_onboarding_flow(self):
         """Test complete onboarding from signup to first publication"""

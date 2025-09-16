@@ -31,7 +31,7 @@ class PublicationFactory(DjangoModelFactory):
     title = factory.Faker('sentence', nb_words=8)
     doi = factory.Sequence(lambda n: f'10.1234/test.{n}')
     year = factory.Faker('year')
-    journal = factory.Faker('company')
+    publication_name = factory.Faker('company')  # Changed from 'journal' to 'publication_name'
     volume = factory.Faker('random_int', min=1, max=100)
     page_range = "100-110"
 
@@ -70,7 +70,7 @@ class PublicationWithManualEditsFactory(PublicationFactory):
     manual_edits = factory.LazyFunction(
         lambda: {
             'title': True,
-            'journal': False
+            'publication_name': False
         }
     )
 
@@ -113,11 +113,11 @@ class TeachingFactory(DjangoModelFactory):
         model = Teaching
 
     owner = factory.SubFactory(AcademicUserFactory)
-    course_name = factory.Faker('sentence', nb_words=4)
+    name = factory.Faker('sentence', nb_words=4)  # Changed from 'course_name' to 'name'
     course_number = factory.Faker('bothify', text='CS ###')
     semester = factory.Faker('random_element', elements=['Fall', 'Spring', 'Summer'])
     year = factory.Faker('year')
-    role = factory.Faker('random_element', elements=['Instructor', 'Co-Instructor', 'TA'])
+    # Removed 'role' as it doesn't exist in the Teaching model
 
 
 class TalkFactory(DjangoModelFactory):
@@ -126,9 +126,10 @@ class TalkFactory(DjangoModelFactory):
 
     owner = factory.SubFactory(AcademicUserFactory)
     title = factory.Faker('sentence', nb_words=8)
-    venue = factory.Faker('company')
+    place = factory.Faker('company')  # Changed from 'venue' to 'place'
     date = factory.Faker('date_between', start_date='-2y', end_date='today')
-    talk_type = factory.Faker('random_element', elements=['Keynote', 'Invited', 'Conference', 'Seminar'])
+    year = factory.Faker('year')  # Added required year field
+    # Removed 'talk_type' as it doesn't exist in the Talk model
 
 
 class ConferenceFactory(DjangoModelFactory):
@@ -136,10 +137,12 @@ class ConferenceFactory(DjangoModelFactory):
         model = Conference
 
     owner = factory.SubFactory(AcademicUserFactory)
-    name = factory.Faker('sentence', nb_words=6)
+    title = factory.Faker('sentence', nb_words=6)  # Changed from 'name' to 'title'
+    authors = factory.Faker('name')  # Added required authors field
     location = factory.Faker('city')
-    date = factory.Faker('date_between', start_date='-1y', end_date='+1y')
-    role = factory.Faker('random_element', elements=['Organizer', 'PC Member', 'Reviewer', 'Attendee'])
+    year = factory.Faker('year')  # Added required year field
+    # Removed 'role' as it doesn't exist in the Conference model
+    # Removed 'date' as it doesn't exist in the Conference model
 
 
 class ProfessionalActivityFactory(DjangoModelFactory):

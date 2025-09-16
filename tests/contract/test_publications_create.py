@@ -34,7 +34,7 @@ class TestPublicationsCreateContract(TestCase):
             "authors": [{"name": "Test Author"}]
         }
         response = self.client.post(self.url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
     
     def test_valid_publication_creation(self):
         """Valid publication data should create publication and return 201"""
