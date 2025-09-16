@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     texlive-latex-extra \
     texlive-latex-recommended \
     texlive-bibtex-extra \
+    texlive-science \
     tex-gyre \
     && rm -rf /var/lib/apt/lists/*
 
