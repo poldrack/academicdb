@@ -1,0 +1,94 @@
+# Academic Database - PostgreSQL Docker Compose
+# This is the advanced deployment option using PostgreSQL
+# for users who need full-text search and production features.
+
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=academicdb_web.settings.docker
+      - USE_POSTGRES=true
+      - DB_HOST=db
+      - DB_NAME=academicdb
+      - DB_USER=postgres
+      - DB_PASSWORD=academicdb_secure_password
+      - DEBUG=false
+      - SECRET_KEY=your-secret-key-here-change-in-production
+      # Optional: Create superuser on startup
+      # - DJANGO_SUPERUSER_USERNAME=admin
+      # - DJANGO_SUPERUSER_EMAIL=admin@example.com
+      # - DJANGO_SUPERUSER_PASSWORD=admin_password
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+      - app_logs:/app/logs
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=academicdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=academicdb_secure_password
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 --auth-local=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # Remove this line in production for security
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d academicdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Redis for caching (uncomment to enable)
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Optional: Nginx reverse proxy (uncomment for production)
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - static_files:/app/staticfiles:ro
+  #     - media_files:/app/media:ro
+  #   depends_on:
+  #     - web
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  media_files:
+    driver: local
+  static_files:
+    driver: local
+  app_logs:
+    driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  default:
+    driver: bridge

@@ -1,7 +1,12 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+# Conditional PostgreSQL imports for SQLite compatibility
+try:
+    from django.contrib.postgres.indexes import GinIndex
+    from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+    HAS_POSTGRES_FEATURES = True
+except ImportError:
+    HAS_POSTGRES_FEATURES = False
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator, MinLengthValidator
 from django.core.exceptions import ValidationError
@@ -848,7 +853,7 @@ class Publication(models.Model):
     @classmethod
     def search(cls, query, user=None):
         """
-        Full-text search across publications
+        Database-agnostic search across publications
 
         Args:
             query: Search query string
@@ -857,6 +862,20 @@ class Publication(models.Model):
         Returns:
             QuerySet of Publication objects ranked by relevance
         """
+        from django.conf import settings
+        from django.db.models import Q
+
+        # Check if we're using PostgreSQL with search features
+        engine = settings.DATABASES['default']['ENGINE']
+
+        if engine == 'django.db.backends.postgresql' and HAS_POSTGRES_FEATURES:
+            return cls._postgresql_search(query, user)
+        else:
+            return cls._sqlite_search(query, user)
+
+    @classmethod
+    def _postgresql_search(cls, query, user=None):
+        """PostgreSQL full-text search using search vectors"""
         search_query = SearchQuery(query, config='english')
 
         # Start with base queryset
@@ -876,6 +895,48 @@ class Publication(models.Model):
         )
 
         return qs
+
+    @classmethod
+    def _sqlite_search(cls, query, user=None):
+        """SQLite-compatible search using LIKE queries"""
+        from django.db.models import Q, Case, When, IntegerField
+
+        # Start with base queryset
+        qs = cls.objects.all()
+
+        # Filter by user if provided
+        if user:
+            qs = qs.filter(owner=user)
+
+        # Split query into terms for better matching
+        terms = query.lower().split()
+
+        # Build search conditions
+        search_conditions = Q()
+        for term in terms:
+            term_conditions = (
+                Q(title__icontains=term) |
+                Q(publication_name__icontains=term) |
+                Q(metadata__abstract__icontains=term) |
+                Q(doi__icontains=term)
+            )
+            search_conditions &= term_conditions
+
+        # Apply search conditions
+        qs = qs.filter(search_conditions)
+
+        # Add basic relevance scoring (title matches rank higher)
+        qs = qs.annotate(
+            rank=Case(
+                When(title__icontains=query, then=3),
+                When(publication_name__icontains=query, then=2),
+                When(metadata__abstract__icontains=query, then=1),
+                default=0,
+                output_field=IntegerField(),
+            )
+        ).order_by('-rank', '-year', 'title')
+
+        return qs.distinct()
 
     def save(self, *args, **kwargs):
         """Override save to auto-detect preprint status and normalize DOI"""

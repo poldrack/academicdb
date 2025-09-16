@@ -1,0 +1,105 @@
+# Docker ignore file for Academic Database
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+.env
+
+# Database files
+*.sqlite3
+db.sqlite3
+*.db
+
+# Django
+media/
+staticfiles/
+*.log
+local_settings.py
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+docs/_build/
+
+# Testing
+htmlcov/
+.coverage
+
+# Node.js (if used)
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+
+# Temporary files
+tmp/
+temp/
+
+# Logs
+logs/
+*.log
+
+# Development settings
+.env.local
+.env.development
+
+# IDE
+*.sublime-project
+*.sublime-workspace
+
+# Pytest
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Test artifacts
+test-reports/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
