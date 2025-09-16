@@ -95,9 +95,8 @@ docker-run-orcid:
 		-p 8000:8000 \
 		-v ${DBDIR}:/app/data \
 		-e SQLITE_PATH=/app/data/db.sqlite3 \
-		-e DJANGO_SUPERUSER_USERNAME=admin \
-		-e DJANGO_SUPERUSER_EMAIL=admin@example.com \
-		-e DJANGO_SUPERUSER_PASSWORD=secure_password \
+		-e DEBUG=false \
+		-e SECRET_KEY=stable-key-for-local-development-do-not-use-in-production \
 		-e ORCID_CLIENT_ID=$(ORCID_CLIENT_ID) \
 		-e ORCID_CLIENT_SECRET=$(ORCID_CLIENT_SECRET) \
 		academicdb:latest
