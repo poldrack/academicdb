@@ -1757,7 +1757,12 @@ class CVView(LoginRequiredMixin, View):
 
                     return response
                 else:
-                    # PDF compilation failed - return error page or LaTeX with error message
+                    # PDF compilation failed - log the error and return LaTeX with error message
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f'PDF compilation failed for user {user.username}: {compilation_result["error"]}')
+                    logger.debug(f'LaTeX log: {compilation_result.get("log", "No log available")}')
+
                     messages.error(request, f'PDF compilation failed: {compilation_result["error"]}')
                     messages.info(request, 'You can download the LaTeX source and compile it manually.')
 

@@ -995,8 +995,8 @@ def compile_latex_to_pdf(latex_content, output_dir=None):
     try:
         # Use full path to xelatex to avoid PATH issues in web server context
         xelatex_paths = [
+            '/usr/bin/xelatex',             # Linux (texlive-xetex package)
             '/Library/TeX/texbin/xelatex',  # macOS
-            '/usr/bin/xelatex',             # Linux
             '/usr/local/bin/xelatex',       # Linux alternative
             'xelatex'                       # fallback to PATH
         ]
@@ -1008,12 +1008,24 @@ def compile_latex_to_pdf(latex_content, output_dir=None):
                 break
 
         if not xelatex_cmd:
+            # Debug: List what's available in common paths
+            debug_info = []
+            for check_path in ['/usr/bin', '/usr/local/bin', '/Library/TeX/texbin']:
+                if os.path.exists(check_path):
+                    try:
+                        files = [f for f in os.listdir(check_path) if 'tex' in f.lower()]
+                        debug_info.append(f"{check_path}: {files}")
+                    except:
+                        debug_info.append(f"{check_path}: permission denied")
+                else:
+                    debug_info.append(f"{check_path}: not found")
+
             return {
                 'success': False,
                 'pdf_path': None,
                 'tex_path': tex_path,
                 'log': '',
-                'error': 'xelatex not found in standard locations',
+                'error': f'xelatex not found in standard locations. Debug info: {"; ".join(debug_info)}',
                 'output_dir': output_dir
             }
 

@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y \
     texlive-xetex \
     texlive-fonts-recommended \
     texlive-fonts-extra \
+    texlive-latex-extra \
+    texlive-latex-recommended \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user for security
