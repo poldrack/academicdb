@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from io import StringIO
 import sys
-from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
+from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +173,12 @@ class PublicationListView(LoginRequiredMixin, ListView):
         context['active_count'] = self.get_queryset().filter(is_ignored=False).count()
         # Pass search query to template
         context['search_query'] = self.request.GET.get('search', '').strip()
+
+        # Add link counts for each publication
+        for pub in context['publications']:
+            link_count = Link.objects.filter(owner=self.request.user, doi=pub.doi).count()
+            pub.link_count = link_count
+
         return context
 
 
@@ -184,10 +190,19 @@ class PublicationDetailView(LoginRequiredMixin, DetailView):
     template_name = 'academic/publication_detail.html'
     context_object_name = 'publication'
     login_url = '/accounts/login/'
-    
+
     def get_queryset(self):
         """Ensure users can only view their own publications"""
         return Publication.objects.filter(owner=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        """Add links from Link model to context"""
+        context = super().get_context_data(**kwargs)
+
+        # Get links associated with this publication
+        context['external_links'] = Link.get_links_for_publication(self.object)
+
+        return context
 
 
 class PublicationCreateView(LoginRequiredMixin, CreateView):
@@ -1968,4 +1983,230 @@ class ClearSpecificAPICacheView(LoginRequiredMixin, View):
             logger.error(f"Error clearing {api_source} cache for user {user.id}: {str(e)}")
 
         return redirect('academic:admin_panel')
+
+
+# Link Management Views
+
+class LinkListView(LoginRequiredMixin, ListView):
+    """
+    List view for user's links with CSV upload functionality
+    """
+    model = Link
+    template_name = 'academic/links_list.html'
+    context_object_name = 'links'
+    login_url = '/accounts/login/'
+    paginate_by = 50
+
+    def get_queryset(self):
+        return Link.objects.filter(owner=self.request.user).order_by('type', 'doi')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Publication Links'
+
+        # Count links by type
+        links_by_type = {}
+        for link in self.get_queryset():
+            links_by_type[link.type] = links_by_type.get(link.type, 0) + 1
+        context['links_by_type'] = links_by_type
+
+        # Check how many publications don't have matching links
+        user_pubs = Publication.objects.filter(owner=self.request.user, doi__isnull=False).exclude(doi='')
+        user_dois = set(pub.doi.lower() for pub in user_pubs)
+        link_dois = set(link.doi.lower() for link in self.get_queryset())
+        context['unlinked_publications'] = len(user_dois - link_dois)
+
+        return context
+
+
+class LinkUploadView(LoginRequiredMixin, View):
+    """
+    Handle CSV upload for links
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request, *args, **kwargs):
+        import csv
+        from io import StringIO
+
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No CSV file uploaded.')
+            return redirect('academic:links_list')
+
+        csv_file = request.FILES['csv_file']
+
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return redirect('academic:links_list')
+
+        try:
+            # Read CSV content
+            file_content = csv_file.read().decode('utf-8')
+            csv_reader = csv.DictReader(StringIO(file_content))
+
+            # Validate headers
+            required_headers = {'type', 'DOI', 'url'}
+            if not required_headers.issubset(set(csv_reader.fieldnames)):
+                messages.error(request, f'CSV must contain these columns: {", ".join(required_headers)}')
+                return redirect('academic:links_list')
+
+            # Process rows
+            created_count = 0
+            updated_count = 0
+            error_count = 0
+
+            for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 because header is row 1
+                try:
+                    link_type = row['type'].strip()
+                    doi = row['DOI'].strip().lower()
+                    url = row['url'].strip()
+
+                    if not all([link_type, doi, url]):
+                        error_count += 1
+                        continue
+
+                    # Clean DOI
+                    if doi.startswith('https://doi.org/'):
+                        doi = doi.replace('https://doi.org/', '')
+                    elif doi.startswith('http://doi.org/'):
+                        doi = doi.replace('http://doi.org/', '')
+                    elif doi.startswith('doi:'):
+                        doi = doi.replace('doi:', '')
+
+                    # Create or update link
+                    link, created = Link.objects.get_or_create(
+                        owner=request.user,
+                        type=link_type,
+                        doi=doi,
+                        url=url,
+                        defaults={
+                            'source': 'csv_import'
+                        }
+                    )
+
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"Error processing CSV row {row_num}: {str(e)}")
+
+            # Success message
+            message_parts = []
+            if created_count > 0:
+                message_parts.append(f"Created {created_count} links")
+            if updated_count > 0:
+                message_parts.append(f"Updated {updated_count} links")
+            if error_count > 0:
+                message_parts.append(f"Skipped {error_count} rows with errors")
+
+            if message_parts:
+                messages.success(request, ". ".join(message_parts) + ".")
+            else:
+                messages.info(request, "No links were processed from the CSV file.")
+
+        except Exception as e:
+            messages.error(request, f'Error processing CSV file: {str(e)}')
+            logger.error(f"CSV upload error for user {request.user.id}: {str(e)}")
+
+        return redirect('academic:links_list')
+
+
+class LinkAssociateView(LoginRequiredMixin, View):
+    """
+    Associate links with publications based on DOI matching
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request, *args, **kwargs):
+        try:
+            associated_count, not_found_dois = Link.associate_with_publications(request.user)
+
+            if associated_count > 0:
+                messages.success(
+                    request,
+                    f'Successfully associated {associated_count} links with publications.'
+                )
+
+            if not_found_dois:
+                # Limit the display of DOIs to avoid overwhelming the message
+                displayed_dois = not_found_dois[:5]
+                doi_list = ", ".join(displayed_dois)
+                if len(not_found_dois) > 5:
+                    doi_list += f", and {len(not_found_dois) - 5} more"
+
+                messages.warning(
+                    request,
+                    f'Could not find publications for {len(not_found_dois)} DOIs: {doi_list}'
+                )
+
+            if associated_count == 0 and not not_found_dois:
+                messages.info(request, 'All links are already associated with publications.')
+
+        except Exception as e:
+            messages.error(request, f'Error associating links with publications: {str(e)}')
+            logger.error(f"Link association error for user {request.user.id}: {str(e)}")
+
+        return redirect('academic:links_list')
+
+
+class LinkCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new link
+    """
+    model = Link
+    template_name = 'academic/link_form.html'
+    fields = ['type', 'doi', 'url', 'title']
+    login_url = '/accounts/login/'
+    success_url = reverse_lazy('academic:links_list')
+
+    def form_valid(self, form):
+        form.instance.owner = self.request.user
+        form.instance.source = 'manual'
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Add New Link'
+        return context
+
+
+class LinkUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update an existing link
+    """
+    model = Link
+    template_name = 'academic/link_form.html'
+    fields = ['type', 'doi', 'url', 'title']
+    login_url = '/accounts/login/'
+    success_url = reverse_lazy('academic:links_list')
+
+    def get_queryset(self):
+        return Link.objects.filter(owner=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Edit Link'
+        return context
+
+
+class LinkDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Delete a link
+    """
+    model = Link
+    template_name = 'academic/link_confirm_delete.html'
+    login_url = '/accounts/login/'
+    success_url = reverse_lazy('academic:links_list')
+
+    def get_queryset(self):
+        return Link.objects.filter(owner=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Delete Link'
+        return context
 

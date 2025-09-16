@@ -63,3 +63,150 @@ Implemented comprehensive database backup and restore functionality with a user-
 ✅ **Original Problem**: "Develop tools to enable dumping the database to a set of JSON files, and to enable restoration of the database from a set of backup files. These functions should be accessed by a new Admin tab."
 
 **Solution**: Fully implemented with web interface accessible to all users, comprehensive backup/restore functionality, and integration with existing navigation.
+
+---
+
+# Link Management Implementation Summary
+
+## Overview
+Implemented comprehensive link management system for associating external resources (Code, Data, OSF) with publications in the academic database.
+
+## Key Components Added
+
+### 1. Database Model (`academic/models.py`)
+- **Link Model**: Stores links to external resources with:
+  - `type`: Link category (Code, Data, OSF, Other)
+  - `doi`: Publication DOI for association
+  - `url`: Resource URL
+  - `title`: Optional description
+  - `source`: Import source tracking
+  - User ownership for data isolation
+  - DOI normalization on save
+  - Helper methods for publication association
+
+### 2. Database Migration
+- `0022_link.py`: Creates Link table with indexes and constraints
+
+### 3. Views (`academic/views.py`)
+- **LinkListView**: Display all user's links with statistics
+- **LinkUploadView**: CSV file upload handler
+- **LinkAssociateView**: Associate links with publications by DOI
+- **LinkCreateView**: Manual link creation
+- **LinkUpdateView**: Edit existing links
+- **LinkDeleteView**: Remove links
+- **Updated PublicationDetailView**: Shows associated links
+- **Updated PublicationListView**: Shows link count badges
+
+### 4. URL Configuration (`academic/urls.py`)
+- `/links/` - List all links
+- `/links/upload/` - CSV upload endpoint
+- `/links/associate/` - Link association endpoint
+- `/links/new/` - Create new link
+- `/links/<id>/edit/` - Edit link
+- `/links/<id>/delete/` - Delete link
+
+### 5. Templates
+- `links_list.html`: Main links page with CSV upload modal
+- `link_form.html`: Create/edit form
+- `link_confirm_delete.html`: Deletion confirmation
+- Updated `base.html`: Added Links navigation item
+- Updated `publication_detail.html`: Display associated links
+- Updated `publication_list.html`: Show link count badges
+
+### 6. CV Generation (`academic/cv_renderer.py`)
+- Integrated Link model with CV renderer
+- Links appear after OA/DOI links in publications
+- Properly formatted as LaTeX hyperlinks
+
+### 7. Testing
+- `test_links.py`: Comprehensive test suite with 17 tests
+- `LinkFactory`: Test data generation
+- Coverage includes:
+  - Model functionality and validation
+  - DOI normalization
+  - User data isolation
+  - View rendering
+  - CSV upload
+  - Link association logic
+
+## Features Implemented
+
+### Core Functionality
+- ✅ CSV bulk upload with validation
+- ✅ CRUD operations for links
+- ✅ DOI-based publication association
+- ✅ User data isolation
+- ✅ Link display on publication pages
+- ✅ Link count indicators
+- ✅ CV integration
+
+### User Interface
+- ✅ "Add links to pubs" button for batch association
+- ✅ Visual indicators (badges) for link counts
+- ✅ Icon differentiation by link type
+- ✅ CSV format documentation
+- ✅ Error handling and user feedback
+
+### Data Management
+- ✅ DOI normalization (removes URL prefixes)
+- ✅ Duplicate prevention (unique constraint)
+- ✅ Source tracking (CSV vs manual)
+- ✅ Timestamps for audit trail
+
+## Usage Flow
+
+1. **Upload CSV**: Users can bulk import links from CSV file
+2. **Associate**: Click "Add links to pubs" to match links with publications
+3. **View**: Links appear on publication detail pages and in CV
+4. **Manage**: Full CRUD operations available through web interface
+
+## CSV Format
+Required columns:
+- `type`: Link type (Code, Data, OSF, Other)
+- `DOI`: Publication DOI
+- `url`: Resource URL
+
+Example:
+```csv
+type,DOI,url
+Code,10.1038/s41562-024-01942-4,https://zenodo.org/records/5748130
+Data,10.1038/s41562-024-01942-4,https://openneuro.org/datasets/ds001234
+```
+
+## Technical Notes
+- Links are stored separately from publications for flexibility
+- DOI matching is case-insensitive
+- Multiple links per publication supported
+- Links preserved during API synchronization
+- Compatible with existing publication workflow
+
+## Files Modified/Created
+
+### Created
+- `academic/migrations/0022_link.py`
+- `academic/templates/academic/links_list.html`
+- `academic/templates/academic/link_form.html`
+- `academic/templates/academic/link_confirm_delete.html`
+- `tests/unit/test_links.py`
+
+### Modified
+- `academic/models.py` (Link model added)
+- `academic/views.py` (Link views + publication views updated)
+- `academic/urls.py` (Link URLs added)
+- `academic/cv_renderer.py` (Link integration)
+- `academic/templates/academic/base.html` (Navigation)
+- `academic/templates/academic/publication_detail.html` (Show links)
+- `academic/templates/academic/publication_list.html` (Link counts)
+- `tests/factories.py` (LinkFactory added)
+
+## Testing
+All tests passing:
+- 17 link-specific tests
+- Full user isolation verified
+- CV generation tested
+- View rendering validated
+
+## Problem Resolution
+✅ **Original Problem**: "I would like to add links to CV entries, as we had done in the original code. The first step is to create a new table, which we call Links, based on an uploaded CSV file like data/links.csv. This will have columns named "type", "DOI", and "url". The second step is to add link rendering to the CV generator."
+
+**Solution**: Fully implemented comprehensive link management system with CSV upload, publication association, web interface, and CV integration. Links are displayed on publication pages and included in CV generation.

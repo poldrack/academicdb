@@ -12,7 +12,7 @@ from django.conf import settings
 from django.template.loader import get_template
 from django.templatetags.static import static
 from django.contrib.staticfiles.finders import find
-from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
+from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link
 
 
 def convert_html_to_latex(text):
@@ -705,7 +705,12 @@ def format_publication(pub, debug=False):
         # DOI URLs should not be escaped
         output += f" \\href{{https://doi.org/{pub.doi}}}{{DOI}}"
 
-    # Add additional links (URLs should NOT be escaped for LaTeX)
+    # Add additional links from Link model (URLs should NOT be escaped for LaTeX)
+    links_from_model = Link.get_links_for_publication(pub)
+    for link in links_from_model:
+        output += f" \\href{{{link.url}}}{{{link.type}}}"
+
+    # Add additional links from publication links field (URLs should NOT be escaped for LaTeX)
     if pub.links:
         if pub.links.get('Data'):
             output += f" \\href{{{pub.links['Data']}}}{{Data}}"

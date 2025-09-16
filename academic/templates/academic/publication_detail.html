@@ -144,6 +144,17 @@
                                     <i class="fas fa-book-medical"></i> PubMed
                                 </a>
                             {% endif %}
+
+                            <!-- Links from Link model -->
+                            {% for link in external_links %}
+                                <a href="{{ link.url }}" target="_blank" class="btn btn-outline-secondary btn-sm me-2 mb-1"
+                                   title="{{ link.title|default:link.url }}">
+                                    <i class="fas fa-{% if link.type == 'Code' %}code{% elif link.type == 'Data' %}database{% elif link.type == 'OSF' %}folder-open{% else %}link{% endif %}"></i>
+                                    {{ link.type }}
+                                </a>
+                            {% endfor %}
+
+                            <!-- Legacy links from publication.links JSONField -->
                             {% if publication.links %}
                                 {% for link_type, url in publication.links.items %}
                                     <a href="{{ url }}" target="_blank" class="btn btn-outline-secondary btn-sm me-2 mb-1">

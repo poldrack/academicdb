@@ -140,6 +140,11 @@
                                 {% if publication.has_manual_edits %}
                                     <span class="badge bg-info ms-2">Edited</span>
                                 {% endif %}
+                                {% if publication.link_count > 0 %}
+                                    <span class="badge bg-success ms-2" title="{{ publication.link_count }} link{{ publication.link_count|pluralize }}">
+                                        <i class="fas fa-link"></i> {{ publication.link_count }}
+                                    </span>
+                                {% endif %}
                             </td>
                             <td>{{ publication.year }}</td>
                             <td>{{ publication.get_publication_type_display }}</td>

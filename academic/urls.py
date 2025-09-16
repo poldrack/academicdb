@@ -49,6 +49,14 @@ urlpatterns = [
 
     # Professional Activities URLs
     path('professional-activities/', views.ProfessionalActivityListView.as_view(), name='professional_activities'),
+
+    # Links URLs
+    path('links/', views.LinkListView.as_view(), name='links_list'),
+    path('links/upload/', views.LinkUploadView.as_view(), name='links_upload'),
+    path('links/associate/', views.LinkAssociateView.as_view(), name='links_associate'),
+    path('links/new/', views.LinkCreateView.as_view(), name='link_create'),
+    path('links/<int:pk>/edit/', views.LinkUpdateView.as_view(), name='link_update'),
+    path('links/<int:pk>/delete/', views.LinkDeleteView.as_view(), name='link_delete'),
     
     # Authentication URLs (handled by allauth, but we can add custom logic)
     path('auth/orcid/connected/', views.OrcidConnectedView.as_view(), name='orcid_connected'),

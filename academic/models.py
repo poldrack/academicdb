@@ -2700,3 +2700,130 @@ class ProfessionalActivity(models.Model):
         
         # Fallback: assume single author if no clear separators
         return 1 if self.authors.strip() else 0
+
+
+class Link(models.Model):
+    """
+    Represents links to additional resources (code, data, OSF) for publications
+    """
+    # Link type choices based on CSV data
+    TYPE_CHOICES = [
+        ('Code', 'Code'),
+        ('Data', 'Data'),
+        ('OSF', 'OSF'),
+        ('Other', 'Other'),
+    ]
+
+    # Owner
+    owner = models.ForeignKey(
+        AcademicUser,
+        on_delete=models.CASCADE,
+        related_name='links'
+    )
+
+    # Link details
+    type = models.CharField(
+        max_length=50,
+        choices=TYPE_CHOICES,
+        help_text="Type of link (Code, Data, OSF, etc.)"
+    )
+
+    doi = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="DOI of the publication this link belongs to"
+    )
+
+    url = models.URLField(
+        max_length=1000,
+        help_text="URL of the linked resource"
+    )
+
+    # Additional metadata
+    title = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Optional title/description for the link"
+    )
+
+    # Source tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('csv_import', 'CSV Import'),
+            ('manual', 'Manual Entry'),
+        ],
+        default='csv_import',
+        help_text="How this link was added"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'doi']),
+            models.Index(fields=['type', 'doi']),
+        ]
+        ordering = ['type', 'doi']
+        verbose_name = 'Link'
+        verbose_name_plural = 'Links'
+        unique_together = ['owner', 'doi', 'type', 'url']
+
+    def __str__(self):
+        return f"{self.type}: {self.doi} -> {self.url}"
+
+    def clean(self):
+        """Validate link data"""
+        super().clean()
+
+        # Normalize DOI
+        if self.doi:
+            self.doi = self.doi.lower().strip()
+            # Remove any URL prefix if present
+            if self.doi.startswith('https://doi.org/'):
+                self.doi = self.doi.replace('https://doi.org/', '')
+            elif self.doi.startswith('http://doi.org/'):
+                self.doi = self.doi.replace('http://doi.org/', '')
+            elif self.doi.startswith('doi:'):
+                self.doi = self.doi.replace('doi:', '')
+
+    def save(self, *args, **kwargs):
+        """Override save to normalize DOI"""
+        self.clean()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_links_for_publication(cls, publication):
+        """Get all links for a given publication"""
+        return cls.objects.filter(
+            owner=publication.owner,
+            doi=publication.doi
+        ).order_by('type')
+
+    @classmethod
+    def associate_with_publications(cls, user):
+        """
+        Associate existing links with publications based on DOI matching
+        Returns tuple of (associated_count, not_found_dois)
+        """
+        associated_count = 0
+        not_found_dois = []
+
+        # Get all links for this user
+        user_links = cls.objects.filter(owner=user)
+
+        for link in user_links:
+            # Try to find matching publication
+            publication = Publication.objects.filter(
+                owner=user,
+                doi=link.doi
+            ).first()
+
+            if not publication:
+                not_found_dois.append(link.doi)
+            else:
+                associated_count += 1
+
+        return associated_count, not_found_dois

@@ -4,7 +4,7 @@ Model factories for generating test data.
 import factory
 from factory.django import DjangoModelFactory
 from django.contrib.auth import get_user_model
-from academic.models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
+from academic.models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link
 
 User = get_user_model()
 
@@ -155,3 +155,15 @@ class ProfessionalActivityFactory(DjangoModelFactory):
     role = factory.Faker('job')
     start_date = factory.Faker('date_between', start_date='-3y', end_date='today')
     end_date = factory.Faker('date_between', start_date='today', end_date='+2y')
+
+
+class LinkFactory(DjangoModelFactory):
+    class Meta:
+        model = Link
+
+    owner = factory.SubFactory(AcademicUserFactory)
+    type = factory.Faker('random_element', elements=['Code', 'Data', 'OSF', 'Other'])
+    doi = factory.Sequence(lambda n: f'10.1234/test.{n}')
+    url = factory.Faker('url')
+    title = factory.Faker('sentence', nb_words=4)
+    source = 'csv_import'

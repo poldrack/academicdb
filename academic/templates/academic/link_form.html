@@ -1,0 +1,133 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">{{ title }}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_type" class="form-label">Link Type <span class="text-danger">*</span></label>
+                        <select class="form-select" name="type" id="id_type" required>
+                            <option value="">Select a type</option>
+                            <option value="Code" {% if form.type.value == 'Code' %}selected{% endif %}>Code</option>
+                            <option value="Data" {% if form.type.value == 'Data' %}selected{% endif %}>Data</option>
+                            <option value="OSF" {% if form.type.value == 'OSF' %}selected{% endif %}>OSF</option>
+                            <option value="Other" {% if form.type.value == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                        {% if form.type.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.type.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            The type of resource this link points to
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_doi" class="form-label">Publication DOI <span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control {% if form.doi.errors %}is-invalid{% endif %}"
+                               name="doi"
+                               id="id_doi"
+                               value="{{ form.doi.value|default_if_none:'' }}"
+                               placeholder="10.1000/journal.xxxx"
+                               required>
+                        {% if form.doi.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.doi.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            The DOI of the publication this link belongs to
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_url" class="form-label">URL <span class="text-danger">*</span></label>
+                        <input type="url"
+                               class="form-control {% if form.url.errors %}is-invalid{% endif %}"
+                               name="url"
+                               id="id_url"
+                               value="{{ form.url.value|default_if_none:'' }}"
+                               placeholder="https://github.com/user/repo"
+                               required>
+                        {% if form.url.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.url.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            The URL of the linked resource
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">Title/Description</label>
+                        <input type="text"
+                               class="form-control {% if form.title.errors %}is-invalid{% endif %}"
+                               name="title"
+                               id="id_title"
+                               value="{{ form.title.value|default_if_none:'' }}"
+                               placeholder="Optional description of the link">
+                        {% if form.title.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.title.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Optional title or description for the link
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'academic:links_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Links
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Link
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle form submission
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    });
+
+    // DOI normalization on blur
+    const doiInput = document.getElementById('id_doi');
+    doiInput.addEventListener('blur', function() {
+        let doi = this.value.trim();
+
+        // Remove common prefixes
+        if (doi.startsWith('https://doi.org/')) {
+            doi = doi.replace('https://doi.org/', '');
+        } else if (doi.startsWith('http://doi.org/')) {
+            doi = doi.replace('http://doi.org/', '');
+        } else if (doi.startsWith('doi:')) {
+            doi = doi.replace('doi:', '');
+        }
+
+        this.value = doi;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Publication Links ({{ links|length }})</h1>
+            <div>
+                <a href="{% url 'academic:link_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Link
+                </a>
+
+                <!-- CSV Upload Button -->
+                <button type="button" class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="fas fa-file-csv"></i> Upload CSV
+                </button>
+
+                <!-- Associate Links Button -->
+                {% if links|length > 0 %}
+                    <form method="post" action="{% url 'academic:links_associate' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-info ms-2" title="Associate links with publications">
+                            <i class="fas fa-link"></i> Add links to pubs
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        {% if links_by_type %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Link Summary</h5>
+                            <div class="row">
+                                {% for link_type, count in links_by_type.items %}
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <span class="badge bg-primary fs-6">{{ link_type }}: {{ count }}</span>
+                                    </div>
+                                {% endfor %}
+                                {% if unlinked_publications > 0 %}
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <span class="badge bg-warning fs-6">Unlinked Publications: {{ unlinked_publications }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if links %}
+            <!-- Links Table -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>DOI</th>
+                                    <th>URL</th>
+                                    <th>Title</th>
+                                    <th>Source</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for link in links %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-{% if link.type == 'Code' %}info{% elif link.type == 'Data' %}success{% elif link.type == 'OSF' %}warning{% else %}secondary{% endif %}">
+                                                {{ link.type }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small class="font-monospace">{{ link.doi|truncatechars:40 }}</small>
+                                        </td>
+                                        <td>
+                                            <a href="{{ link.url }}" target="_blank" class="text-decoration-none">
+                                                <i class="fas fa-external-link-alt"></i>
+                                                {{ link.url|truncatechars:50 }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if link.title %}
+                                                {{ link.title|truncatechars:40 }}
+                                            {% else %}
+                                                <em class="text-muted">No title</em>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ link.get_source_display }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'academic:link_update' link.pk %}"
+                                                   class="btn btn-outline-secondary btn-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'academic:link_delete' link.pk %}"
+                                                   class="btn btn-outline-danger btn-sm">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <nav aria-label="Links pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1">&laquo; First</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            {% endif %}
+
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-5">
+                <i class="fas fa-link fa-4x text-muted mb-3"></i>
+                <h3>No Publication Links</h3>
+                <p class="text-muted mb-4">You don't have any publication links yet.</p>
+
+                <div class="d-flex justify-content-center gap-3">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i class="fas fa-file-csv"></i> Upload CSV File
+                    </button>
+
+                    <a href="{% url 'academic:link_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Link Manually
+                    </a>
+                </div>
+
+                <div class="alert alert-info mt-4" style="max-width: 600px; margin: 0 auto;">
+                    <h5><i class="fas fa-info-circle"></i> CSV Format</h5>
+                    <p class="mb-2">Upload a CSV file with these columns:</p>
+                    <ul class="list-unstyled">
+                        <li><strong>type</strong> - Link type (Code, Data, OSF, Other)</li>
+                        <li><strong>DOI</strong> - Publication DOI</li>
+                        <li><strong>url</strong> - Link URL</li>
+                    </ul>
+                    <p class="mb-0">See <code>data/links.csv</code> for an example.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- CSV Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">
+                    <i class="fas fa-file-csv"></i> Upload Links CSV
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'academic:links_upload' %}" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">CSV File</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                        <div class="form-text">
+                            CSV must contain columns: <strong>type</strong>, <strong>DOI</strong>, <strong>url</strong>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Expected Format:</h6>
+                        <pre class="mb-0">type,DOI,url
+Code,10.1038/s41562-024-01942-4,https://zenodo.org/records/5748130
+Data,10.1038/s41562-024-01942-4,https://openneuro.org/datasets/ds001234</pre>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-upload"></i> Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle form submission loading state
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        });
+    }
+
+    // Handle associate links button
+    const associateBtn = document.querySelector('button[title="Associate links with publications"]');
+    if (associateBtn) {
+        associateBtn.addEventListener('click', function(e) {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Associating...';
+        });
+    }
+});
+</script>
+{% endblock %}
