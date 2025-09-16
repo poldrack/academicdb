@@ -38,8 +38,7 @@ COPY pyproject.toml .
 
 # Install only dependencies first (cached layer)
 RUN pip install --upgrade pip && \
-    pip install --dependency-groups dev && \
-    pip install pandas numpy biopython scholarly crossrefapi tomli pybliometrics pymongo orcid tomli-w pytest toml ipython matplotlib django psycopg2-binary django-allauth django-extensions djangorestframework python-dotenv openpyxl dj-database-url && \
+    pip install pandas numpy biopython scholarly crossrefapi tomli pybliometrics pymongo orcid tomli-w pytest toml ipython matplotlib django psycopg2-binary django-allauth django-extensions djangorestframework python-dotenv openpyxl dj-database-url coverage factory-boy faker freezegun model-bakery pytest-cov pytest-django pytest-xdist responses && \
     pip install gunicorn whitenoise
 
 # Copy application code after dependencies are installed
@@ -86,4 +85,4 @@ RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Default command (can be overridden)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "300", "--keep-alive", "60", "academicdb_web.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "1800", "--keep-alive", "60", "academicdb_web.wsgi:application"]
