@@ -158,22 +158,8 @@ class PublicationListView(LoginRequiredMixin, ListView):
         # Handle search functionality
         search_query = self.request.GET.get('search', '').strip()
         if search_query:
-            # Search in title and authors
-            from django.db.models import Q
-
-            # Search in title field
-            title_search = Q(title__icontains=search_query)
-
-            # Search in authors JSON field - check if any author name contains the search term
-            # Using JSONField lookups for PostgreSQL
-            authors_search = Q(authors__icontains=[{'name': search_query}])
-
-            # For more flexible author search, we can also use a raw SQL approach
-            # to search within the JSON array more broadly
-            queryset = queryset.extra(
-                where=["LOWER(title) LIKE %s OR LOWER(authors::text) LIKE %s"],
-                params=[f'%{search_query.lower()}%', f'%{search_query.lower()}%']
-            )
+            # Use the database-agnostic search method from the Publication model
+            queryset = Publication.search(search_query, user=self.request.user)
 
         # Include all publications (both ignored and non-ignored)
         return queryset.order_by('-year', 'title')

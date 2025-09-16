@@ -870,13 +870,20 @@ class Publication(models.Model):
         use_postgres = os.getenv('USE_POSTGRES', 'false').lower() == 'true'
         engine = settings.DATABASES['default']['ENGINE']
 
+        # Debug logging to see what's happening
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Search debug - USE_POSTGRES: {use_postgres}, ENGINE: {engine}, HAS_POSTGRES_FEATURES: {HAS_POSTGRES_FEATURES}")
+
         # Only use PostgreSQL search if both conditions are met:
         # 1. Environment variable USE_POSTGRES=true
         # 2. Database engine is PostgreSQL
         if use_postgres and engine == 'django.db.backends.postgresql' and HAS_POSTGRES_FEATURES:
+            logger.info("Using PostgreSQL search")
             return cls._postgresql_search(query, user)
         else:
             # Use SQLite search for all other cases
+            logger.info("Using SQLite search")
             return cls._sqlite_search(query, user)
 
     @classmethod
