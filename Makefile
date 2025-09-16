@@ -44,6 +44,10 @@ restore-latest:
 	fi
 
 # Docker commands
+docker-full-restart: docker-clean docker-rm-db docker-build docker-run-orcid
+
+docker-rm-db:
+	-rm /Users/poldrack/.cache/academicdb/*
 docker-build:
 	docker build -t academicdb:latest .
 
