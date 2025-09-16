@@ -45,6 +45,7 @@ restore-latest:
 
 # Docker commands
 docker-full-restart: docker-clean docker-rm-db docker-build docker-run-orcid
+docker-rebuild: docker-clean docker-build docker-run-orcid
 
 docker-rm-db:
 	-rm /Users/poldrack/.cache/academicdb/*
