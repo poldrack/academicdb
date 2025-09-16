@@ -1,5 +1,14 @@
 test:
-	uv run python -m pytest tests
+	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest tests -v
+
+test-unit:
+	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest tests/unit -v
+
+test-characterization:
+	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest tests/characterization -v
+
+test-coverage:
+	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest --cov=academic --cov=academicdb_web --cov-report=html tests
 
 run:
 	uv run python manage.py runserver

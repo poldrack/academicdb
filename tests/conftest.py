@@ -2,12 +2,15 @@
 Test configuration and fixtures for the academic database application.
 """
 import pytest
+import django
+from django.conf import settings
+
+# Configure Django settings if not already configured
+if not settings.configured:
+    django.setup()
+
 from django.contrib.auth import get_user_model
 from django.test import Client
-from rest_framework.test import APIClient
-from model_bakery import baker
-import factory
-from academic.models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity
 
 User = get_user_model()
 
@@ -38,6 +41,7 @@ def second_academic_user(db):
 @pytest.fixture
 def api_client():
     """Unauthenticated API client."""
+    from rest_framework.test import APIClient
     return APIClient()
 
 
@@ -64,6 +68,7 @@ def authenticated_web_client(web_client, academic_user):
 @pytest.fixture
 def sample_publication(academic_user):
     """Create a sample publication for testing."""
+    from academic.models import Publication
     return Publication.objects.create(
         owner=academic_user,
         title="Sample Research Paper",
@@ -85,6 +90,7 @@ def sample_publication(academic_user):
 @pytest.fixture
 def publication_with_manual_edits(academic_user):
     """Create a publication with manual edits for testing edit preservation."""
+    from academic.models import Publication
     pub = Publication.objects.create(
         owner=academic_user,
         title="Manually Edited Paper",
@@ -108,6 +114,7 @@ def publication_with_manual_edits(academic_user):
 @pytest.fixture
 def batch_publications(academic_user, second_academic_user):
     """Create multiple publications for different users to test isolation."""
+    from academic.models import Publication
     user1_pubs = []
     user2_pubs = []
 
@@ -166,6 +173,7 @@ def mock_external_apis(monkeypatch):
 @pytest.fixture
 def production_like_data(academic_user):
     """Create data that mimics production patterns."""
+    from academic.models import Publication
     publications = []
 
     # Create publications with various metadata patterns

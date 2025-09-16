@@ -147,19 +147,19 @@ class TestCurrentModelBehavior:
 
         teaching = Teaching.objects.create(
             owner=user,
-            course_name="Introduction to Computer Science",
+            name="Introduction to Computer Science",
             course_number="CS 101",
             semester="Fall",
             year=2024,
-            role="Instructor"
+            level="undergraduate"
         )
 
         assert teaching.owner == user
-        assert teaching.course_name == "Introduction to Computer Science"
+        assert teaching.name == "Introduction to Computer Science"
         assert teaching.course_number == "CS 101"
         assert teaching.semester == "Fall"
         assert teaching.year == 2024
-        assert teaching.role == "Instructor"
+        assert teaching.level == "undergraduate"
 
     def test_talk_model_current_behavior(self):
         """Document Talk model behavior."""
@@ -168,15 +168,16 @@ class TestCurrentModelBehavior:
         talk = Talk.objects.create(
             owner=user,
             title="My Research Talk",
-            venue="University Conference",
-            date="2024-01-15",
-            talk_type="Keynote"
+            place="University Conference",
+            year=2024,
+            invited=True
         )
 
         assert talk.owner == user
         assert talk.title == "My Research Talk"
-        assert talk.venue == "University Conference"
-        assert talk.talk_type == "Keynote"
+        assert talk.place == "University Conference"
+        assert talk.year == 2024
+        assert talk.invited is True
 
     def test_conference_model_current_behavior(self):
         """Document Conference model behavior."""
