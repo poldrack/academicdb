@@ -139,7 +139,8 @@ class ResearcherMetadata:
 
 class Researcher:
     def __init__(self, param_file, basedir=None):
-        pybliometrics.scopus.init()
+        # Initialize pybliometrics with API key from environment
+        utils.init_pybliometrics()
         self.param_file = param_file
         self.basedir = (
             os.path.dirname(param_file) if basedir is None else basedir

@@ -837,27 +837,37 @@ class SyncProgressStreamView(LoginRequiredMixin, View):
                                key=lambda x: user_syncs[x].get('start_time', 0))
 
             logger.info(f"Streaming progress for sync {latest_sync_id}")
-            
+
             last_progress = -1
+            start_time = time.time()
+            max_duration = 600  # 10 minutes maximum
+
             while True:
+                # Check for timeout to prevent infinite connections
+                if time.time() - start_time > max_duration:
+                    yield f"data: {json.dumps({'error': 'Progress stream timeout'})}\n\n"
+                    break
+
                 if latest_sync_id in sync_progress:
                     progress_data = sync_progress[latest_sync_id].copy()
                     current_progress = progress_data.get('progress', 0)
-                    
+
                     # Only send update if progress changed
                     if current_progress != last_progress:
                         yield f"data: {json.dumps(progress_data)}\n\n"
                         last_progress = current_progress
-                    
+
                     # Stop streaming if completed or failed
                     if progress_data.get('status') in ['completed', 'completed_with_errors', 'error']:
+                        yield f"data: {json.dumps(progress_data)}\n\n"
                         break
-                        
+
                 else:
-                    yield f"data: {json.dumps({'error': 'Sync not found'})}\n\n"
+                    # Sync not found - maybe it completed already
+                    yield f"data: {json.dumps({'status': 'completed', 'message': 'Sync completed'})}\n\n"
                     break
-                    
-                time.sleep(1)  # Poll every second
+
+                time.sleep(2)  # Poll every 2 seconds to reduce load
         
         response = StreamingHttpResponse(
             event_stream(),
@@ -1445,7 +1455,7 @@ class AdminPanelView(LoginRequiredMixin, TemplateView):
         }
 
         # Check backup directory status
-        backup_root = Path('backups')
+        backup_root = Path('/app/backups/json')
         context['backup_stats'] = {
             'backup_dir_exists': backup_root.exists(),
             'backup_count': len(list(backup_root.glob('backup_*'))) if backup_root.exists() else 0,
@@ -1507,7 +1517,7 @@ class AdminBackupView(LoginRequiredMixin, TemplateView):
         context['title'] = 'Database Backup & Restore'
 
         # List existing backup directories
-        backup_root = Path('backups')
+        backup_root = Path('/app/backups/json')
         backups = []
 
         if backup_root.exists():
@@ -1559,7 +1569,7 @@ class AdminBackupCreateView(LoginRequiredMixin, View):
 
         try:
             # Build command arguments
-            args = ['--format', backup_format]
+            args = ['--format', backup_format, '--output-dir', 'backups/json']
             if exclude_cache:
                 args.append('--exclude-cache')
             if user_id and user_id.strip():
@@ -1658,7 +1668,7 @@ class AdminBackupDownloadView(LoginRequiredMixin, View):
 
     def get(self, request, backup_name):
         """Download a backup as zip file"""
-        backup_dir = Path('backups') / backup_name
+        backup_dir = Path('/app/backups/json') / backup_name
 
         if not backup_dir.exists() or not backup_dir.is_dir():
             messages.error(request, f'Backup {backup_name} not found')
@@ -1686,7 +1696,7 @@ class AdminBackupDeleteView(LoginRequiredMixin, View):
 
     def post(self, request, backup_name):
         """Delete a backup directory"""
-        backup_dir = Path('backups') / backup_name
+        backup_dir = Path('/app/backups/json') / backup_name
 
         if not backup_dir.exists():
             messages.error(request, f'Backup {backup_name} not found')

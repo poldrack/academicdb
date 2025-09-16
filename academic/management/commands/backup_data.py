@@ -96,6 +96,7 @@ class Command(BaseCommand):
                     'email': user.email,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
+                    'middle_name': user.middle_name,
                     'orcid_id': user.orcid_id,
                     'institution': user.institution,
                     'department': user.department,
@@ -105,6 +106,16 @@ class Command(BaseCommand):
                     'scopus_id': user.scopus_id,
                     'pubmed_query': user.pubmed_query,
                     'skip_dois': user.skip_dois,
+                    # Address fields
+                    'address1': user.address1,
+                    'address2': user.address2,
+                    'city': user.city,
+                    'state': user.state,
+                    'zip_code': user.zip_code,
+                    'country': user.country,
+                    'phone': user.phone,
+                    # Website information
+                    'websites': user.websites,
                     'last_orcid_sync': user.last_orcid_sync.isoformat() if user.last_orcid_sync else None,
                     'date_joined': user.date_joined.isoformat(),
                 }
@@ -146,6 +157,7 @@ class Command(BaseCommand):
                     'email': user.email,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
+                    'middle_name': user.middle_name,
                     'orcid_id': user.orcid_id,
                     'institution': user.institution,
                     'department': user.department,
@@ -155,6 +167,16 @@ class Command(BaseCommand):
                     'scopus_id': user.scopus_id,
                     'pubmed_query': user.pubmed_query,
                     'skip_dois': user.skip_dois,
+                    # Address fields
+                    'address1': user.address1,
+                    'address2': user.address2,
+                    'city': user.city,
+                    'state': user.state,
+                    'zip_code': user.zip_code,
+                    'country': user.country,
+                    'phone': user.phone,
+                    # Website information
+                    'websites': user.websites,
                     'last_orcid_sync': user.last_orcid_sync.isoformat() if user.last_orcid_sync else None,
                     'date_joined': user.date_joined.isoformat(),
                 }

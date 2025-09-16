@@ -13,6 +13,19 @@ from contextlib import suppress
 import math
 from Bio import Entrez
 import subprocess
+import pybliometrics
+
+
+def init_pybliometrics():
+    """
+    Initialize pybliometrics with API key from environment variable if available,
+    otherwise use interactive configuration.
+    """
+    scopus_api_key = os.environ.get('SCOPUS_API_KEY')
+    if scopus_api_key:
+        pybliometrics.scopus.init(keys=[scopus_api_key])
+    else:
+        pybliometrics.scopus.init()
 
 
 def get_valid_date(pub):

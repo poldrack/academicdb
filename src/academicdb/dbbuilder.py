@@ -192,7 +192,7 @@ def main():
             f'You must first set up the config.toml file in {args.configdir}'
         )
 
-    pybliometrics.scopus.init()
+    utils.init_pybliometrics()
 
     db = setup_db(configfile, args.overwrite)
 

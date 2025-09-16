@@ -169,6 +169,7 @@ class Command(BaseCommand):
                             )
 
                             # Update academic fields
+                            user.middle_name = user_data.get('middle_name', '')
                             user.orcid_id = user_data.get('orcid_id')
                             user.institution = user_data.get('institution', '')
                             user.department = user_data.get('department', '')
@@ -178,6 +179,18 @@ class Command(BaseCommand):
                             user.scopus_id = user_data.get('scopus_id')
                             user.pubmed_query = user_data.get('pubmed_query')
                             user.skip_dois = user_data.get('skip_dois')
+
+                            # Update address fields
+                            user.address1 = user_data.get('address1', '')
+                            user.address2 = user_data.get('address2', '')
+                            user.city = user_data.get('city', '')
+                            user.state = user_data.get('state', '')
+                            user.zip_code = user_data.get('zip_code', '')
+                            user.country = user_data.get('country', '')
+                            user.phone = user_data.get('phone', '')
+
+                            # Update website information
+                            user.websites = user_data.get('websites', [])
 
                             if user_data.get('last_orcid_sync'):
                                 user.last_orcid_sync = parse_datetime(user_data['last_orcid_sync'])

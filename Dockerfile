@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     netcat-openbsd \
     pkg-config \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-fonts-extra \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user for security
@@ -76,4 +79,4 @@ RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Default command (can be overridden)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "30", "academicdb_web.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "300", "--keep-alive", "60", "academicdb_web.wsgi:application"]

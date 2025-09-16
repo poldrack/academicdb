@@ -9,6 +9,7 @@ from pybliometrics.scopus import AbstractRetrieval
 import pybliometrics
 
 from academic.models import Publication
+from academic.utils import init_pybliometrics
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -43,7 +44,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Initialize Scopus
         try:
-            pybliometrics.scopus.init()
+            init_pybliometrics()
         except Exception as e:
             raise CommandError(f"Failed to initialize Scopus: {str(e)}")
 

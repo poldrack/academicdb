@@ -94,11 +94,13 @@ docker-run-orcid:
 		--name academicdb \
 		-p 8000:8000 \
 		-v ${DBDIR}:/app/data \
+		-v $(PWD)/backups:/app/backups \
 		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		-e DEBUG=false \
 		-e SECRET_KEY=stable-key-for-local-development-do-not-use-in-production \
 		-e ORCID_CLIENT_ID=$(ORCID_CLIENT_ID) \
 		-e ORCID_CLIENT_SECRET=$(ORCID_CLIENT_SECRET) \
+		-e SCOPUS_API_KEY=$(SCOPUS_API_KEY) \
 		academicdb:latest
 
 docker-stop:

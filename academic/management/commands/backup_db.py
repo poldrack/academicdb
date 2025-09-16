@@ -16,8 +16,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--output-dir',
             type=str,
-            default='backups',
-            help='Directory to store backups (default: backups/)'
+            default='backups/postgresql',
+            help='Directory to store backups (default: backups/postgresql/)'
         )
         parser.add_argument(
             '--format',
