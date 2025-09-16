@@ -16,39 +16,127 @@
                 <h5><i class="fas fa-plus"></i> Create New Backup</h5>
             </div>
             <div class="card-body">
-                <form method="post" action="{% url 'academic:admin_backup_create' %}" class="row g-3">
-                    {% csrf_token %}
-                    <div class="col-md-4">
-                        <label for="format" class="form-label">Backup Format</label>
-                        <select class="form-select" name="format" id="format">
-                            <option value="separate">Separate Files</option>
-                            <option value="combined">Combined File</option>
-                        </select>
-                        <div class="form-text">
-                            Separate: Creates individual JSON files per model.<br>
-                            Combined: Creates one comprehensive JSON file.
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="user_id" class="form-label">User ID (Optional)</label>
-                        <input type="number" class="form-control" name="user_id" id="user_id"
-                               placeholder="Leave empty for all users">
-                        <div class="form-text">Backup specific user only</div>
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" name="exclude_cache" id="exclude_cache">
-                            <label class="form-check-label" for="exclude_cache">
-                                Exclude Author Cache
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Create Backup
+                <!-- Tabs for different backup methods -->
+                <ul class="nav nav-tabs mb-3" id="backupTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="json-tab" data-bs-toggle="tab" data-bs-target="#json" type="button" role="tab">
+                            JSON Backup
                         </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="postgres-tab" data-bs-toggle="tab" data-bs-target="#postgres" type="button" role="tab">
+                            PostgreSQL Direct Dump
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="backupTabContent">
+                    <!-- JSON Backup Tab -->
+                    <div class="tab-pane fade show active" id="json" role="tabpanel">
+                        <form method="post" action="{% url 'academic:admin_backup_create' %}" class="row g-3">
+                            {% csrf_token %}
+                            <div class="col-md-4">
+                                <label for="format" class="form-label">Backup Format</label>
+                                <select class="form-select" name="format" id="format">
+                                    <option value="separate">Separate Files</option>
+                                    <option value="combined">Combined File</option>
+                                </select>
+                                <div class="form-text">
+                                    Separate: Creates individual JSON files per model.<br>
+                                    Combined: Creates one comprehensive JSON file.
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="user_id" class="form-label">User ID (Optional)</label>
+                                <input type="number" class="form-control" name="user_id" id="user_id"
+                                       placeholder="Leave empty for all users">
+                                <div class="form-text">Backup specific user only</div>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="exclude_cache" id="exclude_cache">
+                                    <label class="form-check-label" for="exclude_cache">
+                                        Exclude Author Cache
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Create JSON Backup
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                </form>
+
+                    <!-- PostgreSQL Direct Dump Tab -->
+                    <div class="tab-pane fade" id="postgres" role="tabpanel">
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle"></i> <strong>PostgreSQL Direct Dump</strong><br>
+                            Creates native PostgreSQL backup files using pg_dump. These backups are faster and more efficient for full database backup/restore operations.
+                        </div>
+
+                        <h6>Available Management Commands:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title"><i class="fas fa-download"></i> Create PostgreSQL Backup</h6>
+                                        <p class="card-text small">Use the following command in terminal:</p>
+                                        <pre class="bg-light p-2"><code>python manage.py backup_db [options]</code></pre>
+                                        <p class="small mb-2"><strong>Options:</strong></p>
+                                        <ul class="small">
+                                            <li><code>--format {sql,custom,tar}</code> - Backup format (default: custom)</li>
+                                            <li><code>--compress</code> - Compress SQL output with gzip</li>
+                                            <li><code>--output-dir DIR</code> - Output directory (default: backups/)</li>
+                                        </ul>
+                                        <p class="small mb-0"><strong>Examples:</strong></p>
+                                        <pre class="bg-light p-2 small"><code># Create compressed custom format backup
+python manage.py backup_db --format custom
+
+# Create compressed SQL backup
+python manage.py backup_db --format sql --compress
+
+# Create tar format backup
+python manage.py backup_db --format tar</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title"><i class="fas fa-upload"></i> Restore PostgreSQL Backup</h6>
+                                        <p class="card-text small">Use the following command in terminal:</p>
+                                        <pre class="bg-light p-2"><code>python manage.py restore_db &lt;backup_file&gt; [options]</code></pre>
+                                        <p class="small mb-2"><strong>Options:</strong></p>
+                                        <ul class="small">
+                                            <li><code>--clean</code> - Drop existing objects before restore</li>
+                                            <li><code>--no-owner</code> - Don't restore ownership</li>
+                                            <li><code>--data-only</code> - Restore only data</li>
+                                            <li><code>--schema-only</code> - Restore only schema</li>
+                                            <li><code>--force</code> - Skip confirmation prompt</li>
+                                            <li><code>--create-db</code> - Create database before restore</li>
+                                        </ul>
+                                        <p class="small mb-0"><strong>Examples:</strong></p>
+                                        <pre class="bg-light p-2 small"><code># Restore from custom format backup
+python manage.py restore_db backups/academicdb_backup_20250916_131545.dump
+
+# Restore with clean (drops existing data)
+python manage.py restore_db backup.dump --clean --force
+
+# Restore from compressed SQL
+python manage.py restore_db backup.sql.gz</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> PostgreSQL dumps must be managed via command line.
+                            They provide better performance and reliability for full database backups compared to JSON exports.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 

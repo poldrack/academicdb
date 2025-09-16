@@ -131,3 +131,10 @@ dmypy.json
 .pyre/
 
 credentials.txt
+
+# Database backups
+backups/
+*.dump
+*.sql
+*.sql.gz
+restore.out

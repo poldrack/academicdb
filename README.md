@@ -138,9 +138,46 @@ uv run python manage.py clear_funding --user-id ID --confirm
 
 # Import CSV data
 uv run python manage.py import_csv --user-id ID --teaching-file teaching.csv
+```
 
-# Backup database
-uv run python manage.py backup_db [--output-dir backups/]
+### Database Backup & Restore
+
+#### PostgreSQL Direct Dumps (Recommended for full database backup)
+
+```bash
+# Create PostgreSQL backup (multiple formats available)
+uv run python manage.py backup_db [options]
+  --format {sql,custom,tar}  # Backup format (default: custom)
+  --compress                 # Compress SQL output with gzip
+  --output-dir DIR          # Output directory (default: backups/)
+
+# Examples:
+uv run python manage.py backup_db --format custom  # Compressed binary format (recommended)
+uv run python manage.py backup_db --format sql --compress  # Compressed SQL
+uv run python manage.py backup_db --format tar     # TAR archive format
+
+# Restore PostgreSQL backup
+uv run python manage.py restore_db <backup_file> [options]
+  --clean          # Drop existing objects before restore
+  --no-owner       # Don't restore ownership
+  --data-only      # Restore only data, not schema
+  --schema-only    # Restore only schema, not data
+  --force          # Skip confirmation prompt
+  --create-db      # Create database before restore
+
+# Examples:
+uv run python manage.py restore_db backups/academicdb_backup_20250916.dump
+uv run python manage.py restore_db backup.sql.gz --clean --force
+```
+
+#### JSON-based Backup (User-specific data export/import)
+
+```bash
+# Create JSON backup
+uv run python manage.py backup_data [--output-dir backups/] [--user-id ID]
+
+# Restore from JSON backup
+uv run python manage.py restore_data <backup_dir> [--user-id ID] [--merge]
 ```
 
 ### Data Quality
