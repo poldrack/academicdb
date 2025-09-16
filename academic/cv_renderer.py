@@ -991,6 +991,11 @@ def compile_latex_to_pdf(latex_content, output_dir=None):
     with open(tex_path, 'w', encoding='utf-8') as f:
         f.write(latex_content)
 
+    # Log the location for debugging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"LaTeX file written to: {tex_path}")
+
     # Compile with xelatex
     try:
         # Use full path to xelatex to avoid PATH issues in web server context
@@ -1049,7 +1054,14 @@ def compile_latex_to_pdf(latex_content, output_dir=None):
         error_message = result.stderr
         if not success:
             if result.returncode != 0:
-                error_message = f"xelatex failed with return code {result.returncode}: {result.stderr}"
+                # Include both stdout and stderr for better debugging
+                error_details = []
+                if result.stderr.strip():
+                    error_details.append(f"stderr: {result.stderr.strip()}")
+                if result.stdout.strip():
+                    error_details.append(f"stdout: {result.stdout.strip()}")
+
+                error_message = f"xelatex failed with return code {result.returncode}. " + "; ".join(error_details) if error_details else "No output captured"
             if not os.path.exists(pdf_path):
                 error_message += f" (PDF file not created at {pdf_path})"
 

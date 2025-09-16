@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y \
     texlive-fonts-extra \
     texlive-latex-extra \
     texlive-latex-recommended \
+    texlive-bibtex-extra \
+    tex-gyre \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user for security
