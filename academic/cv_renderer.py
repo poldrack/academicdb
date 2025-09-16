@@ -944,9 +944,6 @@ def generate_cv_latex(user, exclude_dois=None, exclude_preprints=False):
     Returns:
         str: Complete LaTeX document
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"generate_cv_latex called with exclude_preprints={exclude_preprints}")
     # Get LaTeX document structure
     header = get_latex_header()
     footer = get_latex_footer()

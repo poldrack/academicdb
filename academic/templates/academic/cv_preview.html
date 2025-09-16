@@ -178,35 +178,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const texBtn = document.querySelector('a[href*="tex"]'); // Simplified selector
     const excludePreprints = document.getElementById('excludePreprints');
 
-    console.log('PDF button found:', !!pdfBtn);
-    console.log('TEX button found:', !!texBtn);
-    console.log('Checkbox found:', !!excludePreprints);
-
     function updateDownloadUrls() {
         const excludeParam = excludePreprints.checked ? '?exclude_preprints=true' : '';
-        console.log('Updating URLs with param:', excludeParam);
 
         if (pdfBtn) {
             const baseUrl = pdfBtn.href.split('?')[0];
-            const newUrl = baseUrl + excludeParam;
-            console.log('PDF URL: ' + pdfBtn.href + ' -> ' + newUrl);
-            pdfBtn.href = newUrl;
+            pdfBtn.href = baseUrl + excludeParam;
         }
 
         if (texBtn) {
             const baseUrl = texBtn.href.split('?')[0];
-            const newUrl = baseUrl + excludeParam;
-            console.log('TEX URL: ' + texBtn.href + ' -> ' + newUrl);
-            texBtn.href = newUrl;
+            texBtn.href = baseUrl + excludeParam;
         }
     }
 
     // Update URLs when checkbox changes
     if (excludePreprints) {
-        excludePreprints.addEventListener('change', function() {
-            console.log('Checkbox changed to:', this.checked);
-            updateDownloadUrls();
-        });
+        excludePreprints.addEventListener('change', updateDownloadUrls);
         updateDownloadUrls(); // Initial update
     }
 
