@@ -33,13 +33,20 @@ RUN useradd --create-home --shell /bin/bash appuser
 RUN mkdir -p /app/data /app/media /app/staticfiles /app/logs && \
     chown -R appuser:appuser /app
 
-# Copy application code first
+# Copy only dependency files first (for better caching)
+COPY pyproject.toml .
+
+# Install only dependencies first (cached layer)
+RUN pip install --upgrade pip && \
+    pip install --dependency-groups dev && \
+    pip install pandas numpy biopython scholarly crossrefapi tomli pybliometrics pymongo orcid tomli-w pytest toml ipython matplotlib django psycopg2-binary django-allauth django-extensions djangorestframework python-dotenv openpyxl dj-database-url && \
+    pip install gunicorn whitenoise
+
+# Copy application code after dependencies are installed
 COPY . .
 
-# Install Python dependencies
-RUN pip install --upgrade pip && \
-    pip install -e . && \
-    pip install gunicorn whitenoise
+# Install current project as editable (fast since deps already installed)
+RUN pip install -e .
 
 # Set ownership of app directory
 RUN chown -R appuser:appuser /app
