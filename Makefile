@@ -1,5 +1,5 @@
 test:
-	python -m pytest src/test/test*.py
+	uv run python -m pytest tests
 
 run:
 	uv run python manage.py runserver

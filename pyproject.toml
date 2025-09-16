@@ -81,3 +81,16 @@ exclude = [
     ".venv",
     "venv",
 ]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.10.6",
+    "factory-boy>=3.3.3",
+    "faker>=37.8.0",
+    "freezegun>=1.5.5",
+    "model-bakery>=1.20.5",
+    "pytest-cov>=7.0.0",
+    "pytest-django>=4.11.1",
+    "pytest-xdist>=3.8.0",
+    "responses>=0.25.8",
+]
