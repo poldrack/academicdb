@@ -18,12 +18,17 @@ import pybliometrics
 
 def init_pybliometrics():
     """
-    Initialize pybliometrics with API key from environment variable if available,
+    Initialize pybliometrics with API key and institutional token from environment variables,
     otherwise use interactive configuration.
     """
     scopus_api_key = os.environ.get('SCOPUS_API_KEY')
+    scopus_inst_token = os.environ.get('SCOPUS_INST_TOKEN')
+
     if scopus_api_key:
-        pybliometrics.scopus.init(keys=[scopus_api_key])
+        keys = [scopus_api_key]
+        inst_tokens = [scopus_inst_token] if scopus_inst_token else None
+
+        pybliometrics.scopus.init(keys=keys, inst_tokens=inst_tokens)
     else:
         pybliometrics.scopus.init()
 

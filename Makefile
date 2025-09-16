@@ -101,6 +101,7 @@ docker-run-orcid:
 		-e ORCID_CLIENT_ID=$(ORCID_CLIENT_ID) \
 		-e ORCID_CLIENT_SECRET=$(ORCID_CLIENT_SECRET) \
 		-e SCOPUS_API_KEY=$(SCOPUS_API_KEY) \
+		-e SCOPUS_INST_TOKEN=$(SCOPUS_INST_TOKEN) \
 		academicdb:latest
 
 docker-stop:
