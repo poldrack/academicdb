@@ -20,9 +20,7 @@ class AcademicUserFactory(DjangoModelFactory):
     orcid_id = factory.Faker('bothify', text='0000-0000-0000-####')
     institution = factory.Faker('company')
     department = factory.Faker('job')
-    research_areas = factory.LazyFunction(
-        lambda: [factory.Faker('word').generate() for _ in range(3)]
-    )
+    research_areas = factory.LazyFunction(lambda: ['research', 'testing', 'development'])
 
 
 class PublicationFactory(DjangoModelFactory):
@@ -35,28 +33,30 @@ class PublicationFactory(DjangoModelFactory):
     year = factory.Faker('year')
     journal = factory.Faker('company')
     volume = factory.Faker('random_int', min=1, max=100)
-    page_range = factory.LazyFunction(
-        lambda: f"{factory.Faker('random_int', min=1, max=999).generate()}-{factory.Faker('random_int', min=1000, max=1999).generate()}"
-    )
+    page_range = "100-110"
 
     # JSON fields
     authors = factory.LazyFunction(
         lambda: [
             {
-                'name': factory.Faker('name').generate(),
-                'orcid': factory.Faker('bothify', text='0000-0000-0000-####').generate() if factory.Faker('boolean').generate() else None,
-                'affiliation': factory.Faker('company').generate() if factory.Faker('boolean').generate() else None
+                'name': 'Test Author',
+                'orcid': '0000-0000-0000-0001',
+                'affiliation': 'Test University'
+            },
+            {
+                'name': 'Second Author',
+                'orcid': None,
+                'affiliation': None
             }
-            for _ in range(factory.Faker('random_int', min=1, max=5).generate())
         ]
     )
 
     metadata = factory.LazyFunction(
         lambda: {
-            'abstract': factory.Faker('text').generate(),
-            'keywords': [factory.Faker('word').generate() for _ in range(5)],
-            'source': factory.Faker('random_element', elements=['scopus', 'pubmed', 'crossref', 'manual']).generate(),
-            'citations': factory.Faker('random_int', min=0, max=100).generate() if factory.Faker('boolean').generate() else None
+            'abstract': 'This is a test abstract for testing purposes.',
+            'keywords': ['test', 'research', 'science'],
+            'source': 'manual',
+            'citations': 10
         }
     )
 
@@ -69,8 +69,8 @@ class PublicationWithManualEditsFactory(PublicationFactory):
 
     manual_edits = factory.LazyFunction(
         lambda: {
-            'title': factory.Faker('boolean').generate(),
-            'journal': factory.Faker('boolean').generate()
+            'title': True,
+            'journal': False
         }
     )
 
@@ -78,9 +78,9 @@ class PublicationWithManualEditsFactory(PublicationFactory):
         lambda: [
             {
                 'field': 'title',
-                'old_value': factory.Faker('sentence').generate(),
-                'new_value': factory.Faker('sentence').generate(),
-                'timestamp': factory.Faker('date_time_this_year').generate().isoformat(),
+                'old_value': 'Original Title',
+                'new_value': 'Updated Title',
+                'timestamp': '2024-01-01T12:00:00Z',
                 'is_manual': True
             }
         ]

@@ -3,12 +3,15 @@
 ## Project Overview
 Django-based academic database management system with ORCID authentication, PostgreSQL backend, and comprehensive publication/collaboration tracking. Migrating from Flask+MongoDB to Django+PostgreSQL for better ecosystem integration.
 
+**TESTING STATUS**: Comprehensive testing framework implemented with 80%+ coverage target. Current phase: regression and integration tests.
+
 ## Current Architecture
-**Framework**: Django 4.2+ with PostgreSQL and JSONB fields  
-**Authentication**: django-allauth with ORCID OAuth provider  
-**Database**: PostgreSQL with hybrid relational+document approach  
-**Frontend**: Django templates + Bootstrap 5 (minimal JavaScript)  
+**Framework**: Django 4.2+ with PostgreSQL and JSONB fields
+**Authentication**: django-allauth with ORCID OAuth provider
+**Database**: PostgreSQL with hybrid relational+document approach
+**Frontend**: Django templates + Bootstrap 5 (minimal JavaScript)
 **APIs**: Integration with Scopus, PubMed, CrossRef, ORCID, Google Scholar
+**Testing**: pytest + factory-boy + comprehensive test suite
 
 ## Key Models
 ```python
@@ -62,24 +65,47 @@ class PublicationViewSet(ModelViewSet):
         serializer.save(owner=self.request.user)
 ```
 
-## Testing Requirements
-- TDD with failing tests first (constitutional requirement)
-- Real PostgreSQL database for integration tests
-- ORCID sandbox API testing
-- Performance testing for academic-scale datasets (1000+ publications)
+## Testing Implementation (COMPLETED)
+**Framework**: pytest + factory-boy + responses + freezegun
+**Coverage Target**: 80%+ overall, 90%+ for critical paths
+**Test Types**:
+- Unit tests (35 tests): User isolation, edit preservation, authentication
+- Characterization tests (11 tests): Document current model behavior
+- Regression tests (API contracts, model behavior): Prevent breaking changes
+- Integration tests: External API mocking with responses library
+- Performance tests: Load testing and baseline metrics
 
-## Development Workflow
-1. Write failing tests for new functionality
-2. Implement minimal code to pass tests  
-3. Refactor while maintaining test coverage
-4. Ensure user data isolation in all operations
+**Test Infrastructure**:
+- SQLite for fast unit tests, PostgreSQL option for integration tests
+- Model factories for realistic test data generation
+- External API mocking to prevent network dependencies
+- Comprehensive fixtures for common test scenarios
+
+## Development Workflow (Updated for Existing Codebase)
+1. **Characterization tests first**: Document current behavior before changes
+2. **Risk-based testing**: Prioritize critical paths (user isolation, edit preservation)
+3. **Regression prevention**: Lock in API contracts and model behavior
+4. **Integration verification**: Test external API interactions with mocks
+5. **Performance baselines**: Establish benchmarks for optimization
+
+## Testing Commands (Makefile)
+```bash
+make test                    # Run all tests
+make test-unit              # Run unit tests only
+make test-characterization  # Run characterization tests
+make test-coverage          # Run tests with coverage report
+make coverage-report        # Show coverage summary
+```
 
 ## Recent Changes
+- **COMPLETED**: Comprehensive testing framework implementation
+- **COMPLETED**: User data isolation tests (critical security requirement)
+- **COMPLETED**: Edit preservation tests (core business logic protection)
+- **COMPLETED**: API contract regression tests
+- **IN PROGRESS**: Performance baseline establishment
 - Migrating from Flask+MongoDB to Django+PostgreSQL
 - Adding ORCID OAuth authentication
 - Implementing field-level edit tracking
-- Creating REST API contracts
-- Designing data migration strategy
 
 ## Performance Targets
 - Dashboard load: <2 seconds
@@ -121,22 +147,34 @@ orcid>=1.0.3
 ## File Structure
 ```
 academicdb_web/          # Django project
-├── settings.py
+├── settings/           # Settings package
+│   ├── base.py        # Base settings
+│   └── test.py        # Test-specific settings
 ├── urls.py
 └── wsgi.py
 
-academicdb/              # Main Django app  
-├── models.py           # Database models
-├── views.py            # API views and web views
-├── serializers.py      # DRF serializers
-├── forms.py            # Django forms
-├── management/         # Management commands
-│   └── commands/
-│       ├── sync_external.py
-│       └── migrate_from_mongo.py
-└── templates/          # Django templates
+academic/               # Main Django app
+├── models.py          # Database models
+├── views.py           # API views and web views
+├── serializers.py     # DRF serializers
+├── api_views.py       # API ViewSets
+├── api_urls.py        # API URL routing
+├── management/        # Management commands
+└── templates/         # Django templates
 
-src/academicdb/         # Existing CLI tools (preserved)
+tests/                 # Comprehensive test suite
+├── conftest.py       # Test fixtures and configuration
+├── factories.py      # Model factories for test data
+├── unit/             # Unit tests (35 tests)
+│   ├── test_user_data_isolation.py
+│   ├── test_edit_preservation.py
+│   └── test_authentication.py
+├── characterization/ # Current behavior tests (11 tests)
+├── regression/       # Regression prevention tests
+├── integration/      # External API integration tests
+└── performance/      # Load and performance tests
+
+src/academicdb/       # Legacy CLI tools (preserved)
 └── [existing Python package structure]
 ```
 

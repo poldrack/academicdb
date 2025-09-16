@@ -8,7 +8,10 @@ test-characterization:
 	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest tests/characterization -v
 
 test-coverage:
-	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest --cov=academic --cov=academicdb_web --cov-report=html tests
+	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest --cov=academic --cov=academicdb_web --cov-report=html --cov-report=term tests
+
+coverage-report:
+	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run coverage report --show-missing
 
 run:
 	uv run python manage.py runserver
