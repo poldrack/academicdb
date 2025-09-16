@@ -680,8 +680,12 @@ def format_publication(pub, debug=False):
     outlet_str = get_publication_outlet(pub_data)
     escaped_title = prepare_title_for_latex(pub.title)
 
-    # Build citation
-    output = f"{authors_str}({pub.year}). {escaped_title}.{outlet_str}"
+    # Build citation with proper spacing for et al.
+    # Add space before year if authors_str ends with "et al."
+    if authors_str.endswith('et al.'):
+        output = f"{authors_str} ({pub.year}). {escaped_title}.{outlet_str}"
+    else:
+        output = f"{authors_str}({pub.year}). {escaped_title}.{outlet_str}"
 
     # Add links and identifiers (URLs should NOT be escaped for LaTeX)
     with suppress(KeyError, AttributeError):
