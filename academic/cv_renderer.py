@@ -632,6 +632,9 @@ def get_publication_outlet(pub_data):
         server_name = get_preprint_server_name(journal)
         escaped_server_name = escape_characters_for_latex(server_name)
         return f" \\textit{{{escaped_server_name} (preprint)}}. "
+    elif pub_type == 'conference-paper':
+        escaped_journal = escape_characters_for_latex(journal)
+        return f" \\textit{{{escaped_journal}}}. "
     else:
         escaped_type = escape_characters_for_latex(pub_type)
         return f"\\textbf{{TBD{escaped_type}}}"

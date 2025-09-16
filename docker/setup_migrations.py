@@ -123,11 +123,24 @@ class Migration(migrations.Migration):
     ]
 """
 
+def create_sqlite_migration_21():
+    """Migration 0021 - Skip PostgreSQL search vector update for SQLite"""
+    return """# SQLite-compatible migration (Docker build)
+from django.db import migrations
+
+class Migration(migrations.Migration):
+    dependencies = [('academic', '0020_apirecordcache')]
+
+    # Skip PostgreSQL search vector operations for SQLite compatibility
+    operations = []
+"""
+
 # Migration replacements
 migration_replacements = {
     '0013_add_gin_indexes.py': create_sqlite_migration_13(),
     '0014_add_fulltext_search.py': create_sqlite_migration_14(),
-    '0015_professionalactivity_remove_funding_funding_info_gin_and_more.py': create_sqlite_migration_15()
+    '0015_professionalactivity_remove_funding_funding_info_gin_and_more.py': create_sqlite_migration_15(),
+    '0021_update_search_vector_include_authors.py': create_sqlite_migration_21()
 }
 
 for migration_file, replacement_content in migration_replacements.items():

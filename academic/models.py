@@ -931,7 +931,8 @@ class Publication(models.Model):
                 Q(title__icontains=term) |
                 Q(publication_name__icontains=term) |
                 Q(metadata__abstract__icontains=term) |
-                Q(doi__icontains=term)
+                Q(doi__icontains=term) |
+                Q(authors__icontains=term)
             )
             search_conditions &= term_conditions
 

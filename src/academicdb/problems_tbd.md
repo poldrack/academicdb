@@ -4,19 +4,16 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.
 
-[x] Pybliometrics requires the scopus key to be provided the first time that pybliometrics is loaded.  this is causing the process to get stuck here:
-    Creating config file at /home/appuser/.config/pybliometrics.cfg with default paths...
-    Please enter your API Key(s), obtained from http://dev.elsevier.com/myapikey.html.  Separate multiple keys by comma:
 
-This key is defined as an environment variable: SCOPUS_API_KEY
-Can this be passed directly to pybliometrics?
+[x] There is a problem with certain papers that are of the type "Conference Paper".  In the rendered CV, the journal is being listed as "TBDconference-paper" in bold text.  The reference should instead display the publicationName.
 
-FIXED: Modified all pybliometrics.scopus.init() calls to use SCOPUS_API_KEY environment variable when available. Created utility functions in both academic/utils.py and src/academicdb/utils.py to handle this initialization consistently across the codebase.
+    Fixed by:
+    1. Added case for 'conference-paper' type in get_publication_outlet() function in academic/cv_renderer.py
+    2. Now displays the publication name (journal/conference name) in italics like other publication types
 
-[x] A latex distribution needs to be installed within the docker container so that the PDF file can be rendered.
+[x] The publication search doesn't seem to be searching the author names, only the title.
 
-FIXED: Added texlive-xetex, texlive-fonts-recommended, and texlive-fonts-extra packages to the Dockerfile. This provides the xelatex engine required for CV PDF generation.
-
-[x] The secret key for the server is currently defined as an unsafe plain text entry. That key should instead be read in from an environment variable defined by the user.  If that environment variable doesn't exist, then we should offer to create a random hash value and save it to the .env file so that it can be shared via the docker call.
-
-FIXED: Modified Django settings to use SECRET_KEY environment variable in base.py. Created get_or_generate_secret_key() utility function in academic/utils.py that checks for environment variable, generates a random secret key if not found, and saves it to .env file. Updated docker.py settings to use this utility function for secure key management.
+    Fixed by:
+    1. Updated SQLite search method in academic/models.py to include Q(authors__icontains=term)
+    2. Created migration 0017_update_search_vector_include_authors.py to update PostgreSQL search vector to include authors field with weight 'D'
+    3. Both PostgreSQL and SQLite search now include author names in search results
