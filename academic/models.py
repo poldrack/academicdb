@@ -1979,12 +1979,12 @@ class Talk(models.Model):
     """
     # Ownership
     owner = models.ForeignKey(
-        AcademicUser, 
+        AcademicUser,
         on_delete=models.CASCADE,
         related_name='talks'
     )
-    
-    # Talk Details
+
+    # Core Talk Details
     year = models.IntegerField(
         validators=[
             MinValueValidator(1950),
@@ -1996,68 +1996,35 @@ class Talk(models.Model):
         max_length=500,
         help_text="Institution, university, or venue where talk was given"
     )
-    
-    # Optional Details
-    title = models.CharField(
-        max_length=500,
-        blank=True,
-        help_text="Title of the talk"
-    )
-    date = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Specific date of the talk"
-    )
     invited = models.BooleanField(
         default=True,
         help_text="Was this an invited talk?"
     )
-    virtual = models.BooleanField(
-        default=False,
-        help_text="Was this talk given virtually?"
-    )
-    
-    # Additional metadata
-    additional_info = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Additional talk details (audience size, event name, etc.)"
-    )
-    
+
     # Source tracking
     source = models.CharField(
         max_length=50,
         choices=[
             ('manual', 'Manual Entry'),
-            ('import', 'File Import'),
+            ('csv_import', 'CSV Import'),
         ],
         default='manual',
         help_text="Original data source"
     )
-    
-    # Edit tracking
-    manual_edits = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Tracks which fields have been manually edited"
-    )
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         indexes = [
             models.Index(fields=['owner', 'year']),
-            models.Index(fields=['year', 'invited']),
         ]
-        ordering = ['-year', '-date', 'place']
+        ordering = ['-year', 'place']
         verbose_name = 'Talk'
         verbose_name_plural = 'Talks'
-    
+
     def __str__(self):
-        if self.title:
-            return f"{self.title} - {self.place} ({self.year})"
         return f"{self.place} ({self.year})"
 
 
@@ -2065,28 +2032,15 @@ class Conference(models.Model):
     """
     Represents conference presentations, posters, and proceedings
     """
-    # Presentation type choices
-    TYPE_CHOICES = [
-        ('talk', 'Talk/Presentation'),
-        ('poster', 'Poster'),
-        ('keynote', 'Keynote'),
-        ('workshop', 'Workshop'),
-        ('panel', 'Panel Discussion'),
-        ('other', 'Other'),
-    ]
-    
+
     # Ownership
     owner = models.ForeignKey(
-        AcademicUser, 
+        AcademicUser,
         on_delete=models.CASCADE,
         related_name='conferences'
     )
-    
-    # Conference Details
-    title = models.CharField(
-        max_length=500,
-        help_text="Title of the presentation/poster"
-    )
+
+    # Core Conference Details
     authors = models.TextField(
         help_text="Authors of the presentation (as they appear in program)"
     )
@@ -2097,77 +2051,42 @@ class Conference(models.Model):
         ],
         help_text="Year of the conference"
     )
+    title = models.CharField(
+        max_length=500,
+        help_text="Title of the presentation/poster"
+    )
     location = models.CharField(
         max_length=500,
         help_text="Conference location (city, venue, or 'virtual')"
     )
-    
-    # Optional Details
     month = models.CharField(
         max_length=20,
         blank=True,
         help_text="Month of the conference"
     )
-    conference_name = models.CharField(
-        max_length=300,
-        blank=True,
-        help_text="Name of the conference or meeting"
-    )
-    presentation_type = models.CharField(
-        max_length=50,
-        choices=TYPE_CHOICES,
-        default='talk',
-        help_text="Type of presentation"
-    )
     link = models.URLField(
         blank=True,
         help_text="Link to presentation, abstract, or conference page"
     )
-    abstract = models.TextField(
-        blank=True,
-        help_text="Abstract of the presentation"
-    )
-    
-    # Parsed author information (JSON field for structured data)
-    parsed_authors = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="Structured author information"
-    )
-    
-    # Additional metadata
-    additional_info = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Additional conference details"
-    )
-    
+
     # Source tracking
     source = models.CharField(
         max_length=50,
         choices=[
             ('manual', 'Manual Entry'),
-            ('import', 'File Import'),
+            ('csv_import', 'CSV Import'),
         ],
         default='manual',
         help_text="Original data source"
     )
-    
-    # Edit tracking
-    manual_edits = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Tracks which fields have been manually edited"
-    )
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         indexes = [
             models.Index(fields=['owner', 'year']),
-            models.Index(fields=['year', 'presentation_type']),
         ]
         ordering = ['-year', 'month', 'title']
         verbose_name = 'Conference Presentation'

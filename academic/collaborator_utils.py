@@ -196,6 +196,10 @@ def build_collaborators_table(user):
     Returns:
         dict: Results summary with counts of processed, created, updated, and errors
     """
+    # Initialize pybliometrics before using Scopus API
+    from .utils import init_pybliometrics
+    init_pybliometrics()
+
     logger.info(f"Building collaborators table for user {user.id}")
 
     # Extract collaborator IDs from publications

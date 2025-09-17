@@ -12,6 +12,13 @@
                         <i class="fas fa-users"></i> Build collaborators table
                     </button>
                 </form>
+
+                <!-- Clear All Button (only show if collaborators exist) -->
+                {% if total_collaborators > 0 %}
+                    <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#clearCollaboratorsModal" title="Clear all collaborators">
+                        <i class="fas fa-trash-alt"></i> Clear All
+                    </button>
+                {% endif %}
             </div>
         </div>
 
@@ -118,4 +125,109 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Clear Collaborators Confirmation Modal -->
+<div class="modal fade" id="clearCollaboratorsModal" tabindex="-1" aria-labelledby="clearCollaboratorsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="clearCollaboratorsModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Clear All Collaborators
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>⚠️ Warning:</strong> This will permanently delete <strong>all {{ total_collaborators }} collaborator records</strong> from your database.
+                </div>
+
+                <p><strong>This action cannot be undone.</strong> All collaborator data, including:</p>
+                <ul>
+                    <li>Collaborator names and affiliations</li>
+                    <li>Publication counts and collaboration dates</li>
+                    <li>Scopus ID information</li>
+                    <li>Any additional metadata</li>
+                </ul>
+                <p>will be permanently removed from your account.</p>
+
+                <p>You can rebuild the collaborators table from your publications after clearing.</p>
+
+                <hr>
+
+                <form method="post" action="{% url 'academic:clear_collaborators' %}" id="clearCollaboratorsForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="confirmationInput" class="form-label">
+                            <strong>To confirm, type "delete all collaborators" exactly:</strong>
+                        </label>
+                        <input type="text" class="form-control" id="confirmationInput" name="confirmation"
+                               placeholder="Type here to confirm..." autocomplete="off">
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger disabled" id="confirmDeleteBtn" disabled>
+                            <i class="fas fa-trash-alt"></i> Delete All Collaborators
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmationInput = document.getElementById('confirmationInput');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const clearCollaboratorsForm = document.getElementById('clearCollaboratorsForm');
+
+    if (confirmationInput && confirmDeleteBtn) {
+        confirmationInput.addEventListener('input', function() {
+            const expectedText = 'delete all collaborators';
+            const inputText = this.value.toLowerCase().trim();
+
+            if (inputText === expectedText) {
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.classList.remove('disabled');
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                confirmDeleteBtn.disabled = true;
+                confirmDeleteBtn.classList.add('disabled');
+                this.classList.remove('is-valid');
+                if (inputText.length > 0) {
+                    this.classList.add('is-invalid');
+                }
+            }
+        });
+
+        // Handle form submission
+        clearCollaboratorsForm.addEventListener('submit', function(e) {
+            const inputText = confirmationInput.value.toLowerCase().trim();
+            if (inputText !== 'delete all collaborators') {
+                e.preventDefault();
+                confirmationInput.classList.add('is-invalid');
+                return false;
+            }
+
+            // Show loading state
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+        });
+
+        // Reset form when modal is hidden
+        const clearModal = document.getElementById('clearCollaboratorsModal');
+        clearModal.addEventListener('hidden.bs.modal', function() {
+            confirmationInput.value = '';
+            confirmationInput.classList.remove('is-valid', 'is-invalid');
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.classList.add('disabled');
+            confirmDeleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All Collaborators';
+        });
+    }
+});
+</script>
 {% endblock %}

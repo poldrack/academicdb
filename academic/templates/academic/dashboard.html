@@ -159,6 +159,13 @@
                                             </button>
                                         </form>
                                     {% endif %}
+
+                                    <form method="post" action="{% url 'academic:sync_data_files' %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-secondary">
+                                            <i class="fas fa-file-import"></i> Sync Data Files
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>

@@ -65,6 +65,7 @@ urlpatterns = [
     path('sync/orcid/', views.OrcidSyncView.as_view(), name='orcid_sync'),
     path('sync/scopus/', views.ScopusSyncView.as_view(), name='scopus_sync'),
     path('sync/pubmed/', views.PubMedSyncView.as_view(), name='pubmed_sync'),
+    path('sync/data-files/', views.SyncDataFilesView.as_view(), name='sync_data_files'),
     path('sync/comprehensive/', views.ComprehensiveSyncView.as_view(), name='comprehensive_sync'),
     path('sync/status/', views.SyncStatusView.as_view(), name='sync_status'),
     path('sync/progress/', views.SyncProgressStreamView.as_view(), name='sync_progress'),
@@ -82,16 +83,20 @@ urlpatterns = [
     path('tools/clear-api-cache/<str:api_source>/', views.ClearSpecificAPICacheView.as_view(), name='clear_specific_api_cache'),
 
     # Editorial Activities URLs
-    path('editorial/', views.EditorialListView.as_view(), name='editorial_list'),
+    path('editorial/', views.EditorialSpreadsheetView.as_view(), name='editorial_spreadsheet'),
+    path('editorial/list/', views.EditorialSpreadsheetView.as_view(), name='editorial_list'),  # Redirect to spreadsheet view
     path('editorial/new/', views.EditorialCreateView.as_view(), name='editorial_create'),
     path('editorial/<int:pk>/', views.EditorialDetailView.as_view(), name='editorial_detail'),
     path('editorial/<int:pk>/edit/', views.EditorialUpdateView.as_view(), name='editorial_update'),
     path('editorial/<int:pk>/delete/', views.EditorialDeleteView.as_view(), name='editorial_delete'),
+    path('editorial/spreadsheet/iframe/', views.EditorialSpreadsheetIframeView.as_view(), name='editorial_spreadsheet_iframe'),
     path('editorial/upload/', views.EditorialUploadView.as_view(), name='editorial_upload'),
+    path('editorial/delete-all/', views.EditorialDeleteAllView.as_view(), name='editorial_delete_all'),
 
     # Collaborators URLs
     path('collaborators/', views.CollaboratorListView.as_view(), name='collaborators_list'),
     path('collaborators/build/', views.BuildCollaboratorsView.as_view(), name='build_collaborators'),
+    path('collaborators/clear/', views.ClearCollaboratorsView.as_view(), name='clear_collaborators'),
 
     # CV Generation URLs
     path('cv/', views.CVPreviewView.as_view(), name='cv_preview'),

@@ -1,0 +1,227 @@
+{% extends "academic/base.html" %}
+{% load static %}
+
+{% block title %}Editorial Spreadsheet{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2>Editorial Activities Management</h2>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="refreshSpreadsheet()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="saveSpreadsheet()">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="document.getElementById('csv-import').click()">
+                            <i class="fas fa-upload"></i> Import CSV
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteAllData()">
+                            <i class="fas fa-trash"></i> Delete All
+                        </button>
+                    </div>
+                    <input type="file" id="csv-import" accept=".csv" style="display: none;" onchange="importCSV(event)">
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="badge bg-secondary" id="status-badge">Loading...</span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <iframe
+                                id="spreadsheet-iframe"
+                                src=""
+                                style="width: 100%; height: 600px; border: none;"
+                                onload="onIframeLoad()">
+                            </iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Editorial-specific configuration
+    const editorialColumns = [
+        {
+            data: 'role',
+            title: 'Role',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'journal',
+            title: 'Journal',
+            type: 'text',
+            required: true
+        },
+        {
+            data: 'dates',
+            title: 'Dates',
+            type: 'text'
+        }
+    ];
+
+    const config = {
+        endpoint: '/api/v1/editorial/',
+        columns: editorialColumns,
+        modelName: 'Editorial'
+    };
+
+    // Set iframe source with configuration
+    const iframe = document.getElementById('spreadsheet-iframe');
+    const configParam = encodeURIComponent(JSON.stringify(config));
+    const iframeUrl = `{% url 'academic:editorial_spreadsheet_iframe' %}?config=${configParam}`;
+
+    console.log('Setting iframe URL to:', iframeUrl);
+    iframe.src = iframeUrl;
+
+    updateStatus('Loading spreadsheet...');
+});
+
+function updateStatus(message) {
+    const statusBadge = document.getElementById('status-badge');
+    if (statusBadge) {
+        statusBadge.textContent = message;
+        statusBadge.className = `badge ${getStatusColor(message)}`;
+    }
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'Ready': 'bg-success',
+        'Loading...': 'bg-primary',
+        'Modified': 'bg-warning text-dark',
+        'Saving...': 'bg-info',
+        'Saved': 'bg-success',
+        'Error': 'bg-danger'
+    };
+    return colors[status] || 'bg-secondary';
+}
+
+function onIframeLoad() {
+    updateStatus('Ready');
+}
+
+function refreshSpreadsheet() {
+    const iframe = document.getElementById('spreadsheet-iframe');
+    if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({type: 'refresh'}, '*');
+        updateStatus('Refreshing...');
+    }
+}
+
+function saveSpreadsheet() {
+    updateStatus('Saving...');
+    const iframe = document.getElementById('spreadsheet-iframe');
+    if (iframe.contentWindow) {
+        iframe.contentWindow.postMessage({type: 'save'}, '*');
+    }
+}
+
+async function deleteAllData() {
+    if (!confirm('Are you sure you want to delete all editorial activities? This action cannot be undone.')) {
+        return;
+    }
+
+    updateStatus('Deleting...');
+
+    try {
+        const response = await fetch('/api/v1/editorial/delete_all/', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            updateStatus('Deleted');
+            alert(`Successfully deleted ${result.deleted_count} editorial activities`);
+            refreshSpreadsheet();
+        } else {
+            throw new Error('Failed to delete data');
+        }
+    } catch (error) {
+        updateStatus('Error');
+        alert('Error deleting data: ' + error.message);
+    }
+}
+
+async function importCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    updateStatus('Importing...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/v1/editorial/import_csv/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            credentials: 'include',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            updateStatus('Imported');
+            alert(`Successfully imported ${result.created} new and updated ${result.updated} existing editorial activities`);
+            refreshSpreadsheet();
+        } else {
+            const error = await response.json();
+            throw new Error(error.error || 'Import failed');
+        }
+    } catch (error) {
+        updateStatus('Error');
+        alert('Error importing CSV: ' + error.message);
+    }
+
+    // Clear the file input
+    event.target.value = '';
+}
+
+function getCSRFToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return decodeURIComponent(value);
+        }
+    }
+    return '';
+}
+
+// Listen for messages from iframe
+window.addEventListener('message', function(event) {
+    if (event.data.type === 'cellUpdated') {
+        updateStatus('Modified');
+    } else if (event.data.type === 'saveComplete') {
+        updateStatus('Saved');
+        setTimeout(() => updateStatus('Ready'), 2000);
+    } else if (event.data.type === 'saveError') {
+        updateStatus('Error');
+        console.error('Save error:', event.data.message);
+    } else if (event.data.type === 'statusUpdate') {
+        updateStatus(event.data.status);
+    }
+});
+</script>
+{% endblock %}

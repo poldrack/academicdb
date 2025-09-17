@@ -33,22 +33,27 @@ class TestDataFileIngestion(TestCase):
 
     def create_additional_pubs_csv(self, filename="additional_pubs.csv"):
         """Create a test additional publications CSV file"""
+        import uuid
+        # Use unique DOIs to avoid conflicts with existing publications
+        doi1 = f'10.1000/test-{uuid.uuid4().hex[:8]}'
+        doi2 = f'10.1000/test-{uuid.uuid4().hex[:8]}'
+
         filepath = os.path.join(self.test_data_dir, filename)
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['title', 'authors', 'year', 'doi', 'journal'])
+            writer.writerow(['title', 'authors', 'year', 'DOI', 'journal'])
             writer.writerow([
                 'Test Publication 1',
                 'Author, A.; Author, B.',
                 '2023',
-                '10.1000/test1',
+                doi1,
                 'Test Journal'
             ])
             writer.writerow([
                 'Test Publication 2',
                 'Author, C.; Author, D.',
                 '2024',
-                '10.1000/test2',
+                doi2,
                 'Another Journal'
             ])
         return filepath
@@ -58,13 +63,14 @@ class TestDataFileIngestion(TestCase):
         filepath = os.path.join(self.test_data_dir, filename)
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['title', 'authors', 'year', 'venue', 'location'])
+            writer.writerow(['authors', 'year', 'title', 'location', 'month', 'link'])
             writer.writerow([
-                'Test Conference Talk 1',
                 'Author, A.',
                 '2023',
-                'Conference Name',
-                'City, Country'
+                'Test Conference Talk 1',
+                'City, Country',
+                'June',
+                'https://example.com'
             ])
         return filepath
 
@@ -103,12 +109,11 @@ class TestDataFileIngestion(TestCase):
         filepath = os.path.join(self.test_data_dir, filename)
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['title', 'venue', 'date', 'type'])
+            writer.writerow(['year', 'place', 'invited'])
             writer.writerow([
-                'Test Talk',
+                '2023',
                 'University of Test',
-                '2023-05-15',
-                'invited'
+                'true'
             ])
         return filepath
 
@@ -117,12 +122,10 @@ class TestDataFileIngestion(TestCase):
         filepath = os.path.join(self.test_data_dir, filename)
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['course_name', 'institution', 'year', 'role'])
+            writer.writerow(['level', 'name'])
             writer.writerow([
-                'Test Course 101',
-                'Test University',
-                '2023',
-                'instructor'
+                'Undergraduate',
+                'Test Course 101'
             ])
         return filepath
 
@@ -170,7 +173,7 @@ class TestDataFileIngestion(TestCase):
         pub1 = Publication.objects.filter(owner=self.user, title="Test Publication 1").first()
         self.assertIsNotNone(pub1)
         self.assertEqual(pub1.year, 2023)
-        self.assertEqual(pub1.doi, "10.1000/test1")
+        self.assertTrue(pub1.doi.startswith("10.1000/test-"))  # Check DOI format
 
     def test_conferences_ingestion(self):
         """Test that conferences.csv is processed correctly"""
@@ -281,3 +284,107 @@ class TestDataFileIngestion(TestCase):
         self.assertEqual(final_talk_count, initial_talk_count + 1)  # 1 talk in CSV
         self.assertEqual(final_teaching_count, initial_teaching_count + 1)  # 1 teaching in CSV
         self.assertEqual(final_link_count, initial_link_count + 1)  # 1 link in CSV
+
+    def test_editorial_ingestion_uses_same_logic_as_upload_view(self):
+        """Test that editorial ingestion from data files uses same logic as CSV upload"""
+        # Create editorial CSV file
+        self.create_editorial_csv()
+
+        # Test data_ingestion.py function
+        from academic.data_ingestion import ingest_editorial
+        count = ingest_editorial(self.user, self.test_data_dir)
+        self.assertEqual(count, 1)
+
+        # Verify editorial records were created
+        editorial_records = Editorial.objects.filter(owner=self.user)
+        self.assertEqual(editorial_records.count(), 1)
+
+        # Check source field - should match upload view
+        expected_source = 'csv_import'  # Should match EditorialUploadView
+        for record in editorial_records:
+            self.assertEqual(record.source, expected_source,
+                f"Data ingestion source '{record.source}' should match upload view source '{expected_source}'")
+
+    def test_talks_ingestion_consistency(self):
+        """Test that talks ingestion matches expected source format"""
+        # Create talks CSV file
+        self.create_talks_csv()
+
+        # Test data_ingestion.py function
+        from academic.data_ingestion import ingest_talks
+        count = ingest_talks(self.user, self.test_data_dir)
+        self.assertEqual(count, 1)
+
+        # Verify source field consistency
+        talk_records = Talk.objects.filter(owner=self.user)
+        expected_source = 'csv_import'  # Should be consistent
+        for record in talk_records:
+            self.assertEqual(record.source, expected_source,
+                f"Data ingestion source should be consistent across all CSV imports")
+
+    def test_teaching_ingestion_consistency(self):
+        """Test that teaching ingestion matches expected source format"""
+        # Create teaching CSV file
+        self.create_teaching_csv()
+
+        # Test data_ingestion.py function
+        from academic.data_ingestion import ingest_teaching
+        count = ingest_teaching(self.user, self.test_data_dir)
+        self.assertEqual(count, 1)
+
+        # Verify source field consistency
+        teaching_records = Teaching.objects.filter(owner=self.user)
+        expected_source = 'csv_import'  # Should be consistent
+        for record in teaching_records:
+            self.assertEqual(record.source, expected_source,
+                f"Data ingestion source should be consistent across all CSV imports")
+
+    def test_conferences_ingestion_consistency(self):
+        """Test that conferences ingestion matches expected source format"""
+        # Create conferences CSV file
+        self.create_conferences_csv()
+
+        # Test data_ingestion.py function
+        from academic.data_ingestion import ingest_conferences
+        count = ingest_conferences(self.user, self.test_data_dir)
+        self.assertEqual(count, 1)
+
+        # Verify source field consistency
+        conference_records = Conference.objects.filter(owner=self.user)
+        expected_source = 'csv_import'  # Should be consistent
+        for record in conference_records:
+            self.assertEqual(record.source, expected_source,
+                f"Data ingestion source should be consistent across all CSV imports")
+
+    def test_comprehensive_sync_with_data_directory(self):
+        """Test that comprehensive sync uses the same logic as individual CSV imports"""
+        # Create all test CSV files
+        self.create_additional_pubs_csv()
+        self.create_conferences_csv()
+        self.create_editorial_csv()
+        self.create_links_csv()
+        self.create_talks_csv()
+        self.create_teaching_csv()
+
+        # Use SyncDataFilesView which calls ingest_all_data_files
+        from academic.views import SyncDataFilesView
+        from django.test import RequestFactory
+        from django.contrib.auth.models import AnonymousUser
+
+        factory = RequestFactory()
+        request = factory.post('/sync/data-files/', {'data_directory': self.test_data_dir})
+        request.user = self.user
+
+        view = SyncDataFilesView()
+        view.request = request
+
+        # This should work the same as individual CSV imports
+        initial_editorial_count = Editorial.objects.filter(owner=self.user).count()
+
+        response = view.post(request)
+
+        final_editorial_count = Editorial.objects.filter(owner=self.user).count()
+
+        # Verify data was imported
+        self.assertGreater(final_editorial_count, initial_editorial_count,
+            "SyncDataFilesView should import editorial data using same logic as CSV import buttons")

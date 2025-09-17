@@ -15,6 +15,11 @@
                 <button class="btn btn-primary" id="saveAllBtn" style="display: none;">
                     <i class="fas fa-save"></i> Save Changes
                 </button>
+                {% if editorial_count > 0 %}
+                <a href="{% url 'academic:editorial_delete_all' %}" class="btn btn-danger ms-2">
+                    <i class="fas fa-trash-alt"></i> Delete All
+                </a>
+                {% endif %}
             </div>
         </div>
 

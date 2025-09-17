@@ -12,8 +12,15 @@ from django.db import transaction
 import csv
 import io
 import openpyxl
-from .models import Publication, Teaching, Talk, Conference
-from .serializers import PublicationSerializer, TeachingSerializer, TalkSerializer, ConferenceSerializer
+from .models import Publication, Teaching, Talk, Conference, Editorial
+from .serializers import PublicationSerializer, TeachingSerializer, TalkSerializer, ConferenceSerializer, EditorialSerializer
+from .csv_importers import (
+    PublicationCSVImporter,
+    TeachingCSVImporter,
+    TalkCSVImporter,
+    ConferenceCSVImporter,
+    EditorialCSVImporter
+)
 
 User = get_user_model()
 
@@ -80,7 +87,7 @@ class PublicationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def import_csv(self, request):
         """
-        Import publications from CSV file
+        Import publications from CSV file using unified CSV importer
         Expected CSV format: type,year,authors,title,journal,volume,page,DOI,publisher,ISBN,editors
         """
         if 'file' not in request.FILES:
@@ -90,132 +97,13 @@ class PublicationViewSet(viewsets.ModelViewSet):
             )
 
         csv_file = request.FILES['file']
+        importer = PublicationCSVImporter()
+        result = importer.import_csv(request.user, csv_file)
 
-        if not csv_file.name.endswith('.csv'):
-            return Response(
-                {'error': 'File must be a CSV'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if 'error' in result:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            created_items = []
-            updated_items = []
-            errors = []
-
-            with transaction.atomic():
-                for i, row in enumerate(reader):
-                    try:
-                        # Map CSV fields to Publication model fields
-                        pub_data = self._map_csv_row_to_publication(row)
-
-                        # Skip empty rows
-                        if not pub_data.get('title') and not pub_data.get('doi'):
-                            continue
-
-                        # Check for existing publication by DOI
-                        doi = pub_data.get('doi')
-                        if doi:
-                            existing = self.get_queryset().filter(doi=doi).first()
-                            if existing:
-                                # Update existing publication
-                                serializer = self.get_serializer(existing, data=pub_data, partial=True)
-                                if serializer.is_valid():
-                                    serializer.save()
-                                    updated_items.append(existing.id)
-                                else:
-                                    errors.append({
-                                        'row': i + 2,  # +2 because of header and 0-indexing
-                                        'errors': serializer.errors
-                                    })
-                                continue
-
-                        # Create new publication
-                        serializer = self.get_serializer(data=pub_data)
-                        if serializer.is_valid():
-                            instance = serializer.save(owner=request.user)
-                            created_items.append(instance.id)
-                        else:
-                            errors.append({
-                                'row': i + 2,  # +2 because of header and 0-indexing
-                                'errors': serializer.errors
-                            })
-
-                    except Exception as e:
-                        errors.append({
-                            'row': i + 2,
-                            'error': str(e)
-                        })
-
-            return Response({
-                'created': len(created_items),
-                'updated': len(updated_items),
-                'errors': errors,
-                'created_ids': created_items,
-                'updated_ids': updated_items
-            })
-
-        except Exception as e:
-            return Response(
-                {'error': f'Failed to process CSV: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    def _map_csv_row_to_publication(self, row):
-        """
-        Map CSV row to Publication model fields
-        CSV format: type,year,authors,title,journal,volume,page,DOI,publisher,ISBN,editors
-        """
-        # Parse authors string into list format expected by the model
-        authors_str = row.get('authors', '').strip()
-        authors_list = []
-        if authors_str:
-            # Split by comma and create author objects
-            author_names = [name.strip() for name in authors_str.split(',')]
-            authors_list = [{'name': name} for name in author_names if name]
-
-        # Map publication type to valid model choices
-        pub_type = row.get('type', '').strip()
-        if pub_type == 'proceedings-article':
-            pub_type = 'conference-paper'
-        elif pub_type not in ['journal-article', 'conference-paper', 'book', 'book-chapter', 'preprint', 'thesis', 'patent', 'report', 'dataset', 'software']:
-            pub_type = 'other'
-        # Valid types like 'journal-article', 'book-chapter', and 'book' stay the same
-
-        # Determine publication name based on type
-        publication_name = ''
-        if pub_type in ['journal-article', 'conference-paper']:
-            publication_name = row.get('journal', '').strip()
-        elif pub_type == 'book':
-            publication_name = row.get('publisher', '').strip()
-        elif pub_type == 'book-chapter':
-            publication_name = row.get('title', '').strip()  # For chapters, use the book title
-
-        # Parse year
-        year = None
-        try:
-            year_str = row.get('year', '').strip()
-            if year_str:
-                year = int(year_str)
-        except (ValueError, TypeError):
-            pass
-
-        # Clean DOI
-        doi = row.get('DOI', '').strip()
-        if doi and not doi.startswith('10.'):
-            doi = ''  # Invalid DOI format
-
-        return {
-            'title': row.get('title', '').strip(),
-            'year': year,
-            'publication_type': pub_type or 'other',
-            'publication_name': publication_name,
-            'doi': doi or None,
-            'authors': authors_list,
-        }
+        return Response(result)
 
 
 class BaseBulkViewSet(viewsets.ModelViewSet):
@@ -301,10 +189,16 @@ class BaseBulkViewSet(viewsets.ModelViewSet):
             'updated_ids': updated_items
         })
 
+    def get_csv_importer(self):
+        """Override in subclasses to return appropriate CSV importer"""
+        from .csv_importers import get_csv_importer
+        model_name = self.get_model()._meta.model_name
+        return get_csv_importer(model_name)
+
     @action(detail=False, methods=['post'])
     def import_csv(self, request):
         """
-        Import data from CSV file
+        Import data from CSV file using unified CSV importer
         """
         if 'file' not in request.FILES:
             return Response(
@@ -313,80 +207,13 @@ class BaseBulkViewSet(viewsets.ModelViewSet):
             )
 
         csv_file = request.FILES['file']
+        importer = self.get_csv_importer()
+        result = importer.import_csv(request.user, csv_file)
 
-        if not csv_file.name.endswith('.csv'):
-            return Response(
-                {'error': 'File must be a CSV'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if 'error' in result:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            decoded_file = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            items = []
-            for row in reader:
-                # Clean empty values
-                clean_row = {k: v for k, v in row.items() if v.strip()}
-                if clean_row:  # Only add non-empty rows
-                    items.append(clean_row)
-
-            # Process the CSV data using the same logic as bulk_update
-            created_items = []
-            updated_items = []
-            errors = []
-
-            with transaction.atomic():
-                for i, item_data in enumerate(items):
-                    try:
-                        # Check if this is an update (has ID) or create (no ID)
-                        item_id = item_data.get('id')
-
-                        if item_id:
-                            # Update existing item
-                            try:
-                                instance = self.get_queryset().get(id=item_id)
-                                serializer = self.get_serializer(instance, data=item_data, partial=True)
-                            except self.get_model().DoesNotExist:
-                                # ID provided but item doesn't exist, create new
-                                item_data.pop('id', None)  # Remove invalid ID
-                                serializer = self.get_serializer(data=item_data)
-                        else:
-                            # Create new item
-                            serializer = self.get_serializer(data=item_data)
-
-                        if serializer.is_valid():
-                            instance = serializer.save(owner=request.user)
-                            if item_id:
-                                updated_items.append(instance.id)
-                            else:
-                                created_items.append(instance.id)
-                        else:
-                            errors.append({
-                                'row': i + 1,
-                                'errors': serializer.errors
-                            })
-
-                    except Exception as e:
-                        errors.append({
-                            'row': i + 1,
-                            'error': str(e)
-                        })
-
-            return Response({
-                'created': len(created_items),
-                'updated': len(updated_items),
-                'errors': errors,
-                'created_ids': created_items,
-                'updated_ids': updated_items
-            })
-
-        except Exception as e:
-            return Response(
-                {'error': f'Failed to process CSV: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        return Response(result)
 
     @action(detail=False, methods=['get'])
     def export_excel(self, request):
@@ -448,105 +275,6 @@ class TeachingViewSet(BaseBulkViewSet):
     def get_model(self):
         return Teaching
 
-    @action(detail=False, methods=['post'])
-    def import_csv(self, request):
-        """
-        Import teaching data from CSV file with custom field mapping
-        Expected CSV format: level,name (where level is Undergraduate/Graduate)
-        """
-        if 'file' not in request.FILES:
-            return Response(
-                {'error': 'No file provided'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        csv_file = request.FILES['file']
-
-        if not csv_file.name.endswith('.csv'):
-            return Response(
-                {'error': 'File must be a CSV'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            decoded_file = csv_file.read().decode('utf-8-sig')  # Handle BOM
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
-
-            created_items = []
-            updated_items = []
-            errors = []
-
-            with transaction.atomic():
-                for i, row in enumerate(reader):
-                    try:
-                        # Debug: log the row data
-                        print(f"Debug - Row {i+1}: {dict(row)}")
-
-                        # Map CSV fields to Teaching model fields
-                        teaching_data = self._map_csv_row_to_teaching(row)
-                        print(f"Debug - Mapped data: {teaching_data}")
-
-                        # Skip empty rows
-                        if not teaching_data.get('name'):
-                            continue
-
-                        # Create new teaching record
-                        serializer = self.get_serializer(data=teaching_data)
-                        if serializer.is_valid():
-                            instance = serializer.save(owner=request.user)
-                            created_items.append(instance.id)
-                        else:
-                            errors.append({
-                                'row': i + 2,  # +2 because of header and 0-indexing
-                                'errors': serializer.errors
-                            })
-
-                    except Exception as e:
-                        errors.append({
-                            'row': i + 2,
-                            'error': str(e)
-                        })
-
-            return Response({
-                'created': len(created_items),
-                'updated': len(updated_items),
-                'errors': errors,
-                'created_ids': created_items,
-                'updated_ids': updated_items
-            })
-
-        except Exception as e:
-            return Response(
-                {'error': f'Failed to process CSV: {str(e)}'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    def _map_csv_row_to_teaching(self, row):
-        """
-        Map CSV row to Teaching model fields
-        CSV format: level,name
-        """
-        # Debug: print available keys and values
-        print(f"Debug - Available CSV columns: {list(row.keys())}")
-        print(f"Debug - Raw level value: '{row.get('level', 'NOT_FOUND')}'")
-
-        # Get level directly from CSV and normalize case
-        course_level = row.get('level', '').strip()
-        level = course_level.lower() if course_level else 'other'
-
-        print(f"Debug - Processed level: '{level}'")
-
-        # Validate against allowed values
-        allowed_levels = ['undergraduate', 'graduate', 'postdoc', 'professional', 'other']
-        if level not in allowed_levels:
-            print(f"Debug - Level '{level}' not in allowed values, defaulting to 'other'")
-            level = 'other'
-
-        return {
-            'name': row.get('name', '').strip(),
-            'level': level,
-        }
 
 
 class TalkViewSet(BaseBulkViewSet):
@@ -563,3 +291,12 @@ class ConferenceViewSet(BaseBulkViewSet):
 
     def get_model(self):
         return Conference
+
+
+class EditorialViewSet(BaseBulkViewSet):
+    """ViewSet for managing editorial activities"""
+    serializer_class = EditorialSerializer
+
+    def get_model(self):
+        return Editorial
+

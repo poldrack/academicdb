@@ -1494,6 +1494,31 @@ class ConferencesSpreadsheetIframeView(LoginRequiredMixin, TemplateView):
         return response
 
 
+class EditorialSpreadsheetView(LoginRequiredMixin, TemplateView):
+    """Editorial spreadsheet view"""
+    template_name = 'academic/editorial_spreadsheet.html'
+    login_url = '/accounts/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['model_name'] = 'Editorial'
+        context['container_id'] = 'editorial-spreadsheet-container'
+        context['list_view_url'] = 'academic:editorial_list'
+        return context
+
+
+class EditorialSpreadsheetIframeView(LoginRequiredMixin, TemplateView):
+    """Editorial spreadsheet iframe view - isolated from Django CSS"""
+    template_name = 'academic/spreadsheet_iframe.html'
+    login_url = '/accounts/login/'
+
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        # Allow this view to be displayed in an iframe from the same origin
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+
+
 # Admin Views for Tools and Administration
 
 class AdminPanelView(LoginRequiredMixin, TemplateView):
@@ -2419,6 +2444,28 @@ class EditorialDeleteView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
+class EditorialDeleteAllView(LoginRequiredMixin, View):
+    """
+    Delete all editorial activities for the current user
+    """
+    template_name = 'academic/editorial_delete_all_confirm.html'
+    login_url = '/accounts/login/'
+
+    def get(self, request):
+        """Show confirmation page"""
+        editorial_count = Editorial.objects.filter(owner=request.user).count()
+        return render(request, self.template_name, {
+            'title': 'Delete All Editorial Activities',
+            'editorial_count': editorial_count
+        })
+
+    def post(self, request):
+        """Delete all editorial activities for current user"""
+        deleted_count, _ = Editorial.objects.filter(owner=request.user).delete()
+        messages.success(request, f'Successfully deleted {deleted_count} editorial activities.')
+        return redirect('academic:editorial_list')
+
+
 class EditorialUploadView(LoginRequiredMixin, View):
     """
     Upload editorial activities from CSV file
@@ -2569,4 +2616,112 @@ class BuildCollaboratorsView(LoginRequiredMixin, View):
             messages.error(request, f'Failed to build collaborators table: {str(e)}')
 
         return redirect('academic:collaborators_list')
+
+
+class SyncDataFilesView(LoginRequiredMixin, View):
+    """
+    Sync all available data files for the current user
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        """Sync data files for the current user"""
+        user = request.user
+
+        try:
+            from .data_ingestion import ingest_all_data_files
+            import os
+
+            # Determine data directory using same logic as comprehensive sync
+            # Check if running in Docker container
+            if os.path.exists('/app'):
+                # In Docker, use /app/datafiles
+                data_directory = '/app/datafiles'
+            else:
+                # Local development, use ./data relative to current working directory
+                data_directory = os.path.join(os.getcwd(), 'data')
+
+            # Check if data directory exists
+            if not os.path.exists(data_directory):
+                messages.warning(
+                    request,
+                    f'Data directory not found at {data_directory}. Please create the directory and add your data files.'
+                )
+                return redirect('academic:dashboard')
+
+            messages.info(request, 'Syncing data files... This may take a moment.')
+
+            # Ingest all data files
+            results = ingest_all_data_files(user, data_directory)
+
+            # Calculate total items ingested
+            total_ingested = sum(results.values())
+
+            if total_ingested > 0:
+                # Create detailed message about what was ingested
+                details = []
+                for data_type, count in results.items():
+                    if count > 0:
+                        details.append(f"{count} {data_type}")
+
+                success_msg = f"Successfully ingested {total_ingested} items from data files: {', '.join(details)}"
+                messages.success(request, success_msg)
+            else:
+                messages.info(request, 'No new data found to ingest from data files.')
+
+        except Exception as e:
+            logger.error(f"Error syncing data files for user {user.id}: {str(e)}")
+            messages.error(request, f'Failed to sync data files: {str(e)}')
+
+        return redirect('academic:dashboard')
+
+
+class ClearCollaboratorsView(LoginRequiredMixin, View):
+    """
+    Handle clearing all collaborator records for the current user
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        """Clear all collaborator records for the current user"""
+        user = request.user
+
+        # Security check - require confirmation parameter
+        confirmation = request.POST.get('confirmation', '').lower()
+        if confirmation != 'delete all collaborators':
+            messages.error(
+                request,
+                'Invalid confirmation. You must type "delete all collaborators" exactly to confirm.'
+            )
+            return redirect('academic:collaborators_list')
+
+        try:
+            # Count collaborator records before deletion for reporting
+            collaborator_count = user.collaborators.count() if hasattr(user, 'collaborators') else 0
+
+            if collaborator_count == 0:
+                messages.warning(request, 'No collaborator records found to delete.')
+                return redirect('academic:collaborators_list')
+
+            # Delete all collaborator records for this user
+            deleted_count = user.collaborators.all().delete()[0]
+
+            # Log the action
+            logger.info(f"User {user.id} cleared {deleted_count} collaborator records via web interface")
+
+            # Success message
+            messages.success(
+                request,
+                f'Successfully deleted {deleted_count} collaborator records. You can rebuild the collaborators table from your publications.'
+            )
+
+            return redirect('academic:collaborators_list')
+
+        except Exception as e:
+            logger.error(f"Error clearing collaborators for user {user.id}: {str(e)}")
+            messages.error(
+                request,
+                'An error occurred while deleting collaborator records. Please try again.'
+            )
+            return redirect('academic:collaborators_list')
 

@@ -3,7 +3,7 @@ Django REST Framework serializers for academic models
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Publication, Teaching, Talk, Conference
+from .models import Publication, Teaching, Talk, Conference, Editorial
 
 User = get_user_model()
 
@@ -129,7 +129,7 @@ class TalkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Talk
         fields = [
-            'id', 'title', 'year', 'place', 'date', 'invited', 'virtual',
+            'id', 'year', 'place', 'invited',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -159,8 +159,7 @@ class ConferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conference
         fields = [
-            'id', 'title', 'authors', 'year', 'month', 'location',
-            'conference_name', 'presentation_type', 'link',
+            'id', 'authors', 'year', 'title', 'location', 'month', 'link',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -187,6 +186,39 @@ class ConferenceSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create conference record with proper owner and source"""
+        validated_data['owner'] = self.context['request'].user
+        validated_data['source'] = 'manual'
+        return super().create(validated_data)
+
+
+class EditorialSerializer(serializers.ModelSerializer):
+    """Serializer for Editorial model"""
+
+    class Meta:
+        model = Editorial
+        fields = [
+            'id', 'role', 'journal', 'dates', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_role(self, value):
+        """Validate role field"""
+        if not value or not value.strip():
+            raise serializers.ValidationError(
+                "Role is required"
+            )
+        return value
+
+    def validate_journal(self, value):
+        """Validate journal field"""
+        if not value or not value.strip():
+            raise serializers.ValidationError(
+                "Journal is required"
+            )
+        return value
+
+    def create(self, validated_data):
+        """Create editorial record with proper owner and source"""
         validated_data['owner'] = self.context['request'].user
         validated_data['source'] = 'manual'
         return super().create(validated_data)
