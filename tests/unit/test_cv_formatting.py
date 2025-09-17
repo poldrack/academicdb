@@ -559,10 +559,10 @@ class TestEditorialActivitiesCV:
         # Should use compact format without subsections
         assert '\\subsection*{' not in editorial_section
 
-        # Should group by role with colon format
-        assert 'Editorial board:' in editorial_section
-        assert 'Handling Editor (ad hoc):' in editorial_section
-        assert 'Senior Editor:' in editorial_section
+        # Should group by role with colon format (roles should be italicized)
+        assert '\\textit{Editorial board}:' in editorial_section
+        assert '\\textit{Handling Editor (ad hoc)}:' in editorial_section
+        assert '\\textit{Senior Editor}:' in editorial_section
 
         # Should include all journals
         assert 'Psychological Science, 2024-' in editorial_section
@@ -620,12 +620,34 @@ class TestEditorialActivitiesCV:
         # Should NOT use subsections (compact format)
         assert '\\subsection*{' not in editorial_section, "Compact format should not use subsections"
 
-        # Should use compact format: "Role: journal1, journal2, journal3"
+        # Should use compact format: "Role: journal1, journal2, journal3" (with italicized roles)
         # Senior Editor should be on one line (with dates)
-        assert 'Senior Editor: Psychological Science, 2024-' in editorial_section
+        assert '\\textit{Senior Editor}: Psychological Science, 2024-' in editorial_section
 
         # Handling Editor should list both journals on same line (alphabetical order)
-        assert 'Handling Editor (ad hoc): Proceedings of the National Academy of Sciences, eLife' in editorial_section
+        assert '\\textit{Handling Editor (ad hoc)}: Proceedings of the National Academy of Sciences, eLife' in editorial_section
 
         # Editorial board should list all journals on same line (alphabetical order due to sorting)
-        assert 'Editorial board: Cerebral Cortex, Human Brain Mapping, Trends in Cognitive Sciences' in editorial_section
+        assert '\\textit{Editorial board}: Cerebral Cortex, Human Brain Mapping, Trends in Cognitive Sciences' in editorial_section
+
+    def test_editorial_role_headings_are_italicized(self, sample_user):
+        """Test that editorial role headings are italicized in LaTeX format"""
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Senior Editor',
+            journal='Test Journal',
+            dates=''
+        )
+
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Editorial board',
+            journal='Another Journal',
+            dates=''
+        )
+
+        editorial_section = get_editorial_activities(sample_user)
+
+        # Role headings should be wrapped in \textit{} for italics
+        assert '\\textit{Senior Editor}: Test Journal' in editorial_section
+        assert '\\textit{Editorial board}: Another Journal' in editorial_section

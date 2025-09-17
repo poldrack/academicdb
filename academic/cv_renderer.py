@@ -405,7 +405,7 @@ def get_editorial_activities(user):
     for role in sorted(roles_dict.keys()):
         role_escaped = escape_characters_for_latex(role)
         journals_list = ', '.join(roles_dict[role])
-        output += f"{role_escaped}: {journals_list}\n\n"
+        output += f"\\textit{{{role_escaped}}}: {journals_list}\n\n"
 
     return output
 
