@@ -185,9 +185,9 @@
         <div class="card">
             <div class="card-body text-center">
                 <h5 class="card-title">Collaborators</h5>
-                <h2 class="text-success">0</h2>
+                <h2 class="text-success">{{ user.collaborators.count|default:"0" }}</h2>
                 <p class="card-text">Unique coauthors</p>
-                <a href="#" class="btn btn-success">View Network</a>
+                <a href="{% url 'academic:collaborators_list' %}" class="btn btn-success">View Collaborators</a>
             </div>
         </div>
     </div>
@@ -215,16 +215,6 @@
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-12">
-        <h3>Recent Activity</h3>
-        <div class="card">
-            <div class="card-body">
-                <p class="text-muted">No recent activity. Start by connecting your ORCID account or adding publications manually.</p>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Clear Publications Confirmation Modal -->
 <div class="modal fade" id="clearPublicationsModal" tabindex="-1" aria-labelledby="clearPublicationsModalLabel" aria-hidden="true">

@@ -57,6 +57,7 @@ docker-run:
 		--name academicdb \
 		-p 8000:8000 \
 		-v ${DBDIR}:/app/data \
+		-v $(PWD)/data:/app/datafiles \
 		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		academicdb:latest
 
@@ -65,6 +66,7 @@ docker-run-admin:
 		--name academicdb \
 		-p 8000:8000 \
 		-v ${DBDIR}:/app/data \
+		-v $(PWD)/data:/app/datafiles \
 		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		-e DJANGO_SUPERUSER_USERNAME=admin \
 		-e DJANGO_SUPERUSER_EMAIL=admin@example.com \
@@ -96,6 +98,7 @@ docker-run-orcid:
 		-p 8000:8000 \
 		-v ${DBDIR}:/app/data \
 		-v $(PWD)/backups:/app/backups \
+		-v $(PWD)/data:/app/datafiles \
 		-e SQLITE_PATH=/app/data/db.sqlite3 \
 		-e DEBUG=false \
 		-e SECRET_KEY=stable-key-for-local-development-do-not-use-in-production \

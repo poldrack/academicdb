@@ -89,6 +89,10 @@ urlpatterns = [
     path('editorial/<int:pk>/delete/', views.EditorialDeleteView.as_view(), name='editorial_delete'),
     path('editorial/upload/', views.EditorialUploadView.as_view(), name='editorial_upload'),
 
+    # Collaborators URLs
+    path('collaborators/', views.CollaboratorListView.as_view(), name='collaborators_list'),
+    path('collaborators/build/', views.BuildCollaboratorsView.as_view(), name='build_collaborators'),
+
     # CV Generation URLs
     path('cv/', views.CVPreviewView.as_view(), name='cv_preview'),
     path('cv/download/<str:format_type>/', views.CVView.as_view(), name='cv_download'),

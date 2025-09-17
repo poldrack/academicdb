@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from io import StringIO
 import sys
-from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link, Editorial
+from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link, Editorial, Collaborator
 
 logger = logging.getLogger(__name__)
 
@@ -620,7 +620,39 @@ def run_comprehensive_sync_background(user_id, sync_id):
                 progress['errors'].append(f'{description} failed: {str(e)}')
                 progress['messages'].append(f'✗ {description} failed')
                 current_step += steps_per_postprocess  # Still advance progress even on error
-        
+
+        # Phase 4: Data File Ingestion (if data directory is provided)
+        data_directory = progress.get('data_directory', '')
+        if data_directory and os.path.exists(data_directory):
+            progress.update({
+                'phase': 'Data File Ingestion',
+                'current_step': 'Ingesting data files...',
+                'progress': current_step
+            })
+
+            try:
+                from .data_ingestion import ingest_all_data_files
+                ingestion_results = ingest_all_data_files(user, data_directory)
+
+                total_ingested = sum(ingestion_results.values())
+                if total_ingested > 0:
+                    progress['messages'].append(f'✓ Ingested {total_ingested} items from data files')
+                    # Add detailed breakdown
+                    for data_type, count in ingestion_results.items():
+                        if count > 0:
+                            progress['messages'].append(f'  - {data_type}: {count}')
+                else:
+                    progress['messages'].append('✓ Data file ingestion completed (no new items)')
+
+                current_step += 10  # Add some progress for data ingestion
+                progress['progress'] = current_step
+
+            except Exception as e:
+                progress['errors'].append(f'Data file ingestion failed: {str(e)}')
+                progress['messages'].append('✗ Data file ingestion failed')
+                current_step += 10  # Still advance progress
+                progress['progress'] = current_step
+
         # Final statistics
         final_count = user.publications.count()
         publications_added = final_count - initial_count
@@ -687,7 +719,25 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
     def post(self, request):
         """Start comprehensive sync in background and return sync ID"""
         user = request.user
-        
+
+        # Get optional data directory parameter
+        # In Docker, defaults to /app/datafiles; locally defaults to ./data
+        data_directory = request.POST.get('data_directory', '')
+        if not data_directory:
+            # Check if running in Docker container
+            if os.path.exists('/app'):
+                # In Docker, use /app/datafiles to avoid conflict with database directory
+                data_directory = '/app/datafiles'
+            else:
+                # Local development, use ./data relative to current working directory
+                data_directory = os.path.join(os.getcwd(), 'data')
+
+        if data_directory:
+            data_directory = data_directory.strip()
+            if data_directory and not os.path.exists(data_directory):
+                messages.warning(request, f'Data directory does not exist: {data_directory}. Continuing with API sync only.')
+                data_directory = ''  # Clear invalid directory
+
         # Check if user has at least one sync source configured
         has_orcid = user.is_orcid_connected
         has_pubmed = user.has_pubmed_query
@@ -723,7 +773,8 @@ class ComprehensiveSyncView(LoginRequiredMixin, View):
                 'start_time': time.time(),
                 'messages': [],
                 'publications_added': 0,
-                'errors': []
+                'errors': [],
+                'data_directory': data_directory  # Store data directory for background thread
             }
 
             sync_thread = threading.Thread(
@@ -2448,4 +2499,74 @@ class EditorialUploadView(LoginRequiredMixin, View):
             messages.error(request, f'Error processing CSV file: {str(e)}')
 
         return redirect('academic:editorial_list')
+
+
+# Collaborator Views
+class CollaboratorListView(LoginRequiredMixin, ListView):
+    """
+    List all collaborators for the current user
+    """
+    model = Collaborator
+    template_name = 'academic/collaborators_list.html'
+    context_object_name = 'collaborators'
+    login_url = '/accounts/login/'
+    paginate_by = 50
+
+    def get_queryset(self):
+        """Return collaborators for the current user only"""
+        return Collaborator.objects.filter(owner=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Collaborators'
+        context['total_collaborators'] = self.get_queryset().count()
+        return context
+
+
+class BuildCollaboratorsView(LoginRequiredMixin, View):
+    """
+    Build collaborators table by extracting from publications and fetching Scopus data
+    """
+    login_url = '/accounts/login/'
+
+    def post(self, request):
+        """Build collaborators table for the current user"""
+        user = request.user
+
+        try:
+            from .collaborator_utils import build_collaborators_table, deduplicate_collaborators
+
+            messages.info(request, 'Building collaborators table... This may take a few minutes.')
+
+            # Build collaborators table
+            results = build_collaborators_table(user)
+
+            # Deduplicate any duplicate entries
+            duplicates_removed = deduplicate_collaborators(user)
+
+            # Report results
+            if results['processed'] > 0:
+                success_msg = (
+                    f"Successfully processed {results['processed']} collaborators. "
+                    f"Created {results['created']}, updated {results['updated']}."
+                )
+                if duplicates_removed > 0:
+                    success_msg += f" Removed {duplicates_removed} duplicates."
+
+                messages.success(request, success_msg)
+
+                if results['errors'] > 0:
+                    messages.warning(
+                        request,
+                        f"Encountered {results['errors']} errors while processing some collaborators. "
+                        f"Check the logs for details."
+                    )
+            else:
+                messages.warning(request, 'No collaborators found in your publications.')
+
+        except Exception as e:
+            logger.error(f"Error building collaborators table for user {user.id}: {str(e)}")
+            messages.error(request, f'Failed to build collaborators table: {str(e)}')
+
+        return redirect('academic:collaborators_list')
 

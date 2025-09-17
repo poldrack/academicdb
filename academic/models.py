@@ -2956,3 +2956,111 @@ class Editorial(models.Model):
             self.role = self.role.strip()
         if self.journal:
             self.journal = self.journal.strip()
+
+
+class Collaborator(models.Model):
+    """
+    Represents collaborators (coauthors) extracted from publications.
+    Stores unique Scopus IDs with current affiliation information.
+    """
+    # Ownership
+    owner = models.ForeignKey(
+        AcademicUser,
+        on_delete=models.CASCADE,
+        related_name='collaborators'
+    )
+
+    # Collaborator Identity
+    scopus_id = models.CharField(
+        max_length=20,
+        help_text="Scopus Author ID"
+    )
+    name = models.CharField(
+        max_length=300,
+        help_text="Full name of the collaborator"
+    )
+
+    # Affiliation Information (from Scopus API)
+    affiliation = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Current institutional affiliation"
+    )
+    affiliation_id = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Scopus Affiliation ID"
+    )
+
+    # Publication History
+    last_publication_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date of most recent collaboration"
+    )
+    publication_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of shared publications"
+    )
+
+    # Additional metadata
+    additional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional collaborator details from Scopus API"
+    )
+
+    # Source tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('scopus_api', 'Scopus API'),
+            ('manual', 'Manual Entry'),
+        ],
+        default='scopus_api',
+        help_text="How this collaborator was added"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'scopus_id']),
+            models.Index(fields=['owner', 'last_publication_date']),
+        ]
+        ordering = ['-last_publication_date', 'name']
+        verbose_name = 'Collaborator'
+        verbose_name_plural = 'Collaborators'
+
+    def __str__(self):
+        return f"{self.name} ({self.affiliation or 'Unknown affiliation'})"
+
+    def clean(self):
+        """Validate collaborator data"""
+        super().clean()
+
+        # Basic validation
+        if self.name:
+            self.name = self.name.strip()
+        if self.affiliation:
+            self.affiliation = self.affiliation.strip()
+
+    @classmethod
+    def find_duplicate_scopus_ids(cls, user):
+        """
+        Find collaborators with the same Scopus ID for deduplication.
+        Returns a list of Scopus IDs that have multiple entries.
+        """
+        from django.db.models import Count
+
+        duplicates = (
+            cls.objects.filter(owner=user)
+            .values('scopus_id')
+            .annotate(count=Count('scopus_id'))
+            .filter(count__gt=1)
+            .values_list('scopus_id', flat=True)
+        )
+
+        return list(duplicates)
