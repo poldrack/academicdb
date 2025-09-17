@@ -2890,3 +2890,69 @@ class Link(models.Model):
                 associated_count += 1
 
         return associated_count, not_found_dois
+
+
+class Editorial(models.Model):
+    """
+    Represents editorial activities that cannot be properly represented within ORCID
+    """
+    # Ownership
+    owner = models.ForeignKey(
+        AcademicUser,
+        on_delete=models.CASCADE,
+        related_name='editorial_activities'
+    )
+
+    # Editorial Details
+    role = models.CharField(
+        max_length=200,
+        help_text="Editorial role (e.g., Senior Editor, Editorial board, Handling Editor)"
+    )
+
+    journal = models.CharField(
+        max_length=300,
+        help_text="Journal or publication name"
+    )
+
+    dates = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Date range for the editorial role (e.g., '2020-2024', '2024-')"
+    )
+
+    # Source Tracking
+    source = models.CharField(
+        max_length=50,
+        choices=[
+            ('csv_import', 'CSV Import'),
+            ('manual', 'Manual Entry'),
+        ],
+        default='csv_import',
+        help_text="How this editorial activity was added"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['owner', 'role']),
+            models.Index(fields=['journal', 'role']),
+        ]
+        ordering = ['role', 'journal']
+        verbose_name = 'Editorial Activity'
+        verbose_name_plural = 'Editorial Activities'
+
+    def __str__(self):
+        return f"{self.role}, {self.journal}, {self.dates}"
+
+    def clean(self):
+        """Validate editorial data"""
+        super().clean()
+
+        # Basic validation can be added here if needed
+        if self.role:
+            self.role = self.role.strip()
+        if self.journal:
+            self.journal = self.journal.strip()

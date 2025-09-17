@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 from io import StringIO
 import sys
-from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link
+from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link, Editorial
 
 logger = logging.getLogger(__name__)
 
@@ -2274,4 +2274,178 @@ class FindDuplicatesView(LoginRequiredMixin, View):
             messages.error(request, f'Error processing request: {str(e)}')
 
         return redirect('academic:find_duplicates')
+
+
+# Editorial Activities Views
+class EditorialListView(LoginRequiredMixin, ListView):
+    """
+    List all editorial activities for the current user
+    """
+    model = Editorial
+    template_name = 'academic/editorial_list.html'
+    context_object_name = 'editorial_list'
+    paginate_by = 20
+    login_url = '/accounts/login/'
+
+    def get_queryset(self):
+        """Filter editorial activities to show only those owned by the current user"""
+        return Editorial.objects.filter(owner=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Editorial Activities'
+        context['editorial_count'] = self.get_queryset().count()
+        return context
+
+
+class EditorialDetailView(LoginRequiredMixin, DetailView):
+    """
+    Display details of a single editorial activity
+    """
+    model = Editorial
+    template_name = 'academic/editorial_detail.html'
+    context_object_name = 'editorial'
+    login_url = '/accounts/login/'
+
+    def get_queryset(self):
+        """Ensure users can only view their own editorial activities"""
+        return Editorial.objects.filter(owner=self.request.user)
+
+
+class EditorialCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create a new editorial activity
+    """
+    model = Editorial
+    template_name = 'academic/editorial_form.html'
+    fields = ['role', 'journal', 'dates']
+    success_url = reverse_lazy('academic:editorial_list')
+    login_url = '/accounts/login/'
+
+    def form_valid(self, form):
+        """Set the owner to the current user and mark as manual entry"""
+        form.instance.owner = self.request.user
+        form.instance.source = 'manual'
+
+        messages.success(self.request, 'Editorial activity added successfully!')
+        return super().form_valid(form)
+
+
+class EditorialUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update an existing editorial activity
+    """
+    model = Editorial
+    template_name = 'academic/editorial_form.html'
+    fields = ['role', 'journal', 'dates']
+    success_url = reverse_lazy('academic:editorial_list')
+    login_url = '/accounts/login/'
+
+    def get_queryset(self):
+        """Ensure users can only edit their own editorial activities"""
+        return Editorial.objects.filter(owner=self.request.user)
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Editorial activity updated successfully!')
+        return super().form_valid(form)
+
+
+class EditorialDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Delete an editorial activity
+    """
+    model = Editorial
+    template_name = 'academic/editorial_confirm_delete.html'
+    success_url = reverse_lazy('academic:editorial_list')
+    login_url = '/accounts/login/'
+
+    def get_queryset(self):
+        """Ensure users can only delete their own editorial activities"""
+        return Editorial.objects.filter(owner=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, 'Editorial activity deleted successfully!')
+        return super().delete(request, *args, **kwargs)
+
+
+class EditorialUploadView(LoginRequiredMixin, View):
+    """
+    Upload editorial activities from CSV file
+    """
+    template_name = 'academic/editorial_upload.html'
+    login_url = '/accounts/login/'
+
+    def get(self, request):
+        """Show the upload form"""
+        return render(request, self.template_name, {
+            'title': 'Upload Editorial Activities'
+        })
+
+    def post(self, request):
+        """Process uploaded CSV file"""
+        import csv
+        import io
+
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'Please select a CSV file to upload.')
+            return render(request, self.template_name, {
+                'title': 'Upload Editorial Activities'
+            })
+
+        csv_file = request.FILES['csv_file']
+
+        # Validate file type
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return render(request, self.template_name, {
+                'title': 'Upload Editorial Activities'
+            })
+
+        try:
+            # Read and process CSV content
+            decoded_file = csv_file.read().decode('utf-8-sig')  # Handle BOM if present
+            csv_data = csv.DictReader(io.StringIO(decoded_file))
+
+            created_count = 0
+            error_rows = []
+
+            for row_num, row in enumerate(csv_data, start=2):  # Start at 2 for header row
+                try:
+                    # Clean and validate data
+                    role = row.get('role', '').strip()
+                    journal = row.get('journal', '').strip()
+                    dates = row.get('dates', '').strip()
+
+                    if not role or not journal:
+                        error_rows.append(f"Row {row_num}: Role and journal are required")
+                        continue
+
+                    # Create editorial activity
+                    Editorial.objects.create(
+                        owner=request.user,
+                        role=role,
+                        journal=journal,
+                        dates=dates,
+                        source='csv_import'
+                    )
+                    created_count += 1
+
+                except Exception as e:
+                    error_rows.append(f"Row {row_num}: {str(e)}")
+
+            # Provide feedback
+            if created_count > 0:
+                messages.success(request, f'Successfully imported {created_count} editorial activities.')
+
+            if error_rows:
+                error_message = 'Errors encountered in the following rows:\n' + '\n'.join(error_rows)
+                messages.warning(request, error_message)
+
+            if created_count == 0 and not error_rows:
+                messages.warning(request, 'No valid editorial activities found in the CSV file.')
+
+        except Exception as e:
+            messages.error(request, f'Error processing CSV file: {str(e)}')
+
+        return redirect('academic:editorial_list')
 

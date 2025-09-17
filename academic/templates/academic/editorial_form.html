@@ -1,0 +1,152 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    {% if object %}
+                        <i class="fas fa-edit"></i> Edit Editorial Activity: {{ object.role|truncatechars:50 }}
+                    {% else %}
+                        <i class="fas fa-plus"></i> Add New Editorial Activity
+                    {% endif %}
+                </h3>
+            </div>
+
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="{{ form.role.id_for_label }}" class="form-label">
+                                <i class="fas fa-user-tie"></i> Editorial Role *
+                            </label>
+                            {{ form.role }}
+                            {% if form.role.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.role.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Your editorial role (e.g., Senior Editor, Editorial Board Member, Handling Editor)</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="{{ form.journal.id_for_label }}" class="form-label">
+                                <i class="fas fa-book"></i> Journal/Publication *
+                            </label>
+                            {{ form.journal }}
+                            {% if form.journal.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.journal.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Name of the journal or publication</div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="{{ form.dates.id_for_label }}" class="form-label">
+                                <i class="fas fa-calendar-alt"></i> Date Range
+                            </label>
+                            {{ form.dates }}
+                            {% if form.dates.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.dates.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Date range for this editorial role (e.g., "2020-2024", "2024-", or "2024")</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'academic:editorial_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    {% if object %}Update{% else %}Save{% endif %} Editorial Activity
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if object %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Additional Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Source:</strong>
+                                {% if object.source == 'csv_import' %}
+                                    <i class="fas fa-file-csv text-info"></i> CSV Import
+                                {% elif object.source == 'manual' %}
+                                    <i class="fas fa-user text-primary"></i> Manual Entry
+                                {% else %}
+                                    {{ object.get_source_display }}
+                                {% endif %}
+                            </p>
+                            <p><strong>Created:</strong> {{ object.created_at|date:"M d, Y" }}</p>
+                            <p><strong>Last Updated:</strong> {{ object.updated_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form-control classes to all form fields
+    const formInputs = document.querySelectorAll('input, select, textarea');
+    formInputs.forEach(input => {
+        if (!input.classList.contains('btn')) {
+            input.classList.add('form-control');
+        }
+    });
+
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+
+        // Check required fields
+        const requiredFields = ['role', 'journal'];
+        requiredFields.forEach(fieldName => {
+            const field = document.querySelector(`input[name="${fieldName}"], select[name="${fieldName}"], textarea[name="${fieldName}"]`);
+            if (field && !field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else if (field) {
+                field.classList.remove('is-invalid');
+            }
+        });
+
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields.');
+        }
+    });
+});
+</script>
+{% endblock %}

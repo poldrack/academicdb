@@ -81,6 +81,14 @@ urlpatterns = [
     path('tools/clear-api-cache/', views.ClearAPICacheView.as_view(), name='clear_api_cache'),
     path('tools/clear-api-cache/<str:api_source>/', views.ClearSpecificAPICacheView.as_view(), name='clear_specific_api_cache'),
 
+    # Editorial Activities URLs
+    path('editorial/', views.EditorialListView.as_view(), name='editorial_list'),
+    path('editorial/new/', views.EditorialCreateView.as_view(), name='editorial_create'),
+    path('editorial/<int:pk>/', views.EditorialDetailView.as_view(), name='editorial_detail'),
+    path('editorial/<int:pk>/edit/', views.EditorialUpdateView.as_view(), name='editorial_update'),
+    path('editorial/<int:pk>/delete/', views.EditorialDeleteView.as_view(), name='editorial_delete'),
+    path('editorial/upload/', views.EditorialUploadView.as_view(), name='editorial_upload'),
+
     # CV Generation URLs
     path('cv/', views.CVPreviewView.as_view(), name='cv_preview'),
     path('cv/download/<str:format_type>/', views.CVView.as_view(), name='cv_download'),

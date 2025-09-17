@@ -126,10 +126,12 @@ def prepare_title_for_latex(title):
 
 def get_education(user):
     """Get education data for CV from ProfessionalActivity model"""
+    # Include both 'education' and 'qualification' types (e.g., postdoctoral training)
+    from django.db.models import Q
     education = ProfessionalActivity.objects.filter(
         owner=user,
-        activity_type='education'
-    ).order_by('-start_date')
+        activity_type__in=['education', 'qualification']
+    ).order_by('start_date')
 
     output = ''
     if education.exists():
@@ -196,9 +198,10 @@ def get_employment(user):
 
 def get_distinctions(user):
     """Get distinctions/awards data for CV from ProfessionalActivity model"""
+    # Include both 'distinction' and 'invited_position' types for Honors and Awards
     distinctions = ProfessionalActivity.objects.filter(
         owner=user,
-        activity_type='distinction'
+        activity_type__in=['distinction', 'invited_position']
     ).order_by('-start_date')
 
     output = ''
@@ -276,9 +279,32 @@ def get_conference_years(conferences):
     return years
 
 
+def get_month_number(month_name):
+    """Convert month name to numerical representation for sorting"""
+    if not month_name:
+        return 0
+
+    month_mapping = {
+        'january': 1, 'jan': 1,
+        'february': 2, 'feb': 2,
+        'march': 3, 'mar': 3,
+        'april': 4, 'apr': 4,
+        'may': 5,
+        'june': 6, 'jun': 6,
+        'july': 7, 'jul': 7,
+        'august': 8, 'aug': 8,
+        'september': 9, 'sep': 9, 'sept': 9,
+        'october': 10, 'oct': 10,
+        'november': 11, 'nov': 11,
+        'december': 12, 'dec': 12
+    }
+
+    return month_mapping.get(month_name.lower(), 0)
+
+
 def get_conferences(user):
     """Get conference presentations for CV"""
-    conferences = Conference.objects.filter(owner=user).order_by('-year', 'month')
+    conferences = Conference.objects.filter(owner=user).order_by('-year')
     years = get_conference_years(conferences)
     output = ''
     if conferences.exists():
@@ -287,7 +313,9 @@ def get_conferences(user):
 \\noindent
 """
     for year in years:
-        year_talks = conferences.filter(year=year)
+        year_talks = list(conferences.filter(year=year))
+        # Sort by month in reverse chronological order (most recent first)
+        year_talks.sort(key=lambda conf: get_month_number(conf.month), reverse=True)
         output += f'\\subsection*{{{year}}}'
         for talk in year_talks:
             title = talk.title.rstrip('.').rstrip(' ')
@@ -347,15 +375,49 @@ def get_teaching(user):
     return output
 
 
+def get_editorial_activities(user):
+    """Get editorial activities for CV grouped by role"""
+    from .models import Editorial
+
+    editorial_activities = Editorial.objects.filter(owner=user).order_by('role', 'journal')
+
+    if not editorial_activities.exists():
+        return ''
+
+    output = """
+\\section*{Editorial duties}
+\\noindent
+"""
+
+    # Group by role
+    current_role = None
+    for activity in editorial_activities:
+        if activity.role != current_role:
+            current_role = activity.role
+            output += f"\\subsection*{{{escape_characters_for_latex(activity.role)}}}\n"
+
+        # Format the entry
+        journal = escape_characters_for_latex(activity.journal)
+        dates = f", {escape_characters_for_latex(activity.dates)}" if activity.dates else ""
+        output += f"{journal}{dates}\n\n"
+
+    return output
+
+
 def get_funding(user):
     """Get funding data for CV from Funding model"""
     current_year = datetime.datetime.now().year
-    funding = Funding.objects.filter(owner=user).order_by('-start_date')
+    funding = Funding.objects.filter(owner=user).order_by('-end_date')
 
     active_funding = []
     completed_funding = []
 
     for f in funding:
+        # Extract URL from additional_info JSONField
+        url = ''
+        if f.additional_info and isinstance(f.additional_info, dict):
+            url = f.additional_info.get('url', '')
+
         fund_data = {
             'role': escape_characters_for_latex(f.get_role_display()),
             'organization': escape_characters_for_latex(f.agency),
@@ -363,7 +425,7 @@ def get_funding(user):
             'start_date': f.start_date.year if f.start_date else 'Unknown',
             'end_date': f.end_date.year if f.end_date else 'Present',
             'id': escape_characters_for_latex(f.grant_number) if f.grant_number else '',
-            'url': ''  # Add if URL field exists in model
+            'url': url
         }
 
         if f.end_date and f.end_date.year < current_year:
@@ -380,17 +442,31 @@ def get_funding(user):
 \\subsection*{Active:}
 """
         for e in active_funding:
-            linkstring = ''
-            if e.get('url') and e['url']:
-                linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
-            output += f"{e['role']}, {e['organization'].rstrip(' ')}{linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            # Build grant number display
+            grant_info = ''
+            if e['id']:  # grant_number is stored in 'id'
+                if e.get('url') and e['url']:
+                    # If URL exists, link the grant number
+                    grant_info = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+                else:
+                    # If no URL, just show the grant number
+                    grant_info = f" {e['id']}"
+
+            output += f"{e['role']}, {e['organization'].rstrip(' ')}{grant_info}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
 
         output += '\\subsection*{Completed:}'
         for e in completed_funding:
-            linkstring = ''
-            if e.get('url') and e['url']:
-                linkstring = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
-            output += f"{e['role']}, {e['organization'].rstrip()}{linkstring}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
+            # Build grant number display
+            grant_info = ''
+            if e['id']:  # grant_number is stored in 'id'
+                if e.get('url') and e['url']:
+                    # If URL exists, link the grant number
+                    grant_info = f" (\\href{{{e['url']}}}{{\\textit{{{e['id']}}}}})"
+                else:
+                    # If no URL, just show the grant number
+                    grant_info = f" {e['id']}"
+
+            output += f"{e['role']}, {e['organization'].rstrip()}{grant_info}, {e['title']}, {e['start_date']}-{e['end_date']}\\vspace{{2mm}}\n\n"
     return output
 
 
@@ -749,8 +825,8 @@ def get_preprints(user, exclude_dois=None):
 \\section*{Preprints}
 \\noindent
 """
-        # Sort preprints by first author's last name
-        unpublished_preprints.sort(key=lambda pub: extract_first_author_lastname(pub.authors))
+        # Sort preprints by year in reverse chronological order (most recent first)
+        unpublished_preprints.sort(key=lambda pub: pub.year, reverse=True)
 
         for pub in unpublished_preprints:
             # Skip corrections/errata
@@ -826,9 +902,7 @@ def get_heading(user):
     if city_state_zip:
         address_lines.append(', '.join(city_state_zip))
 
-    # Add country if available
-    if hasattr(user, 'country') and user.country:
-        address_lines.append(escape_characters_for_latex(user.country))
+    # Country is intentionally excluded from CV address per requirements
 
     # Build address string for first column
     address = ''
@@ -968,6 +1042,7 @@ def generate_cv_latex(user, exclude_dois=None, exclude_preprints=False):
     doc += get_distinctions(user)
     doc += get_memberships(user)
     doc += get_service(user)
+    doc += get_editorial_activities(user)
     doc += get_funding(user)
     doc += get_teaching(user)
     if not exclude_preprints:
