@@ -550,19 +550,82 @@ class TestEditorialActivitiesCV:
         )
 
     def test_editorial_activities_grouped_by_role(self, sample_user, editorial_activities):
-        """Test that editorial activities are grouped by role in CV"""
+        """Test that editorial activities are grouped by role in CV using compact format"""
         editorial_section = get_editorial_activities(sample_user)
 
         # Should include the Editorial duties section
         assert '\\section*{Editorial duties}' in editorial_section
 
-        # Should group by role with subsections
-        assert '\\subsection*{Editorial board}' in editorial_section
-        assert '\\subsection*{Handling Editor (ad hoc)}' in editorial_section
-        assert '\\subsection*{Senior Editor}' in editorial_section
+        # Should use compact format without subsections
+        assert '\\subsection*{' not in editorial_section
+
+        # Should group by role with colon format
+        assert 'Editorial board:' in editorial_section
+        assert 'Handling Editor (ad hoc):' in editorial_section
+        assert 'Senior Editor:' in editorial_section
 
         # Should include all journals
         assert 'Psychological Science, 2024-' in editorial_section
         assert 'Trends in Cognitive Sciences' in editorial_section
         assert 'Cerebral Cortex' in editorial_section
         assert 'Proceedings of the National Academy of Sciences' in editorial_section
+
+    def test_editorial_activities_compact_format(self, sample_user):
+        """Test that editorial activities use compact format with journals listed after each role"""
+        # Create multiple editorial activities with same and different roles
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Senior Editor',
+            journal='Psychological Science',
+            dates='2024-'
+        )
+
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Handling Editor (ad hoc)',
+            journal='Proceedings of the National Academy of Sciences',
+            dates=''
+        )
+
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Handling Editor (ad hoc)',
+            journal='eLife',
+            dates=''
+        )
+
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Editorial board',
+            journal='Trends in Cognitive Sciences',
+            dates=''
+        )
+
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Editorial board',
+            journal='Cerebral Cortex',
+            dates=''
+        )
+
+        Editorial.objects.create(
+            owner=sample_user,
+            role='Editorial board',
+            journal='Human Brain Mapping',
+            dates=''
+        )
+
+        editorial_section = get_editorial_activities(sample_user)
+
+        # Should NOT use subsections (compact format)
+        assert '\\subsection*{' not in editorial_section, "Compact format should not use subsections"
+
+        # Should use compact format: "Role: journal1, journal2, journal3"
+        # Senior Editor should be on one line (with dates)
+        assert 'Senior Editor: Psychological Science, 2024-' in editorial_section
+
+        # Handling Editor should list both journals on same line (alphabetical order)
+        assert 'Handling Editor (ad hoc): Proceedings of the National Academy of Sciences, eLife' in editorial_section
+
+        # Editorial board should list all journals on same line (alphabetical order due to sorting)
+        assert 'Editorial board: Cerebral Cortex, Human Brain Mapping, Trends in Cognitive Sciences' in editorial_section

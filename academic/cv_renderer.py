@@ -376,8 +376,9 @@ def get_teaching(user):
 
 
 def get_editorial_activities(user):
-    """Get editorial activities for CV grouped by role"""
+    """Get editorial activities for CV grouped by role in compact format"""
     from .models import Editorial
+    from collections import defaultdict
 
     editorial_activities = Editorial.objects.filter(owner=user).order_by('role', 'journal')
 
@@ -389,17 +390,22 @@ def get_editorial_activities(user):
 \\noindent
 """
 
-    # Group by role
-    current_role = None
+    # Group activities by role
+    roles_dict = defaultdict(list)
     for activity in editorial_activities:
-        if activity.role != current_role:
-            current_role = activity.role
-            output += f"\\subsection*{{{escape_characters_for_latex(activity.role)}}}\n"
-
-        # Format the entry
+        # Include dates if present, otherwise just the journal name
         journal = escape_characters_for_latex(activity.journal)
-        dates = f", {escape_characters_for_latex(activity.dates)}" if activity.dates else ""
-        output += f"{journal}{dates}\n\n"
+        if activity.dates:
+            journal_entry = f"{journal}, {escape_characters_for_latex(activity.dates)}"
+        else:
+            journal_entry = journal
+        roles_dict[activity.role].append(journal_entry)
+
+    # Output in compact format: "Role: journal1, journal2, journal3"
+    for role in sorted(roles_dict.keys()):
+        role_escaped = escape_characters_for_latex(role)
+        journals_list = ', '.join(roles_dict[role])
+        output += f"{role_escaped}: {journals_list}\n\n"
 
     return output
 

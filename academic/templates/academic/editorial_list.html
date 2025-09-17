@@ -1,0 +1,364 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Editorial Activities ({{ editorial_count }})</h1>
+            <div>
+                <a href="{% url 'academic:editorial_upload' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-upload"></i> Upload CSV
+                </a>
+                <button class="btn btn-success me-2" id="addRowBtn">
+                    <i class="fas fa-plus"></i> Add Activity
+                </button>
+                <button class="btn btn-primary" id="saveAllBtn" style="display: none;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+
+        <!-- Editorial Activities Table -->
+        <div class="table-responsive">
+            <table class="table table-hover" id="editorialTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Role</th>
+                        <th>Journal</th>
+                        <th>Dates</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for editorial in editorial_list %}
+                    <tr data-id="{{ editorial.pk }}" data-original='{{ editorial|safe }}'>
+                        <td class="editable" data-field="role">{{ editorial.role|default:"" }}</td>
+                        <td class="editable" data-field="journal">{{ editorial.journal|default:"" }}</td>
+                        <td class="editable" data-field="dates">{{ editorial.dates|default:"" }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-danger delete-btn" data-id="{{ editorial.pk }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <a href="{% url 'academic:editorial_detail' editorial.pk %}" class="btn btn-outline-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr id="emptyRow">
+                        <td colspan="4" class="text-center text-muted py-5">
+                            <i class="fas fa-edit fa-3x mb-3 d-block"></i>
+                            No editorial activities yet. Click "Add Activity" to get started.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Template for new rows (hidden) -->
+        <table id="rowTemplate" style="display: none;">
+            <tbody>
+                <tr data-id="new" class="new-row table-warning">
+                    <td class="editable" data-field="role" placeholder="Enter role..."></td>
+                    <td class="editable" data-field="journal" placeholder="Enter journal name..."></td>
+                    <td class="editable" data-field="dates" placeholder="e.g., 2020-2024 or 2024-"></td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-danger delete-btn" data-id="new">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let hasChanges = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const table = document.getElementById('editorialTable');
+    const tbody = table.querySelector('tbody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    const emptyRow = document.getElementById('emptyRow');
+
+    // Initialize editable cells
+    initializeEditableCells();
+
+    // Add row functionality
+    addRowBtn.addEventListener('click', function() {
+        addNewRow();
+    });
+
+    // Save all changes
+    saveAllBtn.addEventListener('click', function() {
+        saveAllChanges();
+    });
+
+    // Handle delete buttons
+    tbody.addEventListener('click', function(e) {
+        if (e.target.closest('.delete-btn')) {
+            const btn = e.target.closest('.delete-btn');
+            const row = btn.closest('tr');
+            const id = btn.dataset.id;
+
+            if (id === 'new') {
+                // Just remove new rows
+                row.remove();
+                checkEmpty();
+                checkChanges();
+            } else {
+                // Confirm deletion for existing rows
+                if (confirm('Are you sure you want to delete this editorial activity?')) {
+                    deleteRow(id, row);
+                }
+            }
+        }
+    });
+
+    function initializeEditableCells() {
+        // Text editable cells
+        tbody.addEventListener('click', function(e) {
+            const cell = e.target.closest('.editable');
+            if (cell && !cell.querySelector('input')) {
+                makeEditable(cell);
+            }
+        });
+    }
+
+    function makeEditable(cell) {
+        const originalText = cell.textContent.trim();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm';
+        input.value = originalText;
+        input.placeholder = cell.getAttribute('placeholder') || '';
+
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+
+        input.addEventListener('blur', function() {
+            finishEditing(cell, input.value, originalText);
+        });
+
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                finishEditing(cell, input.value, originalText);
+            }
+        });
+    }
+
+    function finishEditing(cell, newValue, originalValue) {
+        const row = cell.closest('tr');
+
+        // Store the value
+        cell.dataset.value = newValue;
+
+        // Display the value
+        cell.textContent = newValue;
+
+        // Mark as changed if different
+        if (newValue !== originalValue) {
+            row.classList.add('table-warning');
+            markChanged();
+        }
+    }
+
+    function addNewRow() {
+        const template = document.getElementById('rowTemplate');
+        const newRow = template.querySelector('tr').cloneNode(true);
+
+        // Remove empty row if it exists
+        if (emptyRow) {
+            emptyRow.remove();
+        }
+
+        tbody.appendChild(newRow);
+        markChanged();
+
+        // Focus on first editable cell
+        const firstCell = newRow.querySelector('.editable');
+        if (firstCell) {
+            firstCell.click();
+        }
+    }
+
+    function markChanged() {
+        hasChanges = true;
+        saveAllBtn.style.display = 'inline-block';
+    }
+
+    function checkChanges() {
+        const changedRows = tbody.querySelectorAll('.table-warning');
+        if (changedRows.length === 0) {
+            hasChanges = false;
+            saveAllBtn.style.display = 'none';
+        }
+    }
+
+    function checkEmpty() {
+        const rows = tbody.querySelectorAll('tr:not(#emptyRow)');
+        if (rows.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.id = 'emptyRow';
+            emptyRow.innerHTML = `
+                <td colspan="4" class="text-center text-muted py-5">
+                    <i class="fas fa-edit fa-3x mb-3 d-block"></i>
+                    No editorial activities yet. Click "Add Activity" to get started.
+                </td>
+            `;
+            tbody.appendChild(emptyRow);
+        }
+    }
+
+    async function saveAllChanges() {
+        const changedRows = tbody.querySelectorAll('.table-warning');
+        const savePromises = [];
+
+        for (const row of changedRows) {
+            const id = row.dataset.id;
+            const data = extractRowData(row);
+
+            if (id === 'new') {
+                savePromises.push(createEditorial(data, row));
+            } else {
+                savePromises.push(updateEditorial(id, data, row));
+            }
+        }
+
+        try {
+            await Promise.all(savePromises);
+
+            // Remove highlighting and update state
+            changedRows.forEach(row => {
+                row.classList.remove('table-warning', 'new-row');
+            });
+
+            checkChanges();
+
+            // Show success message
+            showMessage('All changes saved successfully!', 'success');
+
+        } catch (error) {
+            showMessage('Error saving changes: ' + error.message, 'danger');
+        }
+    }
+
+    function extractRowData(row) {
+        const data = {};
+        const cells = row.querySelectorAll('[data-field]');
+
+        cells.forEach(cell => {
+            const field = cell.dataset.field;
+            let value = cell.dataset.value || cell.textContent.trim();
+
+            // Convert empty strings to null for optional fields
+            if (value === '') {
+                value = null;
+            }
+
+            data[field] = value;
+        });
+
+        return data;
+    }
+
+    async function createEditorial(data, row) {
+        const response = await fetch("{% url 'academic:editorial_create' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create editorial activity');
+        }
+
+        const result = await response.json();
+        row.dataset.id = result.id;
+
+        return result;
+    }
+
+    async function updateEditorial(id, data, row) {
+        const response = await fetch(`/editorial/${id}/edit/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update editorial activity');
+        }
+
+        return await response.json();
+    }
+
+    async function deleteRow(id, row) {
+        try {
+            const response = await fetch(`/editorial/${id}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+
+            if (response.ok) {
+                row.remove();
+                checkEmpty();
+                showMessage('Editorial activity deleted successfully!', 'success');
+            } else {
+                throw new Error('Failed to delete record');
+            }
+        } catch (error) {
+            showMessage('Error deleting record: ' + error.message, 'danger');
+        }
+    }
+
+    function showMessage(message, type) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        const container = document.querySelector('.container');
+        container.insertBefore(alert, container.firstChild);
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+
+    // Prevent leaving with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+});
+</script>
+
+<!-- CSRF Token for AJAX -->
+{% csrf_token %}
+{% endblock %}

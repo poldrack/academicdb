@@ -1,0 +1,60 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Editorial Activity Details</h1>
+            <div>
+                <a href="{% url 'academic:editorial_update' editorial.pk %}" class="btn btn-primary me-2">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{% url 'academic:editorial_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Role</h5>
+                        <p class="text-muted">{{ editorial.role }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Journal</h5>
+                        <p class="text-muted">{{ editorial.journal }}</p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Dates</h5>
+                        <p class="text-muted">{{ editorial.dates|default:"Not specified" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Source</h5>
+                        <span class="badge bg-{% if editorial.source == 'csv_import' %}info{% else %}secondary{% endif %}">
+                            {{ editorial.get_source_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Created</h6>
+                        <small class="text-muted">{{ editorial.created_at|date:"F j, Y g:i A" }}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Last Modified</h6>
+                        <small class="text-muted">{{ editorial.updated_at|date:"F j, Y g:i A" }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

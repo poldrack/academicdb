@@ -1,0 +1,57 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-upload"></i> Upload Editorial Activities</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="mb-4">
+                        <h5>CSV File Format</h5>
+                        <p class="text-muted">
+                            Your CSV file should have the following columns: <code>role</code>, <code>journal</code>, <code>dates</code>
+                        </p>
+
+                        <div class="alert alert-info">
+                            <strong>Example CSV content:</strong>
+                            <pre class="mt-2 mb-0">role,journal,dates
+Senior Editor,Psychological Science,2024-
+Handling Editor (ad hoc),Proceedings of the National Academy of Sciences,
+Editorial board,Trends in Cognitive Sciences,
+Editorial board,Cerebral Cortex,</pre>
+                        </div>
+
+                        <p class="small text-muted">
+                            <strong>Notes:</strong>
+                            <ul class="small">
+                                <li>The <code>role</code> and <code>journal</code> columns are required</li>
+                                <li>The <code>dates</code> column is optional and can contain date ranges like "2020-2024" or ongoing roles like "2024-"</li>
+                                <li>Empty values are allowed for the dates column</li>
+                            </ul>
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">Select CSV File</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'academic:editorial_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Editorial Activities
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload CSV
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
