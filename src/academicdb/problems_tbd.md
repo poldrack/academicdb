@@ -4,21 +4,19 @@ Open problems marked with [ ]
 Fixed problems marked with [x]
 **IMPORTANT**: Only mark a problem as fixed once the user has confirmed that the fix worked.
 
-[x] I would like to add links to CV entries, as we had done in the original code.
+[ ] Remove the country entry in the address field for the rendered CV
 
-The first step is to create a new table, which we call Links, based on an uploaded CSV file like data/links.csv.  This will have columns named "type", "DOI", and "url".  Type refers to the kind of link it is, and should be used as the link text.  DOI refers to the DOI and should be used as a reference to identify the relevant publication.  url refers to the URL to be linked to.  I think it would be best to add a button to the links page named "Add links to pubs" that will add the links to the publication entries, so that they will be easily accessible when we are ready to generate the CV.
+[ ] The "Education and Training" section of the CV should include all education and qualification items from the ORCID record. It currently appears to be excluding entries that are marked as "Qualification" rather than "Education", such as postdoctoral training.
 
-The second step is to add link rendering to the CV generator.  The links should be added after the OA/DOI links for each publication if they exist.
+[ ] We need to include a tab for editorial activities, which cannot be properly represented within ORCID.  These should be uploaded to a table (similar to teaching or talks), from a file like the one at data/editorial.csv.  The listing of Editorial Duties in the rendered CV should group these activities together by role.
 
-**COMPLETED**: Links functionality is fully implemented. The Link model exists with CSV upload capability, and there's an "Add links to pubs" button on the links page that associates links with publications via DOI matching. The UI is complete with upload, association, and management features.
+[ ] Activities listed as "Invited Positions" in the ORCID Professional Activities should be included in the "Honors and Awards" section of the rendered CV.
 
-[x] I would like to generate a tool to find publication entries with duplicate names.  This primarily occurs when there is a preprint that overlaps with a journal paper.  Let's add a button to the publications page called "Find duplicates".  When pressed, this should identify all publications with matching titles, and present them in a table with buttons that allow one to mark them as ignored or delete them.
+[ ] In the rendered CV, funding sources should be sorted by their end date rather than their start date.
 
-**COMPLETED**: Duplicate detection tool is fully implemented with:
-- `Publication.find_duplicate_titles()` method that groups publications with similar titles
-- "Find Duplicates" button on the publications page
-- Dedicated duplicate management page with table view
-- Actions to mark publications as ignored or delete them
-- User isolation (users can only see/modify their own publications)
-- Comprehensive test coverage (13 tests)
+[ ] If a funding source entry has a grant number, that number should be listed following the name of the agency.  If the entry has a URL then it should be linked from the grant number.
+
+[ ] Preprints in the CV should be listed in reverse chronological order (most recent first).
+
+[ ] Conference presentations should be ordered in reverse chronological order within the year, based on the Month field.  You may want to create a numerical representation of the month and then sort by that.
 

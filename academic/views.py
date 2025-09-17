@@ -64,10 +64,22 @@ class ProfileView(LoginRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         """Handle profile update form submission"""
         user = request.user
-        
+
         # Update basic profile fields
         user.first_name = request.POST.get('first_name', '')
         user.last_name = request.POST.get('last_name', '')
+
+        # Handle email change with validation
+        new_email = request.POST.get('email', '').strip()
+        if new_email and new_email != user.email:
+            # Check if email is already in use
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            if User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
+                messages.error(request, f'Email address "{new_email}" is already in use by another account.')
+                return redirect('academic:profile')
+            user.email = new_email
+
         user.institution = request.POST.get('institution', '')
         user.department = request.POST.get('department', '')
         user.scopus_id = request.POST.get('scopus_id', '')
