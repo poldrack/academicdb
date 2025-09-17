@@ -2210,3 +2210,56 @@ class LinkDeleteView(LoginRequiredMixin, DeleteView):
         context['title'] = 'Delete Link'
         return context
 
+
+class FindDuplicatesView(LoginRequiredMixin, View):
+    """
+    View to find and manage duplicate publications
+    """
+    login_url = '/accounts/login/'
+    template_name = 'academic/find_duplicates.html'
+
+    def get(self, request, *args, **kwargs):
+        """Display duplicate publications"""
+        duplicates = Publication.find_duplicate_titles(request.user)
+        context = {
+            'duplicates': duplicates,
+            'title': 'Find Duplicate Publications'
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        """Handle actions on duplicate publications"""
+        action = request.POST.get('action')
+        publication_id = request.POST.get('publication_id')
+
+        if not action or not publication_id:
+            messages.error(request, 'Invalid request parameters.')
+            return redirect('academic:find_duplicates')
+
+        try:
+            # Ensure user can only modify their own publications
+            publication = Publication.objects.get(
+                id=publication_id,
+                owner=request.user
+            )
+
+            if action == 'ignore':
+                publication.is_ignored = True
+                publication.save()
+                messages.success(request, f'Publication "{publication.title}" marked as ignored.')
+
+            elif action == 'delete':
+                title = publication.title
+                publication.delete()
+                messages.success(request, f'Publication "{title}" deleted.')
+
+            else:
+                messages.error(request, 'Invalid action.')
+
+        except Publication.DoesNotExist:
+            messages.error(request, 'Publication not found or access denied.')
+        except Exception as e:
+            messages.error(request, f'Error processing request: {str(e)}')
+
+        return redirect('academic:find_duplicates')
+

@@ -952,6 +952,69 @@ class Publication(models.Model):
 
         return qs.distinct()
 
+    @classmethod
+    def find_duplicate_titles(cls, user):
+        """
+        Find publications with duplicate or very similar titles
+        Returns a dictionary where keys are titles and values are lists of publications
+        """
+        # Get all non-ignored publications for the user
+        publications = cls.objects.filter(
+            owner=user,
+            is_ignored=False
+        ).select_related('owner')
+
+        # Group by normalized title
+        title_groups = {}
+
+        for pub in publications:
+            if not pub.title:
+                continue
+
+            normalized_title = cls._normalize_title_for_comparison(pub.title)
+            if normalized_title not in title_groups:
+                title_groups[normalized_title] = []
+            title_groups[normalized_title].append(pub)
+
+        # Return only groups with more than one publication
+        duplicates = {}
+        for title, pubs in title_groups.items():
+            if len(pubs) > 1:
+                # Use the first publication's title as the key
+                display_title = pubs[0].title
+                duplicates[display_title] = pubs
+
+        return duplicates
+
+    @classmethod
+    def _normalize_title_for_comparison(cls, title):
+        """
+        Normalize title for duplicate comparison
+        """
+        if not title:
+            return ""
+
+        import re
+
+        # Convert to lowercase
+        normalized = title.lower().strip()
+
+        # Remove punctuation and extra whitespace
+        normalized = re.sub(r'[^\w\s]', ' ', normalized)
+        normalized = re.sub(r'\s+', ' ', normalized)
+
+        # Remove common stop words at beginning/end
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
+        words = normalized.split()
+
+        # Filter out very short words and stop words
+        filtered_words = []
+        for word in words:
+            if len(word) > 2 and word not in stop_words:
+                filtered_words.append(word)
+
+        return ' '.join(filtered_words)
+
     def save(self, *args, **kwargs):
         """Override save to auto-detect preprint status and normalize DOI"""
         # Normalize DOI to lowercase and replace repeated slashes

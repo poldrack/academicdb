@@ -69,6 +69,7 @@ urlpatterns = [
     path('sync/status/', views.SyncStatusView.as_view(), name='sync_status'),
     path('sync/progress/', views.SyncProgressStreamView.as_view(), name='sync_progress'),
     path('publications/clear/', views.ClearPublicationsView.as_view(), name='clear_publications'),
+    path('publications/find-duplicates/', views.FindDuplicatesView.as_view(), name='find_duplicates'),
 
     # Tools & Administration URLs
     path('tools/', views.AdminPanelView.as_view(), name='admin_panel'),

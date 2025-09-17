@@ -1,0 +1,195 @@
+{% extends 'academic/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Find Duplicate Publications</h1>
+            <a href="{% url 'academic:publication_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Publications
+            </a>
+        </div>
+
+        {% if duplicates %}
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle"></i> Duplicate Detection Results</h5>
+                <p class="mb-0">Found {{ duplicates|length }} group{% if duplicates|length != 1 %}s{% endif %} of publications with similar titles. Review these carefully - they may be preprints that overlap with journal papers or genuine duplicates.</p>
+            </div>
+
+            {% for title, publications in duplicates.items %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-copy text-warning"></i>
+                            Potential Duplicates ({{ publications|length }} publications)
+                        </h5>
+                        <small class="text-muted">Representative title: {{ title|truncatechars:100 }}</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Year</th>
+                                        <th>Type</th>
+                                        <th>Journal</th>
+                                        <th>DOI</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for pub in publications %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'academic:publication_detail' pub.pk %}" class="text-decoration-none">
+                                                    {{ pub.title|truncatechars:80 }}
+                                                </a>
+                                                {% if pub.is_preprint %}
+                                                    <span class="badge bg-info ms-1">Preprint</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ pub.year|default:"—" }}</td>
+                                            <td>
+                                                <small>{{ pub.get_publication_type_display|default:"Unknown" }}</small>
+                                            </td>
+                                            <td>
+                                                {% if pub.journal %}
+                                                    <small>{{ pub.journal|truncatechars:30 }}</small>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if pub.doi %}
+                                                    <small class="font-monospace">{{ pub.doi|truncatechars:20 }}</small>
+                                                {% else %}
+                                                    <span class="text-muted">—</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <!-- Mark as Ignored Button -->
+                                                    <form method="post" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="ignore">
+                                                        <input type="hidden" name="publication_id" value="{{ pub.id }}">
+                                                        <button type="submit"
+                                                                class="btn btn-outline-warning btn-sm"
+                                                                title="Mark as ignored (will be excluded from future searches)"
+                                                                onclick="return confirm('Mark this publication as ignored? It will be excluded from searches and CV generation.')">
+                                                            <i class="fas fa-eye-slash"></i>
+                                                        </button>
+                                                    </form>
+
+                                                    <!-- Delete Button -->
+                                                    <form method="post" style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="delete">
+                                                        <input type="hidden" name="publication_id" value="{{ pub.id }}">
+                                                        <button type="submit"
+                                                                class="btn btn-outline-danger btn-sm"
+                                                                title="Delete this publication permanently"
+                                                                onclick="return confirm('Are you sure you want to delete this publication? This action cannot be undone.')">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert alert-light mt-3">
+                            <small>
+                                <strong>Tip:</strong>
+                                If these are preprints with corresponding journal articles, consider marking the preprint as ignored.
+                                If they are true duplicates, delete the duplicate entry.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+
+        {% else %}
+            <!-- No duplicates found -->
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                <h3>No Duplicates Found</h3>
+                <p class="text-muted mb-4">
+                    Great! No duplicate publications were detected in your database.
+                </p>
+                <a href="{% url 'academic:publication_list' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Publications
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Information Modal -->
+<div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel">
+                    <i class="fas fa-info-circle"></i> About Duplicate Detection
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>How it works:</h6>
+                <ul>
+                    <li>Compares publication titles after normalizing case, punctuation, and common words</li>
+                    <li>Groups publications with very similar titles together</li>
+                    <li>Only includes non-ignored publications in the analysis</li>
+                </ul>
+
+                <h6>Common scenarios:</h6>
+                <ul>
+                    <li><strong>Preprint + Journal Article:</strong> Same work published as preprint then in journal</li>
+                    <li><strong>True Duplicates:</strong> Same publication added multiple times from different sources</li>
+                    <li><strong>Similar Titles:</strong> Different publications with coincidentally similar titles</li>
+                </ul>
+
+                <h6>Recommended actions:</h6>
+                <ul>
+                    <li><strong>Mark as Ignored:</strong> For preprints when you have the journal version</li>
+                    <li><strong>Delete:</strong> For true duplicates or unwanted entries</li>
+                    <li><strong>Keep Both:</strong> If they are actually different publications</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add loading states to action buttons
+    const actionForms = document.querySelectorAll('form[method="post"]');
+    actionForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const button = this.querySelector('button[type="submit"]');
+            button.disabled = true;
+
+            const icon = button.querySelector('i');
+            const originalClass = icon.className;
+            icon.className = 'fas fa-spinner fa-spin';
+
+            // Restore button if form submission fails
+            setTimeout(() => {
+                button.disabled = false;
+                icon.className = originalClass;
+            }, 5000);
+        });
+    });
+});
+</script>
+{% endblock %}
