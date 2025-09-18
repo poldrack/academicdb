@@ -1,29 +1,17 @@
 # Academic Database Management System
 
-A comprehensive Django-based academic database management system for researchers to track publications, funding, teaching, talks, and conferences with seamless integration to academic APIs.
+This project is a comprehensive Django-based academic database management system for researchers to track publications, funding, teaching, talks, and conferences with seamless integration to academic APIs.  
 
-## Features
+This project has two main use cases:
 
-### Core Functionality
+- For researchers with hundreds of publications and other outputs, it can help streamline the generation of your CV.
+- For researchers submitting NSF grants, which require a spreadsheet listing all recent collaborators and their affiliations, it can automate the generation of that list.  This is not yet fully implemented: At present the collaboration database has been developed, we just need to implement the export.  If you need this immediately, post an issue and I'll get on it ASAP.
 
-- **ORCID Authentication**: Secure login via ORCID OAuth
-- **Publication Management**: Track and manage academic publications with full metadata
-- **Funding Tracking**: Manage grants and funding sources with role and status tracking
-- **Teaching Records**: Document courses taught with enrollment and institution details
-- **Talks & Conferences**: Track invited talks and conference presentations
-- **Multi-Source Synchronization**: Automated data import from ORCID, PubMed, Scopus, and CrossRef
-- **Spreadsheet Interface**: Excel-like bulk editing for efficient data management
-- **CSV Import/Export**: Bulk data operations with custom field mapping
-- **Edit Protection**: Manual edits preserved during API synchronization
+NOTE: This project is meant for local deployment only, not for production deployment on the web, due to the limitations on Scopus keys.
 
-### Key Integrations
+This is a complete rewrite of the original project, using Claude Code, based on the original codebase.  If you wish to access the original project, you can find it [here](https://github.com/poldrack/academicdb/tree/v1.0).
 
-- **ORCID**: Authentication and publication/funding synchronization
-- **PubMed**: Query-based publication discovery and metadata enrichment
-- **Scopus**: Author ID-based publication retrieval and citation data
-- **CrossRef**: DOI metadata enrichment and publication type detection
-
-## Prerequisites
+## Getting Started
 
 ### ORCID Developer Setup (Required)
 
@@ -32,8 +20,9 @@ Before installing the application, you need to register for ORCID API credential
 1. **Create an ORCID account** (if you don't have one):
    - Visit https://orcid.org/register
    - Complete the registration process
+   - Enter your details into the ORCID database
 
-2. **Register for developer tools**:
+2. **Register for ORCID developer tools**:
    - Go to https://orcid.org/developer-tools
    - Sign in with your ORCID account
    - Click "Register for the free ORCID public API"
@@ -51,7 +40,6 @@ Before installing the application, you need to register for ORCID API credential
      - **Client ID**: Use this for `ORCID_CLIENT_ID` in the .env file below
      - **Client Secret**: Use this for `ORCID_CLIENT_SECRET` in the .env file below
 
-**Note**: For production deployment, you would need to register a separate application with your production domain and HTTPS redirect URI.  However, this project isn't really meant for a production deployment, since the required Scopus keys are going to be user-specific and linked to your institution. 
 
 ## Installation
 
@@ -69,8 +57,8 @@ The easiest way to get started is using Docker, which handles all dependencies a
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/academicdb2.git
-cd academicdb2
+git clone https://github.com/poldrack/academicdb.git
+cd academicdb
 ```
 
 2. Create environment configuration:
@@ -125,17 +113,11 @@ The `make docker-run-orcid` command will:
 - Start the container with all necessary environment variables
 
 5. Access the application:
-   - Web interface: http://localhost:8000
-   - Admin interface: http://localhost:8000/admin/
+   - Web interface: http://127.0.0.1:8000
+   - Admin interface: http://127.0.0.1:8000/admin/
 
-6. Initial setup (optional):
-```bash
-# Create a superuser account
-docker exec academicdb python manage.py createsuperuser
+6. Log in using your ORCID credentials.
 
-# Load sample data
-docker exec academicdb python manage.py loaddata fixtures/sample_data.json
-```
 
 #### Docker Commands
 
@@ -179,7 +161,7 @@ For development or if you prefer not to use Docker:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/academicdb2.git
+git clone https://github.com/poldrack/academicdb.git
 cd academicdb2
 ```
 
@@ -213,7 +195,7 @@ uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
-Visit http://localhost:8000 to access the application.
+Visit http://127.0.0.1:8000 to access the application.
 
 ## Usage
 
@@ -332,36 +314,6 @@ uv run python manage.py import_csv --user-id ID --teaching-file teaching.csv
 
 ### Database Backup & Restore
 
-#### PostgreSQL Direct Dumps (Recommended for full database backup)
-
-```bash
-# Create PostgreSQL backup (multiple formats available)
-uv run python manage.py backup_db [options]
-  --format {sql,custom,tar}  # Backup format (default: custom)
-  --compress                 # Compress SQL output with gzip
-  --output-dir DIR          # Output directory (default: backups/)
-
-# Examples:
-uv run python manage.py backup_db --format custom  # Compressed binary format (recommended)
-uv run python manage.py backup_db --format sql --compress  # Compressed SQL
-uv run python manage.py backup_db --format tar     # TAR archive format
-
-# Restore PostgreSQL backup
-uv run python manage.py restore_db <backup_file> [options]
-  --clean          # Drop existing objects before restore
-  --no-owner       # Don't restore ownership
-  --data-only      # Restore only data, not schema
-  --schema-only    # Restore only schema, not data
-  --force          # Skip confirmation prompt
-  --create-db      # Create database before restore
-
-# Examples:
-uv run python manage.py restore_db backups/academicdb_backup_20250916.dump
-uv run python manage.py restore_db backup.sql.gz --clean --force
-```
-
-#### JSON-based Backup (User-specific data export/import)
-
 ```bash
 # Create JSON backup
 uv run python manage.py backup_data [--output-dir backups/] [--user-id ID]
@@ -439,7 +391,7 @@ Most commands support these options:
 ### Project Structure
 
 ```
-academicdb2/
+academicdb/
 ├── academic/                 # Main Django app
 │   ├── models.py            # Database models
 │   ├── views.py             # Web and API views
@@ -483,19 +435,6 @@ uv run python manage.py test
 - Input validation for external API data
 - Comprehensive audit trails
 
-## Legacy CLI Tool
-
-The original academicdb command-line tool is preserved in `src/academicdb/` for compatibility. It provides:
-
-- `dbbuilder`: Build academic database from APIs
-- `render_cv`: Generate LaTeX/PDF CV from database
-- `get_collaborators`: Create NSF collaborators spreadsheet
-
-See [Legacy CLI Documentation](src/academicdb/README.md) for details on the original MongoDB-based tool.
-
-## License
-
-[Specify your license here]
 
 ## Support
 

@@ -1,6 +1,8 @@
 HOMEDIR=$(HOME)
 DBDIR = ${HOMEDIR}/.cache/academicdb
 
+IMAGE_VERSION = v1.0.1
+
 # Load environment variables from .env file if it exists
 ifneq (,$(wildcard .env))
     include .env
@@ -11,7 +13,7 @@ endif
 ifeq ($(USE_LOCAL_DOCKER_IMAGE),true)
     DOCKER_IMAGE = academicdb:latest
 else
-    DOCKER_IMAGE = poldrack/academicdb2:v1.0.0
+    DOCKER_IMAGE = poldrack/academicdb2:${IMAGE_VERSION}
 endif
 
 test:
@@ -56,9 +58,12 @@ docker-rebuild: docker-clean docker-build docker-run-orcid
 
 docker-rm-db:
 	-rm /Users/poldrack/.cache/academicdb/*
-	
+
 docker-build:
 	docker build -t academicdb:latest .
+
+docker-buildx:
+	docker buildx build --platform linux/amd64,linux/arm64 -t poldrack/academicdb2:latest -t poldrack/academicdb2:${IMAGE_VERSION} --push .
 
 docker-run:
 	docker run -d \
