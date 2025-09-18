@@ -23,16 +23,147 @@ A comprehensive Django-based academic database management system for researchers
 - **Scopus**: Author ID-based publication retrieval and citation data
 - **CrossRef**: DOI metadata enrichment and publication type detection
 
+## Prerequisites
+
+### ORCID Developer Setup (Required)
+
+Before installing the application, you need to register for ORCID API credentials:
+
+1. **Create an ORCID account** (if you don't have one):
+   - Visit https://orcid.org/register
+   - Complete the registration process
+
+2. **Register for developer tools**:
+   - Go to https://orcid.org/developer-tools
+   - Sign in with your ORCID account
+   - Click "Register for the free ORCID public API"
+
+3. **Create a new application**:
+   - Fill out the application form:
+     - **Application name**: Your application name (e.g., "My Academic Database")
+     - **Application website**: http://127.0.0.1:8000 (for local development)
+     - **Application description**: Brief description of your use case
+   - **Important**: Set the **Redirect URI** to: `http://127.0.0.1:8000/accounts/orcid/login/callback/`
+   - Submit the application
+
+4. **Get your credentials**:
+   - After approval (usually immediate), you'll receive:
+     - **Client ID**: Use this for `ORCID_CLIENT_ID` in the .env file below
+     - **Client Secret**: Use this for `ORCID_CLIENT_SECRET` in the .env file below
+
+**Note**: For production deployment, you would need to register a separate application with your production domain and HTTPS redirect URI.  However, this project isn't really meant for a production deployment, since the required Scopus keys are going to be user-specific and linked to your institution. 
+
 ## Installation
 
-### Prerequisites
+### Docker Installation (Recommended for New Users)
+
+The easiest way to get started is using Docker, which handles all dependencies and setup automatically.
+
+#### Prerequisites
+
+- Docker and Docker Compose installed on your system
+- ORCID API credentials (for authentication)
+- Scopus API key - in principle this is optional, but you would lose much of the functionality of the project
+
+#### Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/academicdb2.git
+cd academicdb2
+```
+
+2. Create environment configuration:
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit the .env file with your configuration:
+nano .env
+```
+
+3. Configure your `.env` file with the following variables:
+```bash
+# Django Configuration
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+
+# ORCID API Configuration (Required)
+# See ORCID setup instructions below
+ORCID_CLIENT_ID=your-orcid-client-id
+ORCID_CLIENT_SECRET=your-orcid-client-secret
+
+# Optional API Keys
+SCOPUS_API_KEY=your-scopus-api-key  # Get from https://dev.elsevier.com/
+SCOPUS_INST_TOKEN=your-scopus-inst-token  # Optional - only required for Scopus access outside institutional network
+```
+
+4. Build and start the application:
+```bash
+# Build the Docker image
+make docker-build
+
+# Start the application with ORCID authentication
+make docker-run-orcid
+```
+
+The `make docker-run-orcid` command will:
+- Validate your ORCID credentials from the `.env` file
+- Set up proper data persistence with volume mounts
+- Start the container with all necessary environment variables
+
+5. Access the application:
+   - Web interface: http://localhost:8000
+   - Admin interface: http://localhost:8000/admin/
+
+6. Initial setup (optional):
+```bash
+# Create a superuser account
+docker exec academicdb python manage.py createsuperuser
+
+# Load sample data
+docker exec academicdb python manage.py loaddata fixtures/sample_data.json
+```
+
+#### Docker Commands
+
+```bash
+# Stop the container
+make docker-stop
+
+# Remove the container
+make docker-remove
+
+# View logs
+docker logs academicdb
+
+# Follow logs in real-time
+docker logs -f academicdb
+
+# Access Django shell
+docker exec -it academicdb python manage.py shell
+
+# Run tests
+docker exec academicdb python manage.py test
+
+# Backup database
+docker exec academicdb python manage.py backup_db
+
+# Complete restart (clean build)
+make docker-full-restart
+```
+
+### Local Installation
+
+For development or if you prefer not to use Docker:
+
+#### Prerequisites
 
 - Python 3.9+
-- PostgreSQL 12+
 - ORCID API credentials (for authentication)
 - Scopus API key (optional, for Scopus integration)
 
-### Setup
+#### Setup
 
 1. Clone the repository:
 ```bash
@@ -48,11 +179,10 @@ uv sync
 3. Set up environment variables:
 ```bash
 # Create .env file with:
-DATABASE_URL=postgresql://user:password@localhost/academicdb
-SECRET_KEY=your-secret-key
 ORCID_CLIENT_ID=your-orcid-client-id
 ORCID_CLIENT_SECRET=your-orcid-client-secret
 SCOPUS_API_KEY=your-scopus-api-key  # Optional
+SCOPUS_INST_TOKEN=your-scopus-inst-token  # Required for Scopus access outside institutional network
 ```
 
 4. Run database migrations:
@@ -93,6 +223,53 @@ The application provides RESTful APIs for programmatic access:
 - `/api/v1/conferences/` - Conference presentation management
 
 All endpoints require authentication and return user-scoped data.
+
+## Docker Hub Deployment
+
+### Building and Publishing to Docker Hub
+
+If you want to publish your own version of the Docker image to Docker Hub:
+
+#### 1. Prerequisites
+- Docker Hub account (https://hub.docker.com/)
+- Docker with buildx support for multi-platform builds
+
+#### 2. Build and Push Multi-Platform Image
+```bash
+# Login to Docker Hub
+docker login
+
+# Create and use a new builder instance for multi-platform builds
+docker buildx create --use
+
+# Build and push for both AMD64 and ARM64 architectures
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t yourusername/academicdb2:latest \
+  -t yourusername/academicdb2:v1.0.0 \
+  --push .
+```
+
+#### 3. Alternative: Single Platform Build
+```bash
+# For local testing or single platform
+docker build -t yourusername/academicdb2:latest .
+
+# Test locally
+docker run -p 8000:8000 yourusername/academicdb2:latest
+
+# Push to Docker Hub
+docker push yourusername/academicdb2:latest
+```
+
+#### 4. Verify Deployment
+```bash
+# Test pulling and running from Docker Hub
+docker pull yourusername/academicdb2:latest
+# this needs to be run within the academicdb2 directory since it needs several files from there
+docker run -p 8000:8000 yourusername/academicdb2:latest
+```
+
+**Note**: The multi-platform build ensures compatibility with both Intel/AMD processors and Apple Silicon (M1/M2) Macs.
 
 ## Management Commands
 

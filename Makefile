@@ -1,4 +1,4 @@
-HOMEDIR=/Users/poldrack
+HOMEDIR=$(HOME)
 DBDIR = ${HOMEDIR}/.cache/academicdb
 
 # Load environment variables from .env file if it exists
@@ -93,6 +93,8 @@ docker-run-orcid:
 	fi
 	@echo "🚀 Starting container with ORCID authentication..."
 	@echo "   ORCID Client ID: $(ORCID_CLIENT_ID)"
+	@mkdir -p ${DBDIR}
+	@mkdir -p $(PWD)/backups
 	docker run -d \
 		--name academicdb \
 		-p 8000:8000 \
