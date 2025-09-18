@@ -339,7 +339,7 @@ def get_talks(user):
     output = ''
     if talks.exists():
         output += """
-\\section*{Invited addresses and colloquia (* - talks given virtually)}
+\\section*{Invited addresses and colloquia}
 \\noindent
 """
     for year in years:
@@ -348,8 +348,8 @@ def get_talks(user):
         talk_locations = []
         for talk in year_talks:
             location = talk.place
-            if talk.virtual:
-                location += '*'
+            # Note: Talk model doesn't have a virtual field currently
+            # Remove the virtual check for now
             escaped_location = escape_characters_for_latex(location)
             talk_locations.append(escaped_location)
         output += ', '.join(talk_locations) + '\n\n'
@@ -365,13 +365,16 @@ def get_teaching(user):
 \\section*{Teaching}
 \\noindent
 """
-    for level in ['undergraduate', 'graduate']:
-        level_entries = teaching.filter(level=level)
-        if level_entries.exists():
-            level_display = level.capitalize()
-            output += f'\\textit{{{level_display}}}: '
-            courses = [escape_characters_for_latex(entry.name) for entry in level_entries]
-            output += f"{', '.join(courses)}\\vspace{{2mm}}\n\n"
+        # Get all unique levels from the actual teaching entries
+        levels = teaching.values_list('level', flat=True).distinct().order_by('level')
+
+        for level in levels:
+            level_entries = teaching.filter(level=level)
+            if level_entries.exists():
+                level_display = level.replace('_', ' ').title()
+                output += f'\\textit{{{level_display}}}: '
+                courses = [escape_characters_for_latex(entry.name) for entry in level_entries]
+                output += f"{', '.join(courses)}\\vspace{{2mm}}\n\n"
     return output
 
 
