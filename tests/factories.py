@@ -125,11 +125,9 @@ class TalkFactory(DjangoModelFactory):
         model = Talk
 
     owner = factory.SubFactory(AcademicUserFactory)
-    title = factory.Faker('sentence', nb_words=8)
-    place = factory.Faker('company')  # Changed from 'venue' to 'place'
-    date = factory.Faker('date_between', start_date='-2y', end_date='today')
-    year = factory.Faker('year')  # Added required year field
-    # Removed 'talk_type' as it doesn't exist in the Talk model
+    place = factory.Faker('company')  # Institution or venue
+    year = factory.Faker('year')  # Required year field
+    invited = factory.Faker('boolean')  # Whether this was an invited talk
 
 
 class ConferenceFactory(DjangoModelFactory):

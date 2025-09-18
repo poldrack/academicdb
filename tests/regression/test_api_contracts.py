@@ -344,19 +344,18 @@ class TestAPIResponseFormats:
         # Create models with date fields
         talk = Talk.objects.create(
             owner=self.user,
-            title="Test Talk",
             place="Test University",
             year=2024,
-            date="2024-06-15"
+            invited=True
         )
 
         response = self.client.get(f'/api/v1/talks/{talk.id}/')
         if response.status_code == status.HTTP_200_OK:
             data = response.data
-            # Verify date formatting (if date field exists in response)
-            if 'date' in data:
-                assert isinstance(data['date'], str)
-                # Should be in ISO format or similar standard format
+            # Verify year field formatting
+            if 'year' in data:
+                assert isinstance(data['year'], int)
+                assert data['year'] == 2024
 
     def test_boolean_field_serialization(self):
         """Verify boolean fields are properly serialized."""

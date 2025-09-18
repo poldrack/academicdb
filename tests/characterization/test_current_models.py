@@ -168,14 +168,12 @@ class TestCurrentModelBehavior:
 
         talk = Talk.objects.create(
             owner=user,
-            title="My Research Talk",
             place="University Conference",
             year=2024,
             invited=True
         )
 
         assert talk.owner == user
-        assert talk.title == "My Research Talk"
         assert talk.place == "University Conference"
         assert talk.year == 2024
         assert talk.invited is True

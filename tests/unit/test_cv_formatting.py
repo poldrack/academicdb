@@ -470,20 +470,20 @@ class TestConferenceSorting:
         conf1 = Conference.objects.create(
             owner=sample_user,
             title='February Conference Talk',
+            authors='Speaker, A., Coauthor, B.',
             year=2024,
             month='February',
-            location='Conference Center A',
-            conference_name='Spring Conference'
+            location='Conference Center A'
         )
 
         # November presentation (should appear first chronologically despite being alphabetically later)
         conf2 = Conference.objects.create(
             owner=sample_user,
             title='November Conference Talk',
+            authors='Speaker, A., Coauthor, C.',
             year=2024,
             month='November',
-            location='Conference Center B',
-            conference_name='Fall Conference'
+            location='Conference Center B'
         )
 
         return conf1, conf2

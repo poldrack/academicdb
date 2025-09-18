@@ -366,22 +366,11 @@ class TestDataFileIngestion(TestCase):
         self.create_talks_csv()
         self.create_teaching_csv()
 
-        # Use SyncDataFilesView which calls ingest_all_data_files
-        from academic.views import SyncDataFilesView
-        from django.test import RequestFactory
-        from django.contrib.auth.models import AnonymousUser
-
-        factory = RequestFactory()
-        request = factory.post('/sync/data-files/', {'data_directory': self.test_data_dir})
-        request.user = self.user
-
-        view = SyncDataFilesView()
-        view.request = request
-
-        # This should work the same as individual CSV imports
+        # Use the test client to properly handle messages framework
         initial_editorial_count = Editorial.objects.filter(owner=self.user).count()
 
-        response = view.post(request)
+        # Use the test client to make the request (includes messages middleware)
+        response = self.client.post('/sync/data-files/', {'data_directory': self.test_data_dir})
 
         final_editorial_count = Editorial.objects.filter(owner=self.user).count()
 
