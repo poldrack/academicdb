@@ -7,6 +7,13 @@ ifneq (,$(wildcard .env))
     export
 endif
 
+# Determine which Docker image to use based on environment variable
+ifeq ($(USE_LOCAL_DOCKER_IMAGE),true)
+    DOCKER_IMAGE = academicdb:latest
+else
+    DOCKER_IMAGE = poldrack/academicdb2:v1.0.0
+endif
+
 test:
 	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run pytest tests -v
 
@@ -49,6 +56,7 @@ docker-rebuild: docker-clean docker-build docker-run-orcid
 
 docker-rm-db:
 	-rm /Users/poldrack/.cache/academicdb/*
+	
 docker-build:
 	docker build -t academicdb:latest .
 
@@ -73,7 +81,7 @@ docker-run-admin:
 		-e DJANGO_SUPERUSER_PASSWORD=secure_password \
 		academicdb:latest
 
-docker-run-orcid:
+check_orcid:
 	@if [ -z "$(ORCID_CLIENT_ID)" ] || [ -z "$(ORCID_CLIENT_SECRET)" ]; then \
 		echo "❌ Error: ORCID credentials required"; \
 		echo ""; \
@@ -90,8 +98,13 @@ docker-run-orcid:
 		echo ""; \
 		echo "Get credentials from: https://orcid.org/developer-tools"; \
 		exit 1; \
+	else \
+		echo "✅ ORCID credentials found."; \
 	fi
+
+docker-run-orcid: check_orcid
 	@echo "🚀 Starting container with ORCID authentication..."
+	@echo "   Docker Image: $(DOCKER_IMAGE)"
 	@echo "   ORCID Client ID: $(ORCID_CLIENT_ID)"
 	@mkdir -p ${DBDIR}
 	@mkdir -p $(PWD)/backups
@@ -108,7 +121,7 @@ docker-run-orcid:
 		-e ORCID_CLIENT_SECRET=$(ORCID_CLIENT_SECRET) \
 		-e SCOPUS_API_KEY=$(SCOPUS_API_KEY) \
 		-e SCOPUS_INST_TOKEN=$(SCOPUS_INST_TOKEN) \
-		academicdb:latest
+		${DOCKER_IMAGE}
 
 docker-stop:
 	docker stop academicdb

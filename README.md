@@ -96,14 +96,26 @@ ORCID_CLIENT_SECRET=your-orcid-client-secret
 # Optional API Keys
 SCOPUS_API_KEY=your-scopus-api-key  # Get from https://dev.elsevier.com/
 SCOPUS_INST_TOKEN=your-scopus-inst-token  # Optional - only required for Scopus access outside institutional network
+
+# Docker Configuration
+USE_LOCAL_DOCKER_IMAGE=false  # Set to 'true' to use locally built image instead of Docker Hub image
 ```
 
-4. Build and start the application:
+4. Run the application:
+
+By default, the application will use the Docker Hub image (`poldrack/academicdb2`):
 ```bash
-# Build the Docker image
+# Start the application using the Docker Hub image
+make docker-run-orcid
+```
+
+To use a locally built image instead:
+```bash
+# First, set USE_LOCAL_DOCKER_IMAGE=true in your .env file
+# Then build the Docker image locally
 make docker-build
 
-# Start the application with ORCID authentication
+# Start the application with the local image
 make docker-run-orcid
 ```
 
@@ -183,6 +195,7 @@ ORCID_CLIENT_ID=your-orcid-client-id
 ORCID_CLIENT_SECRET=your-orcid-client-secret
 SCOPUS_API_KEY=your-scopus-api-key  # Optional
 SCOPUS_INST_TOKEN=your-scopus-inst-token  # Required for Scopus access outside institutional network
+USE_LOCAL_DOCKER_IMAGE=true  # Since you're doing local development
 ```
 
 4. Run database migrations:
