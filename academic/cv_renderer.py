@@ -831,7 +831,7 @@ def get_preprints(user, exclude_dois=None):
 
     if unpublished_preprints:
         output += """
-\\section*{Preprints}
+\\section*{Recent preprints}
 \\noindent
 """
         # Sort preprints by year in reverse chronological order (most recent first)
