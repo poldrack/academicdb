@@ -113,11 +113,21 @@ class Command(BaseCommand):
                         preprint.metadata['published_version_exists'] = True
 
                         # Find which paper published this preprint
+                        published_doi = None
                         for paper_info in papers_with_preprints:
                             if preprint.doi in paper_info['preprint_dois']:
                                 preprint.metadata['published_as_doi'] = paper_info['paper'].doi
                                 preprint.metadata['published_as_title'] = paper_info['paper'].title
+                                published_doi = paper_info['paper'].doi
                                 break
+
+                        # Mark as ignored so --exclude-ignored filters work correctly
+                        preprint.is_ignored = True
+                        preprint.ignore_reason = (
+                            f"Published as journal article: {published_doi}"
+                            if published_doi
+                            else "Published as journal article"
+                        )
 
                         preprint.save()
 
