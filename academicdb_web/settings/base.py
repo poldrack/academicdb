@@ -101,7 +101,7 @@ if os.getenv('DATABASE_URL'):
             conn_health_checks=True,
         )
     }
-elif os.getenv('USE_POSTGRES', 'true').lower() == 'true':
+elif os.getenv('USE_POSTGRES', 'false').lower() == 'true':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',

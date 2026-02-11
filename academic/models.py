@@ -1024,8 +1024,10 @@ class Publication(models.Model):
             # Replace repeated slashes with single slash
             self.doi = re.sub(r'/+', '/', self.doi)
 
-        # Auto-detect preprint status before saving
-        self.detect_preprint_status()
+        # Auto-detect preprint status before saving, but only if publication_type
+        # hasn't been manually edited by the user
+        if not self.manual_edits.get('publication_type', False):
+            self.detect_preprint_status()
         super().save(*args, **kwargs)
 
 

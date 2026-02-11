@@ -50,25 +50,81 @@ class Command(BaseCommand):
             help='Skip AuthorCache restoration'
         )
 
+    def _auto_detect_backup(self, backup_dir):
+        """Auto-detect backup files in a directory without backup_info.json"""
+        backup_info = {
+            'backup_date': 'Unknown',
+            'backup_format': 'separate',
+            'total_users': 'Unknown',
+            'files': [],
+            'stats': {}
+        }
+
+        # Check for combined format first
+        combined_file = backup_dir / 'complete_backup.json'
+        if combined_file.exists():
+            backup_info['backup_format'] = 'combined'
+            backup_info['files'].append('complete_backup.json')
+            return backup_info
+
+        # Look for separate files - check common naming patterns
+        known_files = {
+            'users.json': 'users',
+            'publications.json': 'publications',
+            'funding.json': 'funding',
+            'teaching.json': 'teaching',
+            'talks.json': 'talks',
+            'conferences.json': 'conferences',
+            'professional_activities.json': 'professional_activities',
+            'author_cache.json': 'author_cache',
+            'editorial.json': 'editorial',
+            'links.json': 'links',
+        }
+
+        for file_name, model_name in known_files.items():
+            file_path = backup_dir / file_name
+            if file_path.exists():
+                backup_info['files'].append(file_name)
+                # Try to count records
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        backup_info['stats'][model_name] = len(data) if isinstance(data, list) else 0
+                except Exception:
+                    pass
+
+        # Also look for any other .json files that might be backup data
+        for json_file in backup_dir.glob('*.json'):
+            if json_file.name not in backup_info['files'] and json_file.name != 'backup_info.json':
+                backup_info['files'].append(json_file.name)
+                self.stdout.write(f"  Found additional file: {json_file.name}")
+
+        if not backup_info['files']:
+            raise CommandError(f"No backup files found in {backup_dir}")
+
+        return backup_info
+
     def handle(self, *args, **options):
         backup_dir = Path(options['backup_dir'])
 
         if not backup_dir.exists():
             raise CommandError(f"Backup directory does not exist: {backup_dir}")
 
-        # Check for backup info
+        # Check for backup info (optional - will auto-detect if missing)
         info_file = backup_dir / 'backup_info.json'
-        if not info_file.exists():
-            raise CommandError(f"Backup info file not found: {info_file}")
-
-        # Load backup info
-        with open(info_file, 'r', encoding='utf-8') as f:
-            backup_info = json.load(f)
-
-        self.stdout.write(f"Loading backup from: {backup_dir}")
-        self.stdout.write(f"Backup date: {backup_info.get('backup_date', 'Unknown')}")
-        self.stdout.write(f"Backup format: {backup_info.get('backup_format', 'Unknown')}")
-        self.stdout.write(f"Original user count: {backup_info.get('total_users', 'Unknown')}")
+        if info_file.exists():
+            with open(info_file, 'r', encoding='utf-8') as f:
+                backup_info = json.load(f)
+            self.stdout.write(f"Loading backup from: {backup_dir}")
+            self.stdout.write(f"Backup date: {backup_info.get('backup_date', 'Unknown')}")
+            self.stdout.write(f"Backup format: {backup_info.get('backup_format', 'Unknown')}")
+            self.stdout.write(f"Original user count: {backup_info.get('total_users', 'Unknown')}")
+        else:
+            # Auto-detect backup files
+            self.stdout.write(self.style.WARNING(f"No backup_info.json found, auto-detecting files..."))
+            backup_info = self._auto_detect_backup(backup_dir)
+            self.stdout.write(f"Loading backup from: {backup_dir}")
+            self.stdout.write(f"Detected files: {', '.join(backup_info.get('files', []))}")
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("DRY RUN MODE - No changes will be made"))
@@ -155,22 +211,44 @@ class Command(BaseCommand):
                 # Restore users
                 if not options['exclude_users'] and users_data:
                     self.stdout.write(f"Restoring {len(users_data)} users...")
+                    # Build a mapping of backup user IDs to actual user objects
+                    # This is needed for restoring related data later
+                    user_id_mapping = {}
+
                     for user_data in users_data:
                         try:
-                            user, created = User.objects.get_or_create(
-                                id=user_data['id'],
-                                defaults={
-                                    'username': user_data['username'],
-                                    'email': user_data['email'],
-                                    'first_name': user_data['first_name'],
-                                    'last_name': user_data['last_name'],
-                                    'date_joined': parse_datetime(user_data['date_joined']) or datetime.now()
-                                }
-                            )
+                            backup_user_id = user_data['id']
+                            orcid_id = user_data.get('orcid_id')
+
+                            # Try to find existing user by ORCID ID first (most reliable)
+                            user = None
+                            created = False
+
+                            if orcid_id:
+                                user = User.objects.filter(orcid_id=orcid_id).first()
+                                if user:
+                                    self.stdout.write(f"  Found existing user by ORCID: {user.username}")
+
+                            # If not found by ORCID, try by ID
+                            if not user:
+                                user = User.objects.filter(id=backup_user_id).first()
+                                if user:
+                                    self.stdout.write(f"  Found existing user by ID: {user.username}")
+
+                            # If still not found, create new user
+                            if not user:
+                                user = User(
+                                    username=user_data['username'],
+                                    email=user_data['email'],
+                                    first_name=user_data['first_name'],
+                                    last_name=user_data['last_name'],
+                                    date_joined=parse_datetime(user_data['date_joined']) or datetime.now()
+                                )
+                                created = True
 
                             # Update academic fields
                             user.middle_name = user_data.get('middle_name', '')
-                            user.orcid_id = user_data.get('orcid_id')
+                            user.orcid_id = orcid_id
                             user.institution = user_data.get('institution', '')
                             user.department = user_data.get('department', '')
                             user.research_areas = user_data.get('research_areas', [])
@@ -198,6 +276,9 @@ class Command(BaseCommand):
                             user.save()
                             stats['users'] += 1
 
+                            # Store mapping from backup ID to actual user
+                            user_id_mapping[backup_user_id] = user
+
                             if created:
                                 self.stdout.write(f"  Created user: {user.username}")
                             else:
@@ -207,6 +288,8 @@ class Command(BaseCommand):
                             error_msg = f"Failed to restore user {user_data.get('username', 'Unknown')}: {str(e)}"
                             stats['errors'].append(error_msg)
                             self.stdout.write(self.style.ERROR(f"  ERROR: {error_msg}"))
+                else:
+                    user_id_mapping = {}
 
                 # Restore model data
                 model_mapping = {

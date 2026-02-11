@@ -1004,12 +1004,27 @@ class FundingListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         """Filter funding to show only those owned by the current user"""
-        return Funding.objects.filter(owner=self.request.user).order_by('-start_date', 'title')
+        queryset = Funding.objects.filter(owner=self.request.user)
+
+        # Handle search
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(agency__icontains=search_query) |
+                Q(grant_number__icontains=search_query)
+            )
+
+        return queryset.order_by('-start_date', 'title')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'My Funding'
+        # Show filtered count when searching, total count otherwise
         context['funding_count'] = self.get_queryset().count()
+        context['total_funding_count'] = Funding.objects.filter(owner=self.request.user).count()
+        context['search_query'] = self.request.GET.get('search', '')
         return context
 
 
@@ -1544,7 +1559,7 @@ class AdminPanelView(LoginRequiredMixin, TemplateView):
         }
 
         # Check backup directory status
-        backup_root = Path('/app/backups/json')
+        backup_root = get_backup_root()
         context['backup_stats'] = {
             'backup_dir_exists': backup_root.exists(),
             'backup_count': len(list(backup_root.glob('backup_*'))) if backup_root.exists() else 0,
@@ -1594,6 +1609,20 @@ class AdminPanelView(LoginRequiredMixin, TemplateView):
         return context
 
 
+def get_backup_root():
+    """Get the backup root directory - configurable for local vs Docker"""
+    import os
+    # Check for environment variable first, then fall back to sensible defaults
+    backup_path = os.getenv('BACKUP_DIR')
+    if backup_path:
+        return Path(backup_path)
+    # Check if running in Docker (has /app directory)
+    if Path('/app/backups/json').exists():
+        return Path('/app/backups/json')
+    # Local development - use backups directory relative to project
+    return Path('backups/json')
+
+
 class AdminBackupView(LoginRequiredMixin, TemplateView):
     """
     Admin interface for database backup and restore
@@ -1606,7 +1635,8 @@ class AdminBackupView(LoginRequiredMixin, TemplateView):
         context['title'] = 'Database Backup & Restore'
 
         # List existing backup directories
-        backup_root = Path('/app/backups/json')
+        backup_root = get_backup_root()
+        context['backup_root'] = str(backup_root.absolute())
         backups = []
 
         if backup_root.exists():
@@ -1757,7 +1787,7 @@ class AdminBackupDownloadView(LoginRequiredMixin, View):
 
     def get(self, request, backup_name):
         """Download a backup as zip file"""
-        backup_dir = Path('/app/backups/json') / backup_name
+        backup_dir = get_backup_root() / backup_name
 
         if not backup_dir.exists() or not backup_dir.is_dir():
             messages.error(request, f'Backup {backup_name} not found')
@@ -1785,7 +1815,7 @@ class AdminBackupDeleteView(LoginRequiredMixin, View):
 
     def post(self, request, backup_name):
         """Delete a backup directory"""
-        backup_dir = Path('/app/backups/json') / backup_name
+        backup_dir = get_backup_root() / backup_name
 
         if not backup_dir.exists():
             messages.error(request, f'Backup {backup_name} not found')
@@ -1826,10 +1856,17 @@ class CVView(LoginRequiredMixin, View):
             format_type: 'tex' for LaTeX source, 'pdf' for compiled PDF
         """
         from .cv_renderer import generate_cv_latex, compile_latex_to_pdf
+        from datetime import datetime
 
         user = request.user
         exclude_dois = request.GET.get('exclude_dois', '').split(',') if request.GET.get('exclude_dois') else None
         exclude_preprints = request.GET.get('exclude_preprints', '').lower() in ['true', '1', 'on']
+
+        # Generate filename with full name and date: CV_FirstName_LastName_MM_DD_YYYY
+        first_name = (user.first_name or 'Unknown').replace(' ', '_')
+        last_name = (user.last_name or 'User').replace(' ', '_')
+        date_str = datetime.now().strftime('%m_%d_%Y')
+        cv_filename_base = f"CV_{first_name}_{last_name}_{date_str}"
 
         try:
             # Generate LaTeX content
@@ -1838,7 +1875,7 @@ class CVView(LoginRequiredMixin, View):
             if format_type == 'tex':
                 # Return LaTeX source
                 response = HttpResponse(latex_content, content_type='text/plain')
-                response['Content-Disposition'] = f'attachment; filename="cv_{user.username}.tex"'
+                response['Content-Disposition'] = f'attachment; filename="{cv_filename_base}.tex"'
                 return response
 
             elif format_type == 'pdf':
@@ -1849,7 +1886,7 @@ class CVView(LoginRequiredMixin, View):
                     # Return PDF file
                     with open(compilation_result['pdf_path'], 'rb') as pdf_file:
                         response = HttpResponse(pdf_file.read(), content_type='application/pdf')
-                        response['Content-Disposition'] = f'attachment; filename="cv_{user.username}.pdf"'
+                        response['Content-Disposition'] = f'attachment; filename="{cv_filename_base}.pdf"'
 
                     # Clean up temporary files
                     try:
@@ -1869,7 +1906,7 @@ class CVView(LoginRequiredMixin, View):
 
                     # Still offer the LaTeX file
                     response = HttpResponse(latex_content, content_type='text/plain')
-                    response['Content-Disposition'] = f'attachment; filename="cv_{user.username}.tex"'
+                    response['Content-Disposition'] = f'attachment; filename="{cv_filename_base}.tex"'
                     return response
 
             else:

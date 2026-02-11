@@ -3,6 +3,16 @@ DBDIR = ${HOMEDIR}/.cache/academicdb
 
 IMAGE_VERSION = v1.0.1
 
+export:
+	python manage.py export_publications \
+    		--orcid-id 0000-0001-6755-0259 \
+    		--format json \
+    		--output ~/.cache/academicdb/publications.json \
+    		--pretty \
+    		--exclude-metadata \
+    		--exclude-edit-history \
+    		--exclude-ignored
+
 # Load environment variables from .env file if it exists
 ifneq (,$(wildcard .env))
     include .env
@@ -32,7 +42,8 @@ coverage-report:
 	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run coverage report --show-missing
 
 run:
-	uv run python manage.py runserver
+	python manage.py runserver 
+
 
 kill:
 	pkill -f "python manage.py runserver"
@@ -66,6 +77,8 @@ docker-buildx:
 	docker buildx build --platform linux/amd64,linux/arm64 -t poldrack/academicdb2:latest -t poldrack/academicdb2:${IMAGE_VERSION} --push .
 
 docker-run:
+	-docker stop academicdb
+	-docker rm academicdb
 	docker run -d \
 		--name academicdb \
 		-p 8000:8000 \

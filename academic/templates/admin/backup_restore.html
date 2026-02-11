@@ -140,10 +140,63 @@ python manage.py restore_db backup.sql.gz</code></pre>
             </div>
         </div>
 
+        <!-- Restore from Custom Directory Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-folder-open"></i> Restore from Custom Directory</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Use this to restore from a backup directory that isn't listed below (e.g., an older backup or one from a different location).</p>
+                <form method="post" action="{% url 'academic:admin_backup_restore' %}" class="row g-3">
+                    {% csrf_token %}
+                    <div class="col-md-6">
+                        <label for="custom_backup_dir" class="form-label">Backup Directory Path</label>
+                        <input type="text" class="form-control" name="backup_dir" id="custom_backup_dir"
+                               placeholder="/path/to/backup/directory" required>
+                        <div class="form-text">Full path to the directory containing JSON backup files</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Options</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="merge" id="custom_merge">
+                            <label class="form-check-label" for="custom_merge">
+                                Merge with existing data
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="exclude_users" id="custom_exclude_users">
+                            <label class="form-check-label" for="custom_exclude_users">
+                                Skip user profiles
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="exclude_cache" id="custom_exclude_cache">
+                            <label class="form-check-label" for="custom_exclude_cache">
+                                Skip author cache
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="custom_confirmation" class="form-label">
+                            <strong>Type "restore database" to confirm:</strong>
+                        </label>
+                        <input type="text" class="form-control" name="confirmation" id="custom_confirmation"
+                               placeholder="restore database" required>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-upload"></i> Restore from Custom Directory
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Existing Backups Section -->
         <div class="card">
             <div class="card-header">
                 <h5><i class="fas fa-archive"></i> Existing Backups</h5>
+                <small class="text-muted">Backup directory: {{ backup_root }}</small>
             </div>
             <div class="card-body">
                 {% if backups %}

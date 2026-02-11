@@ -14,7 +14,7 @@ dependencies = [
     "scholarly>=1.7.11",
     "crossrefapi>=1.6.0",
     "tomli>=2.2.1",
-    "pybliometrics>=4.1",
+    "pybliometrics==4.4.1",
     "pymongo>=4.10.1",
     "orcid>=1.0.3",
     "tomli-w>=1.1.0",
@@ -31,6 +31,7 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "openpyxl>=3.1.5",
     "dj-database-url>=3.0.1",
+    "gunicorn>=23.0.0",
 ]
 
 [project.scripts]

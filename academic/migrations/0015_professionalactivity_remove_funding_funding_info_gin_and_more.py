@@ -5,6 +5,23 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def remove_gin_indexes_if_exist(apps, schema_editor):
+    """Remove GIN indexes only on PostgreSQL where they exist"""
+    if schema_editor.connection.vendor != 'postgresql':
+        return
+
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute('DROP INDEX IF EXISTS funding_info_gin;')
+        cursor.execute('DROP INDEX IF EXISTS publication_metadata_gin;')
+        cursor.execute('DROP INDEX IF EXISTS publication_authors_gin;')
+        cursor.execute('DROP INDEX IF EXISTS publication_identifiers_gin;')
+
+
+def noop(apps, schema_editor):
+    """No-op for reverse migration"""
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -12,6 +29,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Remove GIN indexes conditionally (PostgreSQL only)
+        migrations.RunPython(remove_gin_indexes_if_exist, noop),
         migrations.CreateModel(
             name="ProfessionalActivity",
             fields=[
@@ -176,22 +195,7 @@ class Migration(migrations.Migration):
                 "ordering": ["-is_current", "-start_date", "title"],
             },
         ),
-        migrations.RemoveIndex(
-            model_name="funding",
-            name="funding_info_gin",
-        ),
-        migrations.RemoveIndex(
-            model_name="publication",
-            name="publication_metadata_gin",
-        ),
-        migrations.RemoveIndex(
-            model_name="publication",
-            name="publication_authors_gin",
-        ),
-        migrations.RemoveIndex(
-            model_name="publication",
-            name="publication_identifiers_gin",
-        ),
+        # Note: GIN indexes are removed via RunPython above (PostgreSQL only)
         migrations.AddField(
             model_name="professionalactivity",
             name="owner",

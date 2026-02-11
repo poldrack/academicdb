@@ -14,6 +14,7 @@ dependencies = [
     { name = "django-allauth" },
     { name = "django-extensions" },
     { name = "djangorestframework" },
+    { name = "gunicorn" },
     { name = "ipython" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -63,6 +64,7 @@ requires-dist = [
     { name = "django-extensions", specifier = ">=3.2.0" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+    { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "ipython", specifier = ">=8.31.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12.0" },
     { name = "matplotlib", specifier = ">=3.10.0" },
@@ -71,7 +73,7 @@ requires-dist = [
     { name = "orcid", specifier = ">=1.0.3" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "psycopg2-binary", specifier = ">=2.9.0" },
-    { name = "pybliometrics", specifier = ">=4.1" },
+    { name = "pybliometrics", specifier = "==4.4.1" },
     { name = "pymongo", specifier = ">=4.10.1" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.5.0" },
@@ -663,6 +665,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/95/dd/23e2f4e357f8fd3bdff613c1fe4466d21bfb00a6177f238079b17f7b1c84/freezegun-1.5.5.tar.gz", hash = "sha256:ac7742a6cc6c25a2c35e9292dfd554b897b517d2dec26891a2e8debf205cb94a", size = 35914, upload-time = "2025-08-09T10:39:08.338Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5e/2e/b41d8a1a917d6581fc27a35d05561037b048e47df50f27f8ac9c7e27a710/freezegun-1.5.5-py3-none-any.whl", hash = "sha256:cd557f4a75cf074e84bc374249b9dd491eaeacd61376b9eb3c423282211619d2", size = 19266, upload-time = "2025-08-09T10:39:06.636Z" },
+]
+
+[[package]]
+name = "gunicorn"
+version = "23.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/34/72/9614c465dc206155d93eff0ca20d42e1e35afc533971379482de953521a4/gunicorn-23.0.0.tar.gz", hash = "sha256:f014447a0101dc57e294f6c18ca6b40227a4c90e9bdb586042628030cba004ec", size = 375031, upload-time = "2024-08-10T20:25:27.378Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/7d/6dac2a6e1eba33ee43f318edbed4ff29151a49b5d37f080aad1e6469bca4/gunicorn-23.0.0-py3-none-any.whl", hash = "sha256:ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d", size = 85029, upload-time = "2024-08-10T20:25:24.996Z" },
 ]
 
 [[package]]
@@ -1288,16 +1302,16 @@ wheels = [
 
 [[package]]
 name = "pybliometrics"
-version = "4.2.1"
+version = "4.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "tqdm" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/84/5fc4792cc8837b055c21cd12c8e62ec60aaf286f87965720e4ddd06679d6/pybliometrics-4.2.1.tar.gz", hash = "sha256:659f6c29c2c5a4991ebdb5d35782df17f952739cf608ebe77ced3dc8922022f2", size = 983991, upload-time = "2025-04-09T08:45:51.952Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/96/1e50153e41184c2b60a05c505f06544a1dd602e4ccbaa48b97d0e27b5e01/pybliometrics-4.4.1.tar.gz", hash = "sha256:b7d1e1687aadbdba4a1075c2bfb5b3fc06842d2b5ca58a1c215116ad639bb17d", size = 1008536, upload-time = "2026-01-01T18:05:28.212Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ad/ec/584b7368fd819cee5840babe19c2c26a4a84c9109996453f9c6c46299dab/pybliometrics-4.2.1-py3-none-any.whl", hash = "sha256:eb63d1288e2c19af8d94b7ae09a9957156e651d678cf25e9b81331f228d73a6e", size = 104628, upload-time = "2025-04-09T08:45:48.283Z" },
+    { url = "https://files.pythonhosted.org/packages/80/7f/0820ddf1c06614289afd4321c7dcf0d32a68ba5282f52542438d0351e517/pybliometrics-4.4.1-py3-none-any.whl", hash = "sha256:4639cb4c7e56719ae677608731170a8599b7dd9800d178cb7506f1ac34427b58", size = 126472, upload-time = "2026-01-01T18:05:01.181Z" },
 ]
 
 [[package]]

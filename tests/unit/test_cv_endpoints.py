@@ -24,7 +24,7 @@ class TestCVEndpoints(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'text/plain')
-        self.assertIn('cv_', response['Content-Disposition'])
+        self.assertIn('CV_', response['Content-Disposition'])
 
     def test_cv_download_pdf_accessible(self):
         """Test that CV PDF download works (or fails gracefully)"""

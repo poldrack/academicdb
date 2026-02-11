@@ -241,40 +241,25 @@ document.addEventListener('DOMContentLoaded', function() {
         endDateInput.addEventListener('change', calculateDuration);
     }
     
-    // Form validation
+    // Form validation - rely on Django's server-side validation
+    // Only validate date range on client side for better UX
     const form = document.querySelector('form');
     form.addEventListener('submit', function(e) {
-        let isValid = true;
-        
-        // Check required fields
-        const requiredFields = ['title', 'agency'];
-        requiredFields.forEach(fieldName => {
-            const field = document.querySelector(`input[name="${fieldName}"], select[name="${fieldName}"], textarea[name="${fieldName}"]`);
-            if (field && !field.value.trim()) {
-                field.classList.add('is-invalid');
-                isValid = false;
-            } else if (field) {
-                field.classList.remove('is-invalid');
-            }
-        });
-        
-        // Validate date range
+        // Validate date range only if both dates are provided
         if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
             const startDate = new Date(startDateInput.value);
             const endDate = new Date(endDateInput.value);
-            
+
             if (endDate <= startDate) {
                 endDateInput.classList.add('is-invalid');
                 alert('End date must be after start date.');
-                isValid = false;
+                e.preventDefault();
+                return;
             } else {
                 endDateInput.classList.remove('is-invalid');
             }
         }
-        
-        if (!isValid) {
-            e.preventDefault();
-        }
+        // Let the form submit - Django will handle required field validation
     });
 });
 </script>
