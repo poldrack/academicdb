@@ -4,10 +4,10 @@ DBDIR = ${HOMEDIR}/.cache/academicdb
 IMAGE_VERSION = v1.0.1
 
 export:
-	python manage.py export_publications \
+	DATABASE_URL=sqlite:////${DBDIR}/db.sqlite3 uv run python manage.py export_publications \
     		--orcid-id 0000-0001-6755-0259 \
     		--format json \
-    		--output ~/.cache/academicdb/publications.json \
+    		--output ${DBDIR}/publications.json \
     		--pretty \
     		--exclude-metadata \
     		--exclude-edit-history \

@@ -1,4 +1,5 @@
 {% extends 'academic/base.html' %}
+{% load socialaccount %}
 
 {% block content %}
 <div class="row">
@@ -9,7 +10,7 @@
             
             {% if not user.is_authenticated %}
                 <div class="mt-4">
-                    <a href="{% url 'account_login' %}" class="btn btn-primary btn-lg me-3">Login with ORCID</a>
+                    <a href="{% provider_login_url 'orcid' process='login' %}" class="btn btn-primary btn-lg me-3">Login with ORCID</a>
                     <a href="{% url 'account_signup' %}" class="btn btn-outline-primary btn-lg">Sign Up</a>
                 </div>
             {% else %}

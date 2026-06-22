@@ -1,3 +1,4 @@
+{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,7 +28,7 @@
                     <a class="nav-link" href="{% url 'academic:admin_panel' %}">Tools</a>
                     <a class="nav-link" href="{% url 'account_logout' %}">Logout</a>
                 {% else %}
-                    <a class="nav-link" href="{% url 'account_login' %}">Login</a>
+                    <a class="nav-link" href="{% provider_login_url 'orcid' process='login' %}">Login with ORCID</a>
                     <a class="nav-link" href="{% url 'account_signup' %}">Sign Up</a>
                 {% endif %}
             </div>

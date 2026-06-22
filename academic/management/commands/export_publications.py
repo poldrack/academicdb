@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
-from academic.models import Publication
+from academic.models import Publication, Link
 
 User = get_user_model()
 
@@ -272,7 +272,19 @@ class Command(BaseCommand):
         if should_include('identifiers'):
             data['identifiers'] = pub.identifiers
         if should_include('links'):
-            data['links'] = pub.links
+            data['links'] = dict(pub.links) if pub.links else {}
+
+            # Include Link model records (Code, Data, OSF, etc.)
+            link_records = Link.get_links_for_publication(pub)
+            if link_records.exists():
+                data['links']['resources'] = [
+                    {
+                        'type': link.type,
+                        'url': link.url,
+                        'title': link.title,
+                    }
+                    for link in link_records
+                ]
 
         # Optionally exclude metadata
         if should_include('metadata') and not options['exclude_metadata']:
