@@ -75,3 +75,9 @@ def test_cv_excludes_pending_preprints(academic_user):
     make_pub(academic_user, doi='10.1101/2026.01.01.000001', title='Pending preprint title',
              publication_type='preprint', review_status='pending')
     assert 'Pending preprint title' not in generate_cv_latex(academic_user)
+
+
+def test_deleting_owner_does_not_leave_dangling_tombstones(academic_user):
+    make_pub(academic_user)
+    academic_user.delete()
+    assert RejectedWork.objects.count() == 0

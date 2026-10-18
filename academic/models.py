@@ -195,6 +195,7 @@ class Publication(models.Model):
         ('pubmed', 'PubMed'),
         ('crossref', 'CrossRef'),
         ('orcid', 'ORCID'),
+        ('openalex', 'OpenAlex'),
         ('manual', 'Manual Entry'),
     ]
     
@@ -312,6 +313,17 @@ class Publication(models.Model):
         choices=SOURCE_CHOICES,
         default='manual',
         help_text="Original data source"
+    )
+
+    REVIEW_STATUS_CHOICES = [
+        ('approved', 'Approved'),
+        ('pending', 'Pending review'),
+    ]
+    review_status = models.CharField(
+        max_length=20,
+        choices=REVIEW_STATUS_CHOICES,
+        default='approved',
+        db_index=True,
     )
     
     # Edit Tracking
@@ -2985,3 +2997,51 @@ class Collaborator(models.Model):
         )
 
         return list(duplicates)
+
+
+class RejectedWork(models.Model):
+    """Permanent tombstone for a deleted or rejected work; sync never re-adds it."""
+    REASON_CHOICES = [('rejected', 'Rejected'), ('deleted', 'Deleted')]
+
+    owner = models.ForeignKey(
+        AcademicUser, on_delete=models.CASCADE, related_name='rejected_works'
+    )
+    doi = models.CharField(max_length=255, blank=True)
+    openalex_id = models.CharField(max_length=32, blank=True)
+    pmid = models.CharField(max_length=20, blank=True)
+    title_key = models.CharField(max_length=500, blank=True)
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['owner', 'doi'])]
+
+
+class PreprintHideProposal(models.Model):
+    """Proposal to hide a preprint because a published version exists."""
+    METHOD_CHOICES = [
+        ('crossref_relation', 'CrossRef relation'),
+        ('openalex_location', 'OpenAlex location'),
+        ('title_author', 'Title and author match'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('rejected', 'Rejected'),
+    ]
+
+    owner = models.ForeignKey(AcademicUser, on_delete=models.CASCADE)
+    preprint = models.ForeignKey(
+        Publication, on_delete=models.CASCADE, related_name='hide_proposals'
+    )
+    published = models.ForeignKey(
+        Publication, on_delete=models.CASCADE, related_name='+'
+    )
+    method = models.CharField(max_length=30, choices=METHOD_CHOICES)
+    evidence = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True)
+
+    class Meta:
+        unique_together = ('preprint', 'published')

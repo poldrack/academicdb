@@ -839,6 +839,7 @@ def get_preprints(user, exclude_dois=None):
     preprints = Publication.objects.filter(
         owner=user,
         is_ignored=False,
+        review_status='approved',
         publication_type='preprint'
     ).order_by('-year')
 
@@ -879,7 +880,8 @@ def get_publications(user, exclude_dois=None):
     """Get publications data for CV (excluding preprints)"""
     publications = Publication.objects.filter(
         owner=user,
-        is_ignored=False
+        is_ignored=False,
+        review_status='approved'
     ).exclude(publication_type='preprint').order_by('-year', 'id')
 
     if exclude_dois:
