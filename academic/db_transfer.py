@@ -64,7 +64,7 @@ def dump_fixture(using, path):
         'dumpdata',
         database=using,
         natural_foreign=True,
-        natural_primary=True,
+        natural_primary=False,  # keep pks (SITE_ID=1, user ids)
         exclude=sorted(EXCLUDED_MODELS),
         output=str(path),
         verbosity=0,
@@ -98,6 +98,12 @@ def load_fixture(path, using):
     with transaction.atomic(using=using):
         call_command('loaddata', str(path), database=using, verbosity=0)
         _reset_sequences(using)
+
+
+def counts_path_for(fixture):
+    """Sidecar counts file for a backup fixture: X.json.gz -> X.counts.json."""
+    fixture = Path(fixture)
+    return fixture.with_name(fixture.name.removesuffix('.json.gz') + '.counts.json')
 
 
 def copy_all_data(source, target, tmp_dir):

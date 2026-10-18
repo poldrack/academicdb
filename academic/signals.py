@@ -53,6 +53,9 @@ def handle_social_token_created(sender, instance, created, **kwargs):
     """
     Handle when a SocialToken is created - store it in the user model
     """
+    if kwargs.get('raw'):
+        # Fixture loading (restore/migration): the user row already has its token
+        return
     if created and instance.account.provider == 'orcid':
         user = instance.account.user
         if hasattr(user, 'orcid_token'):  # Check if it's our custom user model
