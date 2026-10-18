@@ -115,7 +115,8 @@ def test_load_fixture_does_not_run_token_signal(tmp_path):
         {'model': 'socialaccount.socialtoken', 'pk': 1,
          'fields': {'app': 1, 'account': 1, 'token': 'new'}},
         {'model': 'socialaccount.socialaccount', 'pk': 1,
-         'fields': {'user': 1, 'provider': 'orcid', 'uid': '0000-0001-6755-0259'}},
+         'fields': {'user': 1, 'provider': 'orcid', 'uid': '0000-0001-6755-0259',
+                    'last_login': '2026-01-01T00:00:00Z', 'date_joined': '2026-01-01T00:00:00Z'}},
     ]))
     load_fixture(path, 'default')
     assert AcademicUser.objects.get(username='russell').orcid_token == 'kept'
