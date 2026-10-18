@@ -138,3 +138,8 @@ backups/
 *.sql
 *.sql.gz
 restore.out
+
+# Neon credentials
+neon-storage.env
+.env.local
+.neon
