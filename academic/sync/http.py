@@ -38,6 +38,9 @@ def get(url, params=None, *, timeout=30, retries=3, backoff=2.0):
 def get_json(url, params=None, **kwargs):
     resp = get(url, params, **kwargs)
     try:
-        return resp.json()
+        data = resp.json()
     except ValueError as exc:
         raise SourceError(f'{url}: invalid JSON') from exc
+    if not isinstance(data, dict):
+        raise SourceError(f'{url}: unexpected JSON body')
+    return data

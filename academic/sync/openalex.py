@@ -23,21 +23,21 @@ def fetch_works_by_orcid(orcid, api_key):
     while cursor:
         params = {'filter': f'author.orcid:{orcid}', 'per-page': 200,
                   'cursor': cursor, 'api_key': api_key}
-        data = get_json(f"{OPENALEX}/works", params)
-        results, meta = data.get("results"), data.get("meta")
+        data = get_json(f'{OPENALEX}/works', params)
+        results, meta = data.get('results'), data.get('meta')
         if results is None or meta is None:
-            raise SourceError(f"{OPENALEX}/works: unexpected response")
+            raise SourceError(f'{OPENALEX}/works: unexpected response')
         works.extend(results)
-        cursor = meta.get("next_cursor")
+        cursor = meta.get('next_cursor')
     return works
 
 
 def fetch_work(openalex_id, api_key):
-    return get_json(f"{OPENALEX}/works/{openalex_id}", {"api_key": api_key})
+    return get_json(f'{OPENALEX}/works/{openalex_id}', {'api_key': api_key})
 
 
 def _family_given(name):
-    name = " ".join(name.split())
+    name = ' '.join(name.split())
     if ' ' not in name:
         return name
     given, family = name.rsplit(' ', 1)
