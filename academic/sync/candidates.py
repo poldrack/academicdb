@@ -22,3 +22,5 @@ class Candidate:
     pmc_url: str = ''
     is_supplement: bool = False
     authors_truncated: bool = False
+    volume: str = ''
+    page_range: str = ''

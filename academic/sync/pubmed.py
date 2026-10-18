@@ -107,4 +107,6 @@ def parse_pubmed_article(article: dict) -> Candidate | None:
         doi=_article_id(article, 'doi'),
         pmid=pmid,
         pmcid=_article_id(article, 'pmc'),
+        volume=str(journal.get('JournalIssue', {}).get('Volume') or ''),
+        page_range=str(art.get('Pagination', {}).get('MedlinePgn') or ''),
     )

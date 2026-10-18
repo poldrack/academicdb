@@ -75,6 +75,13 @@ def _is_supplement(biblio):
     return 'suppl' in issue.lower() or bool(re.match(r'S\d+', first_page))
 
 
+def _page_range(biblio):
+    first, last = biblio.get('first_page'), biblio.get('last_page')
+    if first and last and first != last:
+        return f'{first}-{last}'
+    return first or ''
+
+
 def _parse_date(value):
     try:
         return date.fromisoformat(value) if value else None
@@ -114,6 +121,8 @@ def parse_work(work):
         location_dois=_parse_location_dois(locations, doi),
         pmc_url=pmc_url,
         is_supplement=_is_supplement(work.get('biblio') or {}),
+        volume=(work.get('biblio') or {}).get('volume') or '',
+        page_range=_page_range(work.get('biblio') or {}),
         authors_truncated=bool(work.get('is_authors_truncated')
                                or len(authorships) >= 100),
     )

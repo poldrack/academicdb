@@ -29,14 +29,14 @@ def _norm(value):
 
 def _plan_fill(pub, c, result):
     for name in FILL_FIELDS:
-        theirs = getattr(c, name, None)
+        theirs = getattr(c, name)
         flagged = pub.manual_edits.get(name)
         if _empty(getattr(pub, name)) and not _empty(theirs) and not flagged:
             result.changed.append(name)
             result.updates[name] = theirs
     if _empty(pub.authors) and c.authors and not pub.manual_edits.get('authors'):
         result.changed.append('authors')
-        result.updates['authors'] = c.authors
+        result.updates['authors'] = list(c.authors)
 
 
 def _candidate_ids(c, pmc) -> dict:
@@ -70,8 +70,9 @@ def _plan_oa(pub, c, result):
         return
     if metadata.get('oa_url') == c.oa_url:
         return
+    status = c.oa_status or metadata.get('oa_status', '')
     result.updates['metadata'] = {
-        **metadata, 'oa_url': c.oa_url, 'oa_status': c.oa_status}
+        **metadata, 'oa_url': c.oa_url, 'oa_status': status}
     result.changed.append('metadata.oa_url')
 
 
