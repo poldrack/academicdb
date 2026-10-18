@@ -196,3 +196,105 @@ def test_published_dois_5xx_raises(monkeypatch):
     responses.add(responses.GET, crossref.CROSSREF + '10.1101/abc', status=500)
     with pytest.raises(SourceError):
         crossref.published_dois_for_preprint('10.1101/abc')
+
+
+@responses.activate
+def test_search_pubmed_book_only_is_empty():
+    body = f'{XML_HEAD}<PubmedArticleSet></PubmedArticleSet>'
+    responses.add(responses.GET, ESEARCH, json=esearch_json(['1']))
+    responses.add(responses.GET, EFETCH, body=body)
+    assert pubmed.search_pubmed('q', date(2025, 1, 1), 'me@x.org') == []
+
+
+def test_parse_pubmed_article_missing_journal():
+    article = {'MedlineCitation': {'PMID': '7', 'Article': {'ArticleTitle': 'T.'}}}
+    c = pubmed.parse_pubmed_article(article)
+    assert (c.pmid, c.title, c.year, c.publication_name) == ('7', 'T', None, '')
+
+
+@responses.activate
+def test_search_pubmed_skips_record_without_pmid():
+    responses.add(responses.GET, ESEARCH, json=esearch_json(['1']))
+    responses.add(responses.GET, EFETCH, body=efetch_body())
+    good = pubmed.parse_pubmed_article(parsed_article())
+    assert pubmed.parse_pubmed_article({'MedlineCitation': {}}) is None
+    assert good is not None
+    result = pubmed.search_pubmed('q', date(2025, 1, 1), 'me@x.org')
+    assert len(result) == 1
+
+
+def test_parse_pubmed_title_strips_markup():
+    article = {'MedlineCitation': {'PMID': '7', 'Article': {
+        'ArticleTitle': 'Effect of <i>Foo</i> on  <sup>2</sup>H\n mice.'}}}
+    assert pubmed.parse_pubmed_article(article).title == 'Effect of Foo on 2H mice'
+
+
+def test_parse_pubmed_author_initials_and_empty():
+    authors = [{'LastName': 'Poldrack', 'Initials': 'RA'}, {}]
+    article = {'MedlineCitation': {'PMID': '7', 'Article': {
+        'ArticleTitle': 'T', 'AuthorList': authors}}}
+    assert pubmed.parse_pubmed_article(article).authors == [{'name': 'Poldrack, RA'}]
+
+
+@responses.activate
+@pytest.mark.parametrize('payload', [
+    {'esearchresult': {'ERROR': 'bad', 'idlist': []}},
+    {'error': 'rate limited'},
+])
+def test_search_pubmed_error_payload_raises(payload):
+    responses.add(responses.GET, ESEARCH, json=payload)
+    with pytest.raises(SourceError) as err:
+        pubmed.search_pubmed('q', date(2025, 1, 1), 'me@x.org')
+    assert str(err.value) == f'{ESEARCH}: error response'
+
+
+@responses.activate
+@pytest.mark.parametrize('relation', [
+    {'is-preprint-of': [{'id-type': 'doi'}, 'junk', None]},
+    ['x'],
+    {'is-preprint-of': 'x'},
+    'x',
+])
+def test_published_dois_malformed_relation_is_empty(relation):
+    responses.add(responses.GET, crossref.CROSSREF + '10.1101/abc',
+                  json={'message': {'relation': relation}})
+    assert crossref.published_dois_for_preprint('10.1101/abc') == []
+
+
+@responses.activate
+def test_published_dois_entry_without_id():
+    relation = {'is-preprint-of': [
+        {'id-type': 'doi'}, {'id-type': 'doi', 'id': '10.1/X'}]}
+    responses.add(responses.GET, crossref.CROSSREF + '10.1101/abc',
+                  json={'message': {'relation': relation}})
+    assert crossref.published_dois_for_preprint('10.1101/abc') == ['10.1/x']
+
+
+@responses.activate
+def test_lookup_pmcids_error_status_raises():
+    responses.add(responses.GET, lookup_url(),
+                  json={'status': 'error', 'message': 'bad'})
+    with pytest.raises(SourceError) as err:
+        idconv.lookup_pmcids(['1'], 'me@x.org')
+    assert str(err.value) == f'{idconv.IDCONV}: error response'
+    assert 'me@x.org' not in str(err.value)
+
+
+@responses.activate
+def test_lookup_pmcids_record_without_requested_id_skipped():
+    records = [{'pmcid': 'PMC1'}, {'requested-id': '9', 'pmcid': 'PMC9'}]
+    responses.add(responses.GET, lookup_url(), json={'records': records})
+    assert idconv.lookup_pmcids(['9'], 'me@x.org') == {'9': {'pmid': '', 'pmcid': 'PMC9'}}
+
+
+@responses.activate
+def test_source_error_does_not_chain_url_with_params(monkeypatch):
+    from academic.sync import http
+    monkeypatch.setattr(http.time, 'sleep', lambda s: None)
+    url = 'https://example.org/x'
+    responses.add(responses.GET, url, body=http.requests.ConnectionError('boom'))
+    with pytest.raises(SourceError) as err:
+        http.get(url, {'api_key': 'SECRET'})
+    assert err.value.__cause__ is None
+    assert err.value.__suppress_context__ is True
+    assert 'api_key' not in str(err.value)
