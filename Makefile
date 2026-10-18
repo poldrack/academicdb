@@ -42,7 +42,14 @@ coverage-report:
 	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run coverage report --show-missing
 
 run:
-	uv run python manage.py runserver 
+	uv run python manage.py runserver
+
+# Neon (opt-in until data migration is complete)
+run-neon:
+	USE_NEON=true uv run python manage.py runserver
+
+migrate-neon:
+	USE_NEON=true NEON_UNPOOLED=true uv run python manage.py migrate
 
 
 kill:

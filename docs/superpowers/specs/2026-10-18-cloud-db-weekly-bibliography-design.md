@@ -239,8 +239,21 @@ existing publications.
   papers and 50 resources after URL normalization. The lab site's software
   page must show the same links as today.
 - Keep the local SQLite file untouched as a fallback.
-- The local app points at Neon via `DATABASE_URL` in `.env`. Editing requires
-  an internet connection.
+- Neon is opt-in until the migration is verified. This is already implemented
+  in `academicdb_web/database.py`:
+  - `USE_NEON=true` selects `NEON_DATABASE_URL` (pooled; server-side cursors
+    disabled);
+  - adding `NEON_UNPOOLED=true` selects `NEON_DATABASE_URL_UNPOOLED` (direct;
+    use it for migrations and dumps);
+  - otherwise the existing `DATABASE_URL`, `USE_POSTGRES` and SQLite order
+    applies.
+
+  The Neon schema has been created (all migrations applied, 2026-10-18), but
+  it holds no data. After migration, Neon becomes the default. Editing then
+  requires an internet connection.
+- There are two local SQLite files: `academicdb_web/db.sqlite3` (the
+  settings default) and `~/.cache/academicdb/db.sqlite3` (the Makefile's
+  `DBDIR`). This likely explains the inconsistent counts.
 - Existing manual edits, ignored flags and ignore reasons must survive migration.
 
 ## Phase 2: data/code link discovery (after the core pipeline works)
@@ -285,9 +298,15 @@ Rules:
 
 ## Backups
 
-- Weekly `pg_dump` (or the existing `backup_data` JSON) stored somewhere
-  **private**, not a public repo, and not only as 90-day workflow artifacts.
-  The builder chooses where, e.g. a private backups repo.
+- Weekly `pg_dump` (or the existing `backup_data` JSON) from the weekly job,
+  stored in **Neon object storage** (decided by the owner; S3-compatible,
+  private). Credentials are `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY` and `AWS_REGION` (in `.env` locally; GitHub secrets
+  for the job). Retention policy is the builder's call.
+- **Local backups** (owner request): a make target dumps the Neon database to
+  a timestamped file on the owner's machine, and a matching restore path
+  exists. This guards against losing both the database and the backups at
+  Neon.
 - Restore must be documented and tested once.
 - Neon's free tier keeps only ~6 hours of point-in-time history, so it is not
   a backup.
