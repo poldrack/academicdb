@@ -4,7 +4,7 @@ DBDIR = ${HOMEDIR}/.cache/academicdb
 IMAGE_VERSION = v1.0.1
 
 export:
-	DATABASE_URL=sqlite:////${DBDIR}/db.sqlite3 uv run python manage.py export_publications \
+	uv run python manage.py export_publications \
     		--orcid-id 0000-0001-6755-0259 \
     		--format json \
     		--output ${DBDIR}/publications.json \
@@ -50,6 +50,10 @@ run-neon:
 
 migrate-neon:
 	USE_NEON=true NEON_UNPOOLED=true uv run python manage.py migrate
+
+# One-time copy of the local SQLite data into the empty Neon database
+migrate-data:
+	USE_NEON=true NEON_UNPOOLED=true uv run python manage.py copy_database --source-sqlite academicdb_web/db.sqlite3
 
 # Portable JSON backups (restore into Neon, Postgres or SQLite)
 LOCAL_BACKUP_DIR ?= backups

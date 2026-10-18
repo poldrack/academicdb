@@ -197,6 +197,28 @@ uv run python manage.py runserver
 
 Visit http://127.0.0.1:8000 to access the application.
 
+## Database
+
+The database is hosted on [Neon](https://neon.com) (PostgreSQL). Set these in `.env`:
+
+```bash
+USE_NEON=true                      # use Neon (otherwise DATABASE_URL / USE_POSTGRES / SQLite)
+NEON_DATABASE_URL=...              # pooled connection string
+NEON_DATABASE_URL_UNPOOLED=...     # direct connection string (migrations, backups)
+```
+
+```bash
+make migrate-neon                  # apply schema migrations to Neon
+make backup-local                  # write backups/academicdb_<timestamp>.json.gz (+ .counts.json)
+make backup-check FILE=...         # test-restore a backup into a throwaway SQLite file
+make restore-local FILE=...        # restore a backup into the (empty) configured database
+```
+
+Backups are portable Django JSON fixtures and restore into Neon, any PostgreSQL, or SQLite.
+`manage.py backup_database --upload` also copies the backup to Neon object storage
+(bucket `BACKUP_BUCKET`, prefix `academicdb-backups/`, newest 26 kept); it needs
+`AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`.
+
 ## Usage
 
 ### Web Interface
