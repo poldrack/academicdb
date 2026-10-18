@@ -176,3 +176,37 @@ def test_select_new_adds_kept_to_known(academic_user):
     assert known.contains(make(doi='10.1/z'))
     assert known.contains(make(doi='10.2/other', openalex_id='W1'))
     assert known.contains(make(doi='10.2/other', pmid='1'))
+
+
+@pytest.mark.parametrize('title', [
+    'Correction: Title here', 'Correction to: Title', 'Erratum: X', 'Errata: X',
+    'Corrigendum to Brain imaging of x', 'Author Correction: X',
+    'Publisher Correction: X', 'Retraction Note: X', 'Expression of Concern: X',
+    '  correction - X',
+])
+def test_notice_titles_excluded(title):
+    assert is_excluded(make(title=title))
+
+
+@pytest.mark.parametrize('title', [
+    'Correction for multiple comparisons in fMRI',
+    'Correctional facilities and mental health',
+    'Erratic behavior in models',
+])
+def test_genuine_titles_not_excluded(title):
+    assert not is_excluded(make(title=title))
+
+
+def test_doiless_candidate_matches_known_doi_bearing_title(academic_user):
+    title = 'A Known Paper With A DOI'
+    PublicationFactory(owner=academic_user, doi='10.1/known', title=title)
+    known = KnownWorks.from_db(academic_user)
+    assert known.contains(make(title=title, doi=''))
+    assert not known.contains(make(title=title, doi='10.9/different'))
+
+
+def test_select_new_dedupes_doi_and_doiless_same_title(academic_user):
+    known = KnownWorks.from_db(academic_user)
+    a = make(source='openalex', doi='10.1/a', pmid='', title='Same Title')
+    b = make(source='pubmed', doi='', pmid='42', title='Same Title')
+    assert select_new([a, b], known, CUTOFF) == [a]
