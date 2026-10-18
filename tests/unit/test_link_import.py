@@ -4,6 +4,7 @@ Tests for importing resource links (Code/Data/OSF) from CSV and site JSON.
 import json
 
 import pytest
+from django.urls import reverse
 
 from academic.data_ingestion import ingest_links
 from academic.link_import import (
@@ -109,3 +110,13 @@ def test_ingest_links_reads_example_csv_format(user, pubs, tmp_path):
         'type,DOI,url\nCode,https://doi.org/10.1/abc,https://github.com/x/y\n',
     )
     assert ingest_links(user, str(tmp_path)) == 1
+
+
+@pytest.mark.django_db
+def test_publication_list_counts_links_for_mixed_case_doi(user, pubs, client):
+    Link.objects.create(owner=user, type='Code', doi='10.1038/s41562-024-01942-4',
+                        url='https://zenodo.org/records/5748130')
+    client.force_login(user)
+    response = client.get(reverse('academic:publication_list'))
+    counts = {p.doi: p.link_count for p in response.context['publications']}
+    assert counts[MIXED_CASE_DOI] == 1
