@@ -1,4 +1,5 @@
 import pytest
+import requests
 import responses
 
 from academic.sync import http, openalex
@@ -140,3 +141,44 @@ def test_full_authors_refetches_truncated(monkeypatch):
 def test_full_authors_returns_untruncated_unchanged():
     cand = openalex.parse_work(make_work())
     assert openalex.full_authors(cand, 'KEY') is cand
+
+
+@responses.activate
+def test_get_retries_connection_error_then_raises_source_error(sleeps):
+    for _ in range(4):
+        responses.add(responses.GET, 'https://x.test/a',
+                      body=requests.ConnectionError('boom'))
+    with pytest.raises(SourceError, match='ConnectionError') as exc_info:
+        http.get('https://x.test/a', params={'api_key': 'SECRET'})
+    assert len(responses.calls) == 4
+    assert len(sleeps) == 3
+    assert 'SECRET' not in str(exc_info.value)
+    assert isinstance(exc_info.value.__cause__, requests.ConnectionError)
+
+
+@responses.activate
+def test_get_connection_error_then_success(sleeps):
+    responses.add(responses.GET, 'https://x.test/a',
+                  body=requests.Timeout('slow'))
+    responses.add(responses.GET, 'https://x.test/a', json={'ok': 1})
+    assert http.get('https://x.test/a').json() == {'ok': 1}
+    assert len(sleeps) == 1
+
+
+@responses.activate
+def test_fetch_works_invalid_json_is_source_error():
+    responses.add(responses.GET, WORKS_URL, body='<html>not json</html>')
+    with pytest.raises(SourceError, match='invalid JSON'):
+        openalex.fetch_works_by_orcid(ORCID, 'KEY')
+
+
+@responses.activate
+def test_fetch_works_missing_keys_is_source_error():
+    responses.add(responses.GET, WORKS_URL, json={'unexpected': 1})
+    with pytest.raises(SourceError):
+        openalex.fetch_works_by_orcid(ORCID, 'KEY')
+
+
+def test_parse_work_authors_collapses_whitespace():
+    work = make_work(authorships=[{'raw_author_name': ' Russell  A.   Poldrack '}])
+    assert openalex.parse_work(work).authors == [{'name': 'Poldrack, Russell A.'}]
