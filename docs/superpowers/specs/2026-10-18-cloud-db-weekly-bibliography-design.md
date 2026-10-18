@@ -254,6 +254,12 @@ existing publications.
 - There are two local SQLite files: `academicdb_web/db.sqlite3` (the
   settings default) and `~/.cache/academicdb/db.sqlite3` (the Makefile's
   `DBDIR`). This likely explains the inconsistent counts.
+- **Migration source (decided by the owner): `academicdb_web/db.sqlite3`.**
+  It is the newest file (modified 9 Sep 06:18, vs 05:57 for the other). It is
+  also the one with 457 publications and 32 ignored preprints; the other has
+  412 and 0 ignored. `~/.cache/academicdb/db.sqlite3` is not migrated; keep it
+  untouched. The Makefile's `export` target (which points at `DBDIR`) must be
+  updated so nothing reads the stale file.
 - Existing manual edits, ignored flags and ignore reasons must survive migration.
 
 ## Phase 2: data/code link discovery (after the core pipeline works)
