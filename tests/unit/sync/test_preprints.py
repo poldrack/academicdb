@@ -1,7 +1,9 @@
+import itertools
+
 import pytest
 
 from academic.models import PreprintHideProposal
-from academic.sync.preprints import propose_hides
+from academic.sync.preprints import find_match, propose_hides
 from tests.factories import PublicationFactory
 
 pytestmark = pytest.mark.django_db
@@ -10,17 +12,34 @@ TITLE = 'Neural correlates of adaptive decision making under uncertainty'
 AUTHORS = [{'name': 'Smith, Jane'}, {'name': 'Jones, Bob'}, {'name': 'Lee, Kim'}]
 
 
-def make_pair(user, published_title=TITLE, published_authors=None, **pub_kw):
-    preprint = PublicationFactory(
-        owner=user, title=TITLE, year=2024, is_preprint=True,
-        authors=AUTHORS, review_status='approved', is_ignored=False,
-        identifiers={'openalex': 'W111'}, manual_edits={'publication_type': True},
+_counter = itertools.count(1)
+
+
+def make_preprint(user, **kw):
+    base = dict(
+        owner=user, title=TITLE, year=2024, authors=AUTHORS,
+        doi=f'10.1101/2024.01.01.{next(_counter):06d}',
+        review_status='approved', is_ignored=False,
+        identifiers={'openalex': 'W111'},
     )
-    published = PublicationFactory(
-        owner=user, title=published_title, year=2025, is_preprint=False,
-        authors=published_authors or AUTHORS,
-        is_ignored=False, **{'review_status': 'approved', **pub_kw},
+    base.update(kw)
+    return PublicationFactory(**base)
+
+
+def make_published(user, **kw):
+    base = dict(
+        owner=user, title=TITLE, year=2025, authors=AUTHORS,
+        doi=f'10.1016/j.neuron.2025.{next(_counter):05d}',
+        review_status='approved', is_ignored=False,
     )
+    base.update(kw)
+    return PublicationFactory(**base)
+
+
+def make_pair(user, published_title=TITLE, **pub_kw):
+    preprint = make_preprint(user)
+    published = make_published(user, title=published_title, **pub_kw)
+    assert preprint.is_preprint and not published.is_preprint
     return preprint, published
 
 
@@ -100,9 +119,7 @@ def test_rejected_pair_does_not_block_other_published(academic_user):
     PreprintHideProposal.objects.create(
         owner=academic_user, preprint=preprint, published=published,
         method='title_author', status='rejected')
-    other = PublicationFactory(
-        owner=academic_user, title=TITLE, year=2025, is_preprint=False,
-        authors=AUTHORS)
+    other = make_published(academic_user)
     result = propose_hides(academic_user, no_lookup, {})
     assert [p.published for p in result] == [other]
 
@@ -119,13 +136,78 @@ def test_pending_published_is_candidate(academic_user):
     assert len(propose_hides(academic_user, no_lookup, {})) == 1
 
 
-def test_other_owners_published_not_used(academic_user, django_user_model):
-    make_pair(academic_user)
-    PublicationFactory(owner=academic_user).delete()
-    other_user = django_user_model.objects.create_user(
+def other_owner(django_user_model):
+    return django_user_model.objects.create_user(
         username='other', password='x', orcid_id='0000-0000-0000-0002')
-    other_pub = PublicationFactory(
-        owner=other_user, title=TITLE, year=2025, is_preprint=False,
-        authors=AUTHORS)
-    result = propose_hides(academic_user, lambda d: [other_pub.doi], {})
-    assert all(p.published.owner == academic_user for p in result)
+
+
+def test_other_owners_published_not_used(academic_user, django_user_model):
+    _, mine = make_pair(academic_user)
+    theirs = make_published(other_owner(django_user_model))
+    result = propose_hides(academic_user, lambda d: [theirs.doi], {})
+    assert len(result) == 1
+    assert result[0].published == mine
+
+
+def test_no_crossref_lookup_for_preprint_without_doi(academic_user):
+    make_preprint(academic_user, doi='', manual_edits={'publication_type': True}, is_preprint=True)
+    calls = []
+    propose_hides(academic_user, lambda d: calls.append(d) or [], {})
+    assert calls == []
+
+
+@pytest.mark.parametrize('best_first', [True, False])
+def test_title_author_match_picks_best(academic_user, best_first):
+    make_preprint(academic_user)
+    pubs = [make_published(academic_user),
+            make_published(academic_user, title=TITLE + ' revisited again')]
+    best = pubs[0]
+    if not best_first:
+        best.delete()
+        best = make_published(academic_user)
+    result = propose_hides(academic_user, no_lookup, {})
+    assert [p.published for p in result] == [best]
+
+
+def test_confirmed_proposal_blocks_new(academic_user):
+    preprint, published = make_pair(academic_user)
+    PreprintHideProposal.objects.create(
+        owner=academic_user, preprint=preprint, published=published,
+        method='title_author', status='confirmed')
+    assert propose_hides(academic_user, no_lookup, {}) == []
+
+
+def test_pending_proposal_blocks_other_published(academic_user):
+    preprint, published = make_pair(academic_user)
+    PreprintHideProposal.objects.create(
+        owner=academic_user, preprint=preprint, published=published,
+        method='title_author', status='pending')
+    make_published(academic_user)
+    assert propose_hides(academic_user, no_lookup, {}) == []
+
+
+def test_pending_review_preprint_skipped(academic_user):
+    make_preprint(academic_user, review_status='pending')
+    make_published(academic_user)
+    assert propose_hides(academic_user, no_lookup, {}) == []
+
+
+def test_other_owners_preprint_not_processed(academic_user, django_user_model):
+    make_published(academic_user)
+    make_preprint(other_owner(django_user_model))
+    assert propose_hides(academic_user, no_lookup, {}) == []
+
+
+def test_preprint_never_matched_to_preprint(academic_user):
+    first = make_preprint(academic_user)
+    second = make_preprint(academic_user)
+    result = propose_hides(academic_user, lambda d: [second.doi], {})
+    assert result == [] and first.is_preprint
+
+
+def test_find_match_prefers_closest_title_regardless_of_list_order(academic_user):
+    preprint = make_preprint(academic_user)
+    worse = make_published(academic_user, title=TITLE + ' revisited again')
+    best = make_published(academic_user)
+    pub, method, _ = find_match(preprint, [worse, best], [], {})
+    assert (pub, method) == (best, 'title_author')
