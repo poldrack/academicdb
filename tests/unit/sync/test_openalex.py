@@ -153,7 +153,7 @@ def test_get_retries_connection_error_then_raises_source_error(sleeps):
     assert len(responses.calls) == 4
     assert len(sleeps) == 3
     assert 'SECRET' not in str(exc_info.value)
-    assert isinstance(exc_info.value.__cause__, requests.ConnectionError)
+    assert exc_info.value.__cause__ is None  # chained exception text would hold URL params
 
 
 @responses.activate
