@@ -30,7 +30,7 @@ def test_excluded_types_and_supplements():
     assert is_excluded(make(openalex_type='dataset'))
     assert is_excluded(make(openalex_type='journal-article', is_supplement=True))
     assert is_excluded(make(title='Erratum: X'))
-    assert is_excluded(make(title='  author correction to Y'.strip()))
+    assert is_excluded(make(title='author correction: Y'))
     assert is_excluded(make(title='CORRIGENDUM to Z'))
     assert not is_excluded(make(openalex_type='article'))
     assert not is_excluded(make(title='Correlates of success'))
