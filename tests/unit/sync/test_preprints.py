@@ -14,12 +14,12 @@ def make_pair(user, published_title=TITLE, published_authors=None, **pub_kw):
     preprint = PublicationFactory(
         owner=user, title=TITLE, year=2024, is_preprint=True,
         authors=AUTHORS, review_status='approved', is_ignored=False,
-        identifiers={'openalex': 'W111'},
+        identifiers={'openalex': 'W111'}, manual_edits={'publication_type': True},
     )
     published = PublicationFactory(
         owner=user, title=published_title, year=2025, is_preprint=False,
-        authors=published_authors or AUTHORS, review_status='approved',
-        is_ignored=False, **pub_kw,
+        authors=published_authors or AUTHORS,
+        is_ignored=False, **{'review_status': 'approved', **pub_kw},
     )
     return preprint, published
 
