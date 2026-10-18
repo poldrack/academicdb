@@ -41,16 +41,21 @@ def _location_match(preprint, published, location_index):
     return pub, 'openalex_location', evidence
 
 
+def _title_author_scores(preprint, pub):
+    return (Publication._calculate_title_similarity(preprint.title, pub.title),
+            Publication._calculate_author_overlap(preprint.authors, pub.authors))
+
+
 def _title_author_match(preprint, published):
-    for pub in published:
-        if Publication._is_likely_published_version(preprint, pub):
-            return pub, 'title_author', {
-                'title_similarity': Publication._calculate_title_similarity(
-                    preprint.title, pub.title),
-                'author_similarity': Publication._calculate_author_overlap(
-                    preprint.authors, pub.authors),
-            }
-    return None
+    """Best passing candidate: title sim, then author sim, then lowest id."""
+    scored = [(_title_author_scores(preprint, pub), pub) for pub in published
+              if Publication._is_likely_published_version(preprint, pub)]
+    if not scored:
+        return None
+    (title_sim, author_sim), pub = min(
+        scored, key=lambda sp: (-sp[0][0], -sp[0][1], sp[1].id))
+    return pub, 'title_author', {
+        'title_similarity': title_sim, 'author_similarity': author_sim}
 
 
 def find_match(preprint, published, crossref_dois, location_index):
@@ -75,8 +80,8 @@ def _existing_proposals(user):
 def _match_for(preprint, published, crossref_lookup, location_index, rejected):
     candidates = [p for p in published
                   if p.id != preprint.id and (preprint.id, p.id) not in rejected]
-    return find_match(
-        preprint, candidates, crossref_lookup(preprint.doi), location_index)
+    crossref = crossref_lookup(preprint.doi) if doi_key(preprint.doi) else []
+    return find_match(preprint, candidates, crossref, location_index)
 
 
 def propose_hides(user, crossref_lookup: Callable[[str], list],
