@@ -21,10 +21,10 @@ def _attempt(url, params, timeout):
         return None, exc
 
 
-def get(url, params=None, *, timeout=30, retries=3, backoff=2.0):
+def get(url, params=None, *, timeout=30, retries=3, backoff=2.0, ok_statuses=()):
     for attempt in range(retries + 1):
         resp, exc = _attempt(url, params, timeout)
-        if exc is None and resp.status_code < 400:
+        if exc is None and (resp.status_code < 400 or resp.status_code in ok_statuses):
             return resp
         if exc is None and not _retryable(resp.status_code):
             raise SourceError(f'{url}: HTTP {resp.status_code}')
