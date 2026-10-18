@@ -1,5 +1,5 @@
 from academic.link_import import normalize_doi
-from academic.sync.http import get_json
+from academic.sync.http import SourceError, get_json
 
 IDCONV = 'https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/'
 BATCH = 200
@@ -12,11 +12,15 @@ def _key(requested):
 def _convert_batch(ids, email):
     params = {'ids': ','.join(ids), 'format': 'json',
               'tool': 'academicdb', 'email': email}
-    return get_json(IDCONV, params).get('records', [])
+    data = get_json(IDCONV, params)
+    if data.get('status') == 'error':
+        raise SourceError(f'{IDCONV}: error response')
+    return data.get('records', [])
 
 
 def _usable(record):
-    return record.get('status') != 'error' and record.get('pmcid')
+    return (record.get('requested-id') and record.get('pmcid')
+            and record.get('status') != 'error')
 
 
 def lookup_pmcids(ids: list[str], email: str) -> dict[str, dict]:

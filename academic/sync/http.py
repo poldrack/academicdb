@@ -30,7 +30,7 @@ def get(url, params=None, *, timeout=30, retries=3, backoff=2.0, ok_statuses=())
             raise SourceError(f'{url}: HTTP {resp.status_code}')
         if attempt == retries:
             if exc is not None:
-                raise SourceError(f'{url}: {exc.__class__.__name__}') from exc
+                raise SourceError(f'{url}: {exc.__class__.__name__}') from None
             raise SourceError(f'{url}: HTTP {resp.status_code}')
         time.sleep(backoff ** attempt)
 
@@ -40,7 +40,7 @@ def get_json(url, params=None, **kwargs):
     try:
         data = resp.json()
     except ValueError as exc:
-        raise SourceError(f'{url}: invalid JSON') from exc
+        raise SourceError(f'{url}: invalid JSON') from None
     if not isinstance(data, dict):
         raise SourceError(f'{url}: unexpected JSON body')
     return data

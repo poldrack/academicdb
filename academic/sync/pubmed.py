@@ -24,8 +24,12 @@ def _search_ids(query, mindate, email, api_key):
         'mindate': mindate.strftime('%Y/%m/%d'), 'maxdate': '3000',
         'retmax': 1000, 'retmode': 'json', **_base_params(email, api_key),
     }
-    data = get_json(f'{EUTILS}/esearch.fcgi', params)
-    return data.get('esearchresult', {}).get('idlist', [])
+    url = f'{EUTILS}/esearch.fcgi'
+    data = get_json(url, params)
+    result = data.get('esearchresult', {})
+    if 'error' in data or 'ERROR' in result:
+        raise SourceError(f'{url}: error response')
+    return result.get('idlist', [])
 
 
 def _fetch_batch(ids, email, api_key):
@@ -33,7 +37,7 @@ def _fetch_batch(ids, email, api_key):
               **_base_params(email, api_key)}
     resp = get(f'{EUTILS}/efetch.fcgi', params)
     try:
-        return Entrez.read(io.BytesIO(resp.content))['PubmedArticle']
+        return Entrez.read(io.BytesIO(resp.content)).get('PubmedArticle', [])
     except Exception as exc:
         raise SourceError('efetch: unparseable XML') from exc
 
@@ -44,7 +48,9 @@ def search_pubmed(query: str, mindate: date, email: str,
     candidates = []
     for start in range(0, len(ids), BATCH):
         for article in _fetch_batch(ids[start:start + BATCH], email, api_key):
-            candidates.append(parse_pubmed_article(article))
+            candidate = parse_pubmed_article(article)
+            if candidate is not None:
+                candidates.append(candidate)
     return candidates
 
 
@@ -66,23 +72,39 @@ def _year(pub_date):
 def _author_name(author):
     if 'CollectiveName' in author:
         return str(author['CollectiveName'])
-    return f"{author.get('LastName', '')}, {author.get('ForeName', '')}".strip(', ')
+    last = str(author.get('LastName', ''))
+    first = str(author.get('ForeName') or author.get('Initials') or '')
+    return f'{last}, {first}' if last and first else last or first
 
 
-def parse_pubmed_article(article: dict) -> Candidate:
-    citation = article['MedlineCitation']
-    art = citation['Article']
-    journal = art['Journal']
-    authors = [{'name': _author_name(a)} for a in art.get('AuthorList', [])]
+def _authors(art):
+    names = (_author_name(a) for a in art.get('AuthorList', []))
+    return [{'name': n} for n in names if n]
+
+
+def _clean_title(raw):
+    text = re.sub(r'<[^>]+>', '', str(raw))
+    return ' '.join(text.split()).rstrip('.')
+
+
+def parse_pubmed_article(article: dict) -> Candidate | None:
+    citation = article.get('MedlineCitation', {})
+    art = citation.get('Article', {})
+    journal = art.get('Journal', {})
+    pmid = str(citation.get('PMID', ''))
+    title = _clean_title(art.get('ArticleTitle', ''))
+    if not pmid or not title:
+        return None
+    pub_date = journal.get('JournalIssue', {}).get('PubDate', {})
     return Candidate(
         source='pubmed',
-        title=str(art['ArticleTitle']).rstrip('.'),
-        year=_year(journal['JournalIssue']['PubDate']),
+        title=title,
+        year=_year(pub_date),
         publication_date=None,
         publication_name=str(journal.get('Title', '')),
         publication_type='journal-article',
-        authors=authors,
+        authors=_authors(art),
         doi=_article_id(article, 'doi'),
-        pmid=str(citation['PMID']),
+        pmid=pmid,
         pmcid=_article_id(article, 'pmc'),
     )
