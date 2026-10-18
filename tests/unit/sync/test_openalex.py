@@ -182,3 +182,17 @@ def test_fetch_works_missing_keys_is_source_error():
 def test_parse_work_authors_collapses_whitespace():
     work = make_work(authorships=[{'raw_author_name': ' Russell  A.   Poldrack '}])
     assert openalex.parse_work(work).authors == [{'name': 'Poldrack, Russell A.'}]
+
+
+@responses.activate
+def test_get_json_non_object_is_source_error():
+    responses.add(responses.GET, 'https://x.test/a', body='[]')
+    with pytest.raises(SourceError, match='unexpected JSON body'):
+        http.get_json('https://x.test/a')
+
+
+@responses.activate
+def test_fetch_work_null_body_is_source_error():
+    responses.add(responses.GET, 'https://api.openalex.org/works/W1', body='null')
+    with pytest.raises(SourceError, match='unexpected JSON body'):
+        openalex.fetch_work('W1', 'KEY')
