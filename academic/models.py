@@ -2783,7 +2783,7 @@ class Link(models.Model):
         """Get all links for a given publication"""
         return cls.objects.filter(
             owner=publication.owner,
-            doi=publication.doi
+            doi__iexact=publication.doi
         ).order_by('type')
 
     @classmethod

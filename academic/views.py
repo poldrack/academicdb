@@ -15,6 +15,7 @@ from pathlib import Path
 from io import StringIO
 import sys
 from .models import Publication, Funding, Teaching, Talk, Conference, ProfessionalActivity, Link, Editorial, Collaborator
+from .link_import import normalize_doi
 
 logger = logging.getLogger(__name__)
 
@@ -2182,20 +2183,12 @@ class LinkUploadView(LoginRequiredMixin, View):
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 because header is row 1
                 try:
                     link_type = row['type'].strip()
-                    doi = row['DOI'].strip().lower()
+                    doi = normalize_doi(row['DOI'])
                     url = row['url'].strip()
 
                     if not all([link_type, doi, url]):
                         error_count += 1
                         continue
-
-                    # Clean DOI
-                    if doi.startswith('https://doi.org/'):
-                        doi = doi.replace('https://doi.org/', '')
-                    elif doi.startswith('http://doi.org/'):
-                        doi = doi.replace('http://doi.org/', '')
-                    elif doi.startswith('doi:'):
-                        doi = doi.replace('doi:', '')
 
                     # Create or update link
                     link, created = Link.objects.get_or_create(

@@ -10,6 +10,7 @@ from datetime import datetime
 from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 from .models import Publication, Conference, Editorial, Teaching, Talk, Link
+from .link_import import import_link_records, read_links_csv
 from .csv_importers import (
     PublicationCSVImporter,
     TeachingCSVImporter,
@@ -89,61 +90,22 @@ def ingest_editorial(user, data_directory):
 def ingest_links(user, data_directory):
     """
     Ingest publication links from links.csv
-    Expected CSV columns: publication_title, link_type, url, description
+    Expected CSV columns: type, DOI, url
     """
     csv_path = os.path.join(data_directory, 'links.csv')
     if not os.path.exists(csv_path):
         logger.info(f"No links.csv found in {data_directory}")
         return 0
 
-    count = 0
     try:
-        with open(csv_path, 'r', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                # Find the publication by title
-                try:
-                    publication = Publication.objects.get(
-                        owner=user,
-                        title=row.get('publication_title', '')
-                    )
-                except Publication.DoesNotExist:
-                    logger.warning(f"Publication '{row.get('publication_title')}' not found, skipping link")
-                    continue
-                except Publication.MultipleObjectsReturned:
-                    # If multiple publications with same title, use the first one
-                    publication = Publication.objects.filter(
-                        owner=user,
-                        title=row.get('publication_title', '')
-                    ).first()
-
-                # Check if link already exists
-                if Link.objects.filter(
-                    owner=user,
-                    doi=publication.doi or '',
-                    url=row.get('url', '')
-                ).exists():
-                    logger.info(f"Link '{row.get('url')}' already exists, skipping")
-                    continue
-
-                link_data = {
-                    'owner': user,
-                    'type': row.get('link_type', 'Other'),
-                    'doi': publication.doi or '',
-                    'url': row.get('url', ''),
-                    'title': row.get('description', ''),
-                    'source': 'csv_import'
-                }
-
-                Link.objects.create(**link_data)
-                count += 1
-                logger.info(f"Created link: {row.get('url')} for {publication.title}")
-
+        result = import_link_records(user, read_links_csv(csv_path))
     except Exception as e:
         logger.error(f"Error processing links.csv: {e}")
         raise
 
-    return count
+    for doi in result.unmatched_dois:
+        logger.warning(f"No publication found for link DOI {doi}, skipping")
+    return result.created
 
 
 def ingest_talks(user, data_directory):
