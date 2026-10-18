@@ -113,3 +113,65 @@ def test_decided_proposals_cannot_be_decided_again(academic_user, preprint, publ
         confirm_hide(proposal, NOW)
     with pytest.raises(ValueError):
         reject_hide(proposal, NOW)
+
+
+def test_confirm_hide_stale_proposal_raises(academic_user, preprint, published):
+    other = make_pub(academic_user, 'approved', title='Other', doi='10.1000/o')
+    a = make_proposal(academic_user, preprint, published)
+    b = make_proposal(academic_user, preprint, other)
+    stale_a = PreprintHideProposal.objects.get(pk=a.pk)
+    confirm_hide(PreprintHideProposal.objects.get(pk=b.pk), NOW)
+    with pytest.raises(ValueError):
+        confirm_hide(stale_a, NOW)
+    preprint.refresh_from_db()
+    a.refresh_from_db()
+    assert preprint.metadata['hidden_by']['proposal_id'] == b.id
+    assert preprint.ignore_reason == 'Published as 10.1000/o'
+    assert a.status == 'rejected'
+
+
+def test_confirm_hide_uses_fresh_metadata(academic_user, preprint, published):
+    proposal = PreprintHideProposal.objects.get(
+        pk=make_proposal(academic_user, preprint, published).pk)
+    assert proposal.preprint.metadata == {'k': 'v'}  # cache the preprint
+    Publication.objects.filter(pk=preprint.pk).update(
+        metadata={'k': 'v', 'late': 1})
+    confirm_hide(proposal, NOW)
+    preprint.refresh_from_db()
+    assert preprint.metadata['late'] == 1
+    assert preprint.metadata['hidden_by']['method'] == 'pipeline_review'
+
+
+def test_approve_pending_stale_raises(academic_user):
+    pub = make_pub(academic_user)
+    stale = Publication.objects.get(pk=pub.pk)
+    approve_pending(Publication.objects.get(pk=pub.pk))
+    with pytest.raises(ValueError):
+        approve_pending(stale)
+
+
+def test_reject_pending_stale_raises(academic_user):
+    pub = make_pub(academic_user)
+    stale = Publication.objects.get(pk=pub.pk)
+    approve_pending(Publication.objects.get(pk=pub.pk))
+    with pytest.raises(ValueError):
+        reject_pending(stale)
+    assert Publication.objects.filter(pk=pub.pk).exists()
+
+
+def test_confirm_hide_leaves_published_unchanged(academic_user, preprint, published):
+    proposal = make_proposal(academic_user, preprint, published)
+    confirm_hide(proposal, NOW)
+    published.refresh_from_db()
+    assert published.is_ignored is False
+    assert 'hidden_by' not in (published.metadata or {})
+
+
+def test_failed_confirm_leaves_preprint_untouched(academic_user, preprint, published):
+    proposal = make_proposal(academic_user, preprint, published)
+    reject_hide(proposal, NOW)
+    with pytest.raises(ValueError):
+        confirm_hide(proposal, NOW)
+    preprint.refresh_from_db()
+    assert preprint.is_ignored is False
+    assert preprint.metadata == {'k': 'v'}
