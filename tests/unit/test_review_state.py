@@ -1,4 +1,5 @@
 import pytest
+from django.db import transaction
 
 from academic.cv_renderer import generate_cv_latex
 from academic.models import Publication, RejectedWork
@@ -81,3 +82,13 @@ def test_deleting_owner_does_not_leave_dangling_tombstones(academic_user):
     make_pub(academic_user)
     academic_user.delete()
     assert RejectedWork.objects.count() == 0
+
+
+def test_rolled_back_user_delete_does_not_suppress_later_tombstones(academic_user):
+    pub = make_pub(academic_user)
+    with pytest.raises(RuntimeError):
+        with transaction.atomic():
+            academic_user.delete()
+            raise RuntimeError('abort')
+    Publication.objects.get(pk=pub.pk).delete()
+    assert RejectedWork.objects.filter(owner=academic_user).count() == 1
