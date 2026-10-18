@@ -143,3 +143,4 @@ restore.out
 neon-storage.env
 .env.local
 .neon
+.superpowers/

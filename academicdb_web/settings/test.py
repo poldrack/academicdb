@@ -10,7 +10,12 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': ':memory:',
-    }
+    },
+    # Second database used by data-transfer tests (copy/backup/restore)
+    'source': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    },
 }
 
 # Disable migrations for faster testing
