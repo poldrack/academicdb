@@ -51,6 +51,24 @@ run-neon:
 migrate-neon:
 	USE_NEON=true NEON_UNPOOLED=true uv run python manage.py migrate
 
+# Portable JSON backups (restore into Neon, Postgres or SQLite)
+LOCAL_BACKUP_DIR ?= backups
+
+backup-local:
+	USE_NEON=true NEON_UNPOOLED=true uv run python manage.py backup_database --output-dir $(LOCAL_BACKUP_DIR)
+
+# Restore into whatever database .env selects (must be empty): make restore-local FILE=...
+restore-local:
+	@test -n "$(FILE)" || (echo "Usage: make restore-local FILE=backups/academicdb_....json.gz"; exit 1)
+	NEON_UNPOOLED=true uv run python manage.py restore_database $(FILE)
+
+# Test-restore a backup into a throwaway SQLite database: make backup-check FILE=...
+backup-check:
+	@test -n "$(FILE)" || (echo "Usage: make backup-check FILE=backups/academicdb_....json.gz"; exit 1)
+	rm -f $(LOCAL_BACKUP_DIR)/restore_check.sqlite3
+	USE_NEON=false DATABASE_URL=sqlite:///$(abspath $(LOCAL_BACKUP_DIR))/restore_check.sqlite3 uv run python manage.py migrate --verbosity 0
+	USE_NEON=false DATABASE_URL=sqlite:///$(abspath $(LOCAL_BACKUP_DIR))/restore_check.sqlite3 uv run python manage.py restore_database $(FILE)
+
 
 kill:
 	pkill -f "python manage.py runserver"
