@@ -42,7 +42,7 @@ coverage-report:
 	DJANGO_SETTINGS_MODULE=academicdb_web.settings.test uv run coverage report --show-missing
 
 run:
-	python manage.py runserver 
+	uv run python manage.py runserver 
 
 
 kill:

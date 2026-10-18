@@ -3,8 +3,8 @@ Test CV formatting functionality, particularly author string formatting
 """
 import pytest
 from datetime import date
-from academic.cv_renderer import mk_author_string, format_publication, get_heading, get_education, get_distinctions, get_funding, get_preprints, get_conferences, get_editorial_activities
-from academic.models import Publication, AcademicUser, ProfessionalActivity, Funding, Conference, Editorial
+from academic.cv_renderer import mk_author_string, format_publication, get_heading, get_education, get_distinctions, get_funding, get_preprints, get_conferences, get_editorial_activities, get_talks
+from academic.models import Publication, AcademicUser, ProfessionalActivity, Funding, Conference, Editorial, Talk
 
 
 class TestAuthorStringFormatting:
@@ -85,6 +85,22 @@ class TestPublicationCVFormatting:
 
         # Should contain "et al. (" with proper spacing
         assert "et al. (" in formatted
+
+    def test_publication_title_ending_in_period_no_double_period(self, sample_user):
+        """A title that already ends with a period should not produce '..'"""
+        pub = Publication.objects.create(
+            owner=sample_user,
+            title="A study of something interesting.",
+            year=2024,
+            doi="10.1000/test.2024.002",
+            authors=[{"name": "Smith, J"}],
+            publication_name="Test Journal",
+        )
+
+        formatted = format_publication(pub)
+
+        assert ".." not in formatted
+        assert "interesting." in formatted
 
 
 @pytest.mark.django_db
@@ -651,3 +667,31 @@ class TestEditorialActivitiesCV:
         # Role headings should be wrapped in \textit{} for italics
         assert '\\textit{Senior Editor}: Test Journal' in editorial_section
         assert '\\textit{Editorial board}: Another Journal' in editorial_section
+
+
+@pytest.mark.django_db
+class TestInvitedAddresses:
+    """Test invited addresses (talks) section formatting"""
+
+    @pytest.fixture
+    def sample_user(self):
+        """Create a sample user for testing"""
+        return AcademicUser.objects.create_user(
+            username='talksuser',
+            email='talks@example.com',
+            orcid_id='0000-0000-0000-0005',
+            first_name='Jane',
+            last_name='Speaker'
+        )
+
+    def test_talks_in_same_year_separated_by_semicolon(self, sample_user):
+        """Multiple talks within a year should be separated by a semicolon, not a comma"""
+        Talk.objects.create(owner=sample_user, year=2024, place='Stanford University')
+        Talk.objects.create(owner=sample_user, year=2024, place='MIT')
+
+        talks_section = get_talks(sample_user)
+
+        # Entries within a year should be joined with a semicolon
+        assert 'Stanford University; MIT' in talks_section
+        # And not with a comma
+        assert 'Stanford University, MIT' not in talks_section

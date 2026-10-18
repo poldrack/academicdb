@@ -352,7 +352,7 @@ def get_talks(user):
             # Remove the virtual check for now
             escaped_location = escape_characters_for_latex(location)
             talk_locations.append(escaped_location)
-        output += ', '.join(talk_locations) + '\n\n'
+        output += '; '.join(talk_locations) + '\n\n'
     return output
 
 
@@ -767,6 +767,11 @@ def format_publication(pub, debug=False):
     authors_str = mk_author_string(pub.authors)
     outlet_str = get_publication_outlet(pub_data)
     escaped_title = prepare_title_for_latex(pub.title)
+
+    # Strip any trailing period so we don't emit a double period when the
+    # citation period is appended below
+    if escaped_title:
+        escaped_title = escaped_title.rstrip().rstrip('.')
 
     # Build citation with proper spacing for et al.
     # Add space before year if authors_str ends with "et al."
