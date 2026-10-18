@@ -298,3 +298,15 @@ def test_source_error_does_not_chain_url_with_params(monkeypatch):
     assert err.value.__cause__ is None
     assert err.value.__suppress_context__ is True
     assert 'api_key' not in str(err.value)
+
+
+def test_parse_pubmed_volume_and_pages():
+    article = {'MedlineCitation': {'PMID': '7', 'Article': {
+        'ArticleTitle': 'T.',
+        'Journal': {'JournalIssue': {'Volume': '12'}},
+        'Pagination': {'MedlinePgn': '100-110'}}}}
+    c = pubmed.parse_pubmed_article(article)
+    assert (c.volume, c.page_range) == ('12', '100-110')
+    bare = pubmed.parse_pubmed_article(
+        {'MedlineCitation': {'PMID': '7', 'Article': {'ArticleTitle': 'T.'}}})
+    assert (bare.volume, bare.page_range) == ('', '')

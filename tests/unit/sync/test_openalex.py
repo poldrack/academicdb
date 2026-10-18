@@ -196,3 +196,15 @@ def test_fetch_work_null_body_is_source_error():
     responses.add(responses.GET, 'https://api.openalex.org/works/W1', body='null')
     with pytest.raises(SourceError, match='unexpected JSON body'):
         openalex.fetch_work('W1', 'KEY')
+
+
+def test_parse_work_volume_and_pages():
+    cand = openalex.parse_work(make_work(
+        biblio={'volume': '12', 'first_page': '100', 'last_page': '110'}))
+    assert (cand.volume, cand.page_range) == ('12', '100-110')
+    only_first = openalex.parse_work(make_work(
+        biblio={'first_page': '100', 'last_page': '100'}))
+    assert (only_first.volume, only_first.page_range) == ('', '100')
+    assert openalex.parse_work(make_work(
+        biblio={'first_page': '100'})).page_range == '100'
+    assert openalex.parse_work(make_work(biblio={})).page_range == ''
