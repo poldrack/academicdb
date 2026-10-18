@@ -95,12 +95,12 @@ class TestDataFileIngestion(TestCase):
         filepath = os.path.join(self.test_data_dir, filename)
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['publication_title', 'link_type', 'url', 'description'])
+            # Same format as the links spreadsheet and the web upload view
+            writer.writerow(['type', 'DOI', 'url'])
             writer.writerow([
-                'Linkable Publication',
-                'data',
+                'Data',
+                f'https://doi.org/{pub.doi}',
                 'https://example.com/data',
-                'Test data link'
             ])
         return filepath
 
