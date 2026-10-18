@@ -11,7 +11,12 @@ EXCLUDED_OPENALEX_TYPES = frozenset({
     'editorial', 'letter', 'supplementary-materials',
 })
 CORRECTION_TITLE = re.compile(
-    r'^\s*(corrigendum|correction|erratum|author correction)', re.IGNORECASE
+    r'^\s*((author |publisher )?(correction|erratum|errata|corrigendum|addendum)'
+    r'( to| for)?\s*[:\-\u2013]'
+    r'|corrigendum\b'
+    r'|retraction( note| notice)?\s*[:\-\u2013]'
+    r'|expression of concern\b)',
+    re.IGNORECASE,
 )
 VERSION_SUFFIX = re.compile(r'_v(\d+)\s*$', re.IGNORECASE)
 
