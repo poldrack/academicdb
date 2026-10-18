@@ -119,3 +119,9 @@ def test_no_save_when_nothing_changes(academic_user, django_assert_num_queries):
     with django_assert_num_queries(0):
         result = apply_enrichment(pub, make())
     assert result.changed == []
+
+
+def test_oa_url_respects_metadata_flag(academic_user):
+    pub = make_pub(academic_user, manual_edits={'metadata': True})
+    result = plan_enrichment(pub, make(oa_url='https://x.org', oa_status='gold'))
+    assert result.updates == {}
