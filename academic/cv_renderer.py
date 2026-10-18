@@ -279,6 +279,22 @@ def get_conference_years(conferences):
     return years
 
 
+def group_by_year(records):
+    """Group records by .year, keeping their order (avoids a query per year)"""
+    by_year = {}
+    for record in records:
+        by_year.setdefault(record.year, []).append(record)
+    return by_year
+
+
+def links_by_doi(user):
+    """All of a user's links in one query, keyed by lowercased DOI"""
+    by_doi = {}
+    for link in Link.objects.filter(owner=user).order_by('type'):
+        by_doi.setdefault(link.doi.lower(), []).append(link)
+    return by_doi
+
+
 def get_month_number(month_name):
     """Convert month name to numerical representation for sorting"""
     if not month_name:
@@ -304,16 +320,17 @@ def get_month_number(month_name):
 
 def get_conferences(user):
     """Get conference presentations for CV"""
-    conferences = Conference.objects.filter(owner=user).order_by('-year')
+    conferences = list(Conference.objects.filter(owner=user).order_by('-year', 'id'))
     years = get_conference_years(conferences)
+    conferences_by_year = group_by_year(conferences)
     output = ''
-    if conferences.exists():
+    if conferences:
         output += """
 \\section*{Conference Presentations}
 \\noindent
 """
     for year in years:
-        year_talks = list(conferences.filter(year=year))
+        year_talks = list(conferences_by_year[year])
         # Sort by month in reverse chronological order (most recent first)
         year_talks.sort(key=lambda conf: get_month_number(conf.month), reverse=True)
         output += f'\\subsection*{{{year}}}'
@@ -333,17 +350,18 @@ def get_conferences(user):
 
 def get_talks(user):
     """Get invited talks for CV"""
-    talks = Talk.objects.filter(owner=user).order_by('-year')
+    talks = list(Talk.objects.filter(owner=user).order_by('-year', 'id'))
     years = list(set([t.year for t in talks]))
     years.sort(reverse=True)
+    talks_by_year = group_by_year(talks)
     output = ''
-    if talks.exists():
+    if talks:
         output += """
 \\section*{Invited addresses and colloquia}
 \\noindent
 """
     for year in years:
-        year_talks = talks.filter(year=year)
+        year_talks = talks_by_year[year]
         output += f'{year}: '
         talk_locations = []
         for talk in year_talks:
@@ -725,7 +743,7 @@ def get_publication_outlet(pub_data):
         return f"\\textbf{{TBD{escaped_type}}}"
 
 
-def format_publication(pub, debug=False):
+def format_publication(pub, debug=False, links_by_doi=None):
     """Format a single publication for CV"""
     # Convert Django model to dict-like structure
     pub_data = {
@@ -796,7 +814,10 @@ def format_publication(pub, debug=False):
         output += f" \\href{{https://doi.org/{pub.doi}}}{{DOI}}"
 
     # Add additional links from Link model (URLs should NOT be escaped for LaTeX)
-    links_from_model = Link.get_links_for_publication(pub)
+    if links_by_doi is None:
+        links_from_model = Link.get_links_for_publication(pub)
+    else:
+        links_from_model = links_by_doi.get((pub.doi or '').lower(), [])
     for link in links_from_model:
         output += f" \\href{{{link.url}}}{{{link.type}}}"
 
@@ -825,6 +846,7 @@ def get_preprints(user, exclude_dois=None):
         preprints = preprints.exclude(doi__in=exclude_dois)
 
     # Filter out preprints that have been published
+    links = links_by_doi(user)
     unpublished_preprints = []
     for preprint in preprints:
         # Use the enhanced detection method from the Publication model
@@ -848,7 +870,7 @@ def get_preprints(user, exclude_dois=None):
                 continue
 
             # format_publication handles escaping internally
-            output += format_publication(pub)
+            output += format_publication(pub, links_by_doi=links)
 
     return output
 
@@ -858,21 +880,24 @@ def get_publications(user, exclude_dois=None):
     publications = Publication.objects.filter(
         owner=user,
         is_ignored=False
-    ).exclude(publication_type='preprint').order_by('-year')
+    ).exclude(publication_type='preprint').order_by('-year', 'id')
 
     if exclude_dois:
         publications = publications.exclude(doi__in=exclude_dois)
 
+    publications = list(publications)
     years = get_publication_years(publications)
+    publications_by_year = group_by_year(publications)
+    links = links_by_doi(user)
     output = ''
-    if publications.exists():
+    if publications:
         output += """
 \\section*{Publications}
 \\noindent
 """
 
     for year in years:
-        year_pubs = list(publications.filter(year=year))
+        year_pubs = list(publications_by_year[year])
 
         # Sort by first author's last name within each year
         year_pubs.sort(key=lambda pub: extract_first_author_lastname(pub.authors))
@@ -884,7 +909,7 @@ def get_publications(user, exclude_dois=None):
                 continue
 
             # format_publication handles escaping internally
-            output += format_publication(pub)
+            output += format_publication(pub, links_by_doi=links)
 
     return output
 
