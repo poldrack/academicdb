@@ -233,10 +233,55 @@ existing publications.
   be more than one database file. Before migrating, the builder confirms which
   DB the local app actually uses and shows the owner the row counts per table.
   After migrating, those counts must match in Neon.
+- The Link table is currently empty. Resource links live only in
+  `data/examples/links.csv` and the lab site's `publications.json`
+  (`links.resources`). Migration imports them into the Link table: about 41
+  papers and 50 resources after URL normalization. The lab site's software
+  page must show the same links as today.
 - Keep the local SQLite file untouched as a fallback.
 - The local app points at Neon via `DATABASE_URL` in `.env`. Editing requires
   an internet connection.
 - Existing manual edits, ignored flags and ignore reasons must survive migration.
+
+## Phase 2: data/code link discovery (after the core pipeline works)
+
+Goal: suggest data/code links for papers automatically, instead of relying
+only on the hand-maintained spreadsheet. The spreadsheet, once imported into
+the Link table, stays the place for corrections and older papers.
+
+Recon on 2026-10-18 tested sources against the existing links (41 papers, 50
+resources). Raw results and collector scripts are in the session scratchpad,
+not the repo.
+
+- No source comes close to complete. All useful sources together found 29/50.
+- The broad citation-graph sources mostly return things a paper *used*, not
+  things it *shared*: ScholeXplorer/Scholix, DataCite related-ID search,
+  Europe PMC data links, and unfiltered full text. Examples are fMRIPrep, MRIQC,
+  datalad, reused OpenNeuro datasets, and other authors' figshare supplements.
+
+Sources to use (high precision):
+
+| Source | Recon result |
+|---|---|
+| OpenNeuro: `advancedSearch` by author, matched to papers via DOI/PMID/title in free-text references | 9/16 OpenNeuro links; 3 new candidates, all correct |
+| OSF: nodes of the owner's OSF accounts (jrh7c, 93vb4, wqtkq), matched by title | 9/14 OSF links; 17 new, ~3/5 correct |
+| CrossRef `relation` `is-supplemented-by` | rare but near-certain; repository DOIs under `references` are suggestions only |
+| Europe PMC full text (PMC papers): data/code availability section and body only, never reference-list-only hits | the only source that finds GitHub links |
+
+Sources not to use: unfiltered Scholix, DataCite related-ID search, and
+DataCite records by ORCID unless they are Dataset type and link to or
+title-match a paper. Of those ORCID records, 622/686 are software releases.
+
+Rules:
+- A candidate requires an author/ORCID overlap with the paper, or a GitHub
+  owner that is a co-author or lab org.
+- A blocklist of common tools applies (fMRIPrep, MRIQC, FSL, nipype, pydeface,
+  datalad, TemplateFlow, HCP, …), except on the paper describing that tool.
+- Candidates are proposed links in the weekly review PR, with the same
+  approve/reject-by-editing-YAML semantics. Rejections persist. Nothing is
+  written automatically, and manual links are never altered.
+- Caveat: the OSF/OpenNeuro title matchers were tuned on the same ground
+  truth, so expect lower recall on new papers.
 
 ## Backups
 
