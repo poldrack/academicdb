@@ -1,0 +1,178 @@
+from datetime import date
+
+import pytest
+
+from academic.models import RejectedWork
+from academic.sync.candidates import Candidate
+from academic.sync.filters import (
+    before_cutoff,
+    collapse_versions,
+    is_excluded,
+    select_new,
+)
+from academic.sync.known import KnownWorks
+from tests.factories import PublicationFactory
+
+CUTOFF = date(2025, 10, 18)
+
+
+def make(**kw):
+    base = dict(
+        source='openalex', title='A Title', year=2026, publication_date=None,
+        publication_name='J', publication_type='journal-article', authors=[],
+    )
+    base.update(kw)
+    return Candidate(**base)
+
+
+def test_excluded_types_and_supplements():
+    assert is_excluded(make(openalex_type='peer-review'))
+    assert is_excluded(make(openalex_type='dataset'))
+    assert is_excluded(make(openalex_type='journal-article', is_supplement=True))
+    assert is_excluded(make(title='Erratum: X'))
+    assert is_excluded(make(title='  author correction to Y'.strip()))
+    assert is_excluded(make(title='CORRIGENDUM to Z'))
+    assert not is_excluded(make(openalex_type='article'))
+    assert not is_excluded(make(title='Correlates of success'))
+
+
+def test_before_cutoff_uses_date_then_year():
+    assert before_cutoff(make(publication_date=date(2025, 10, 17)), CUTOFF)
+    assert not before_cutoff(make(publication_date=None, year=2026), CUTOFF)
+    assert before_cutoff(make(publication_date=None, year=None), CUTOFF)
+    assert not before_cutoff(make(publication_date=date(2025, 10, 18)), CUTOFF)
+    assert before_cutoff(make(publication_date=None, year=2025), CUTOFF)
+
+
+def test_date_wins_over_year():
+    c = make(publication_date=date(2026, 3, 1), year=2020)
+    assert not before_cutoff(c, CUTOFF)
+
+
+def test_collapse_osf_versions_keeps_highest():
+    cands = [make(doi=f'10.31234/osf.io/abcde_v{v}') for v in (1, 3, 2)]
+    out = collapse_versions(cands)
+    assert [c.doi for c in out] == ['10.31234/osf.io/abcde_v3']
+
+
+def test_collapse_unversioned_counts_as_zero_and_keeps_order():
+    a = make(doi='10.31234/osf.io/abcde', title='a')
+    b = make(doi='10.1/other', title='b')
+    c = make(doi='10.31234/OSF.IO/abcde_v2', title='c')
+    d = make(doi='', title='d')
+    out = collapse_versions([a, b, c, d])
+    assert [x.title for x in out] == ['c', 'b', 'd']
+
+
+def test_collapse_non_versioned_keeps_first_seen():
+    first = make(doi='10.1/x', source='openalex')
+    second = make(doi='https://doi.org/10.1/X', source='pubmed')
+    assert collapse_versions([first, second]) == [first]
+
+
+def test_known_includes_ignored_pending_and_tombstones(academic_user):
+    PublicationFactory(owner=academic_user, doi='10.1/a', is_ignored=True)
+    PublicationFactory(owner=academic_user, doi='10.1/b', review_status='pending')
+    RejectedWork.objects.create(owner=academic_user, doi='10.1/c', reason='rejected')
+    known = KnownWorks.from_db(academic_user)
+    for doi in ('10.1/a', '10.1/b', 'https://doi.org/10.1/C'):
+        assert known.contains(make(doi=doi, title='unrelated'))
+    assert not known.contains(make(doi='10.1/d', title='unrelated'))
+
+
+def test_known_is_user_scoped(academic_user, django_user_model):
+    other = django_user_model.objects.create_user(
+        username='other', email='o@example.com', password='x'
+    )
+    PublicationFactory(owner=other, doi='10.1/theirs')
+    RejectedWork.objects.create(owner=other, doi='10.1/theirs2', reason='rejected')
+    known = KnownWorks.from_db(academic_user)
+    assert not known.contains(make(doi='10.1/theirs'))
+    assert not known.contains(make(doi='10.1/theirs2'))
+
+
+def test_known_matches_by_openalex_id_and_pmid(academic_user):
+    PublicationFactory(
+        owner=academic_user, doi='10.1/a', identifiers={'openalex': 'W9', 'pmid': '77'}
+    )
+    known = KnownWorks.from_db(academic_user)
+    assert known.contains(make(doi='10.9/zzz', title='x', openalex_id='W9'))
+    assert known.contains(make(doi='10.9/zzz', title='x', pmid='77'))
+    assert not known.contains(make(doi='10.9/zzz', title='x', openalex_id='W10'))
+
+
+def test_known_matches_tombstone_openalex_and_pmid(academic_user):
+    RejectedWork.objects.create(
+        owner=academic_user, openalex_id='W5', pmid='55', reason='deleted'
+    )
+    known = KnownWorks.from_db(academic_user)
+    assert known.contains(make(doi='10.9/q', openalex_id='W5'))
+    assert known.contains(make(doi='10.9/q', pmid='55'))
+
+
+def test_known_title_only_for_no_doi(academic_user):
+    title = 'Statistical Thinking for the 21st Century'
+    PublicationFactory(owner=academic_user, doi=None, title=title)
+    known = KnownWorks.from_db(academic_user)
+    assert known.contains(make(title=title.upper() + '.', doi=''))
+    assert not known.contains(make(title=title, doi='10.9/new'))
+
+
+def test_known_ignores_empty_keys(academic_user):
+    PublicationFactory(owner=academic_user, doi=None, title='', identifiers={})
+    RejectedWork.objects.create(owner=academic_user, doi='10.1/x', reason='rejected')
+    known = KnownWorks.from_db(academic_user)
+    assert '' not in known.doi_keys | known.title_keys
+    assert '' not in known.openalex_ids | known.pmids
+    assert not known.contains(make(title='', doi='', openalex_id='', pmid=''))
+
+
+def test_known_from_db_uses_fixed_queries(academic_user, django_assert_num_queries):
+    for i in range(5):
+        PublicationFactory(owner=academic_user, doi=f'10.1/q{i}')
+    with django_assert_num_queries(2):
+        KnownWorks.from_db(academic_user)
+
+
+def test_rejected_osf_version_not_reproposed(academic_user):
+    RejectedWork.objects.create(
+        owner=academic_user, doi='10.31234/osf.io/abcde', reason='rejected'
+    )
+    known = KnownWorks.from_db(academic_user)
+    cand = make(doi='10.31234/OSF.IO/ABCDE_v4')
+    assert select_new([cand], known, CUTOFF) == []
+
+
+def test_select_new_dedupes_within_run(academic_user):
+    known = KnownWorks.from_db(academic_user)
+    a = make(source='openalex', doi='10.1/dup', title='One')
+    b = make(source='pubmed', doi='10.1/dup', title='One')
+    assert select_new([a, b], known, CUTOFF) == [a]
+
+
+def test_select_new_dedupes_by_pmid_across_sources(academic_user):
+    known = KnownWorks.from_db(academic_user)
+    a = make(doi='10.1/a', pmid='5', title='One')
+    b = make(source='pubmed', doi='', pmid='5', title='Other')
+    assert select_new([a, b], known, CUTOFF) == [a]
+
+
+def test_select_new_filters_and_keeps_order(academic_user):
+    PublicationFactory(owner=academic_user, doi='10.1/have')
+    known = KnownWorks.from_db(academic_user)
+    keep1 = make(doi='10.1/k1', title='K1')
+    old = make(doi='10.1/old', year=2024, title='Old')
+    have = make(doi='10.1/have', title='Have')
+    erratum = make(doi='10.1/err', title='Erratum: foo')
+    peer = make(doi='10.1/pr', openalex_type='peer-review', title='PR')
+    keep2 = make(doi='', title='K2')
+    out = select_new([keep1, old, have, erratum, peer, keep2], known, CUTOFF)
+    assert out == [keep1, keep2]
+
+
+def test_select_new_adds_kept_to_known(academic_user):
+    known = KnownWorks.from_db(academic_user)
+    select_new([make(doi='10.1/z', openalex_id='W1', pmid='1')], known, CUTOFF)
+    assert known.contains(make(doi='10.1/z'))
+    assert known.contains(make(doi='10.2/other', openalex_id='W1'))
+    assert known.contains(make(doi='10.2/other', pmid='1'))
