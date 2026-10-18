@@ -1,4 +1,5 @@
-from django.db.models.signals import post_delete, pre_delete
+from django.db.models.signals import post_delete
+from django.db.models import QuerySet
 from django.dispatch import receiver
 from allauth.socialaccount.signals import pre_social_login, social_account_added
 from allauth.socialaccount.models import SocialAccount, SocialToken
@@ -67,25 +68,18 @@ def handle_social_token_created(sender, instance, created, **kwargs):
             user.save()
             print(f"[SIGNAL] Stored ORCID token for user {user.email}")
 
-_users_being_deleted = set()
-
-
-@receiver(pre_delete, sender=AcademicUser)
-def mark_user_deletion_started(sender, instance, **kwargs):
-    _users_being_deleted.add(instance.pk)
-
-
-@receiver(post_delete, sender=AcademicUser)
-def mark_user_deletion_finished(sender, instance, **kwargs):
-    _users_being_deleted.discard(instance.pk)
+def _deleted_via_user(origin):
+    if isinstance(origin, QuerySet):
+        return origin.model is AcademicUser
+    return isinstance(origin, AcademicUser)
 
 
 @receiver(post_delete, sender=Publication)
-def tombstone_deleted_publication(sender, instance, **kwargs):
+def tombstone_deleted_publication(sender, instance, origin=None, **kwargs):
     """Remember deleted publications so sync never re-adds them.
 
-    Skipped when the owner is itself being deleted: the tombstone would
-    outlive (and dangle from) the account.
+    Skipped when the delete was started from the owner account: the
+    tombstone would outlive (and dangle from) the account.
     """
-    if instance.owner_id not in _users_being_deleted:
+    if not _deleted_via_user(origin):
         record_tombstone(instance, 'deleted')

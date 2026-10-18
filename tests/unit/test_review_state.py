@@ -1,8 +1,9 @@
 import pytest
 from django.db import transaction
+from django.db.models.signals import pre_delete
 
 from academic.cv_renderer import generate_cv_latex
-from academic.models import Publication, RejectedWork
+from academic.models import AcademicUser, Publication, RejectedWork
 from academic.tombstones import doi_key, record_tombstone, title_key
 
 pytestmark = pytest.mark.django_db
@@ -84,11 +85,18 @@ def test_deleting_owner_does_not_leave_dangling_tombstones(academic_user):
     assert RejectedWork.objects.count() == 0
 
 
-def test_rolled_back_user_delete_does_not_suppress_later_tombstones(academic_user):
+def test_failed_user_delete_does_not_suppress_later_tombstones(academic_user):
     pub = make_pub(academic_user)
-    with pytest.raises(RuntimeError):
-        with transaction.atomic():
+    owner_id = academic_user.pk  # Model.delete() clears pk on the instance
+
+    def abort(sender, **kwargs):
+        raise RuntimeError('abort')
+
+    pre_delete.connect(abort, sender=AcademicUser)
+    try:
+        with pytest.raises(RuntimeError), transaction.atomic():
             academic_user.delete()
-            raise RuntimeError('abort')
+    finally:
+        pre_delete.disconnect(abort, sender=AcademicUser)
     Publication.objects.get(pk=pub.pk).delete()
-    assert RejectedWork.objects.filter(owner=academic_user).count() == 1
+    assert RejectedWork.objects.filter(owner_id=owner_id).count() == 1

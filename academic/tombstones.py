@@ -35,6 +35,6 @@ def record_tombstone(pub: Publication, reason: str) -> RejectedWork:
         'title_key': title_key(pub.title),
     }
     work, _ = RejectedWork.objects.get_or_create(
-        owner=pub.owner, defaults=defaults, **_identity(pub)
+        owner_id=pub.owner_id, defaults=defaults, **_identity(pub)
     )
     return work
