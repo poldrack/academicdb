@@ -189,7 +189,7 @@ class PublicationListView(LoginRequiredMixin, ListView):
 
         # Add link counts for each publication
         for pub in context['publications']:
-            link_count = Link.objects.filter(owner=self.request.user, doi=pub.doi).count()
+            link_count = Link.objects.filter(owner=self.request.user, doi__iexact=pub.doi).count()
             pub.link_count = link_count
 
         return context

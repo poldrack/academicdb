@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 
 from academic.db_transfer import counts_path_for
 
@@ -28,6 +29,11 @@ def s3_client_from_env(env):
         aws_access_key_id=env['AWS_ACCESS_KEY_ID'],
         aws_secret_access_key=env['AWS_SECRET_ACCESS_KEY'],
         region_name=env['AWS_REGION'],
+        # S3-compatible stores may reject boto3's default CRC32 checksums
+        config=Config(
+            request_checksum_calculation='when_required',
+            response_checksum_validation='when_required',
+        ),
     )
 
 
@@ -59,7 +65,15 @@ def prune_backups(client, bucket, keep=KEEP_BACKUPS):
     doomed = sorted(key for stamp in old_stamps for key in by_stamp[stamp])
     for i in range(0, len(doomed), DELETE_BATCH):
         batch = doomed[i:i + DELETE_BATCH]
-        client.delete_objects(
+        response = client.delete_objects(
             Bucket=bucket, Delete={'Objects': [{'Key': k} for k in batch]}
         )
+        _raise_on_delete_errors(response)
     return doomed
+
+
+def _raise_on_delete_errors(response):
+    errors = response.get('Errors') or []
+    if errors:
+        details = ', '.join(f"{e.get('Key')}: {e.get('Code')}" for e in errors)
+        raise RuntimeError(f'Failed to delete backups: {details}')
