@@ -37,8 +37,15 @@ def fetch_work(openalex_id, api_key):
     return get_json(f'{OPENALEX}/works/{openalex_id}', {'api_key': api_key})
 
 
+def _normalize_comma_name(name):
+    family, given = (part.strip() for part in name.split(',', 1))
+    return f'{family}, {given}' if given else family
+
+
 def _family_given(name):
     name = ' '.join(name.split())
+    if ',' in name:
+        return _normalize_comma_name(name)
     if ' ' not in name:
         return name
     given, family = name.rsplit(' ', 1)
