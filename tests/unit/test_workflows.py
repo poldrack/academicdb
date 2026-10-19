@@ -100,3 +100,24 @@ def test_keepalive_permissions(name):
     assert perms["actions"] == "write"
     assert perms["issues"] == "write"
     assert perms["contents"] == "read"
+
+
+def test_no_event_expressions_in_run_strings():
+    for name in NAMES:
+        for cmd in run_commands(load(name)):
+            assert "${{ github.event." not in cmd
+
+
+def test_publish_reads_pr_number_from_env():
+    step = next(s for s in steps(load("publish"))
+                if "process_review" in s.get("run", ""))
+    assert "PR_NUMBER" in step["env"]
+    assert "github.event.client_payload.pr" in step["env"]["PR_NUMBER"]
+    assert '--pr "$PR_NUMBER"' in step["run"]
+    assert "^[0-9]+$" in step["run"]
+
+
+def test_heartbeat_keepalive_always_runs():
+    step = next(s for s in steps(load("heartbeat"))
+                if "gh workflow enable" in s.get("run", ""))
+    assert step["if"] == "always()"
