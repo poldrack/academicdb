@@ -20,6 +20,7 @@ CORRECTION_TITLE = re.compile(
     r'|expression of concern\b)',
     re.IGNORECASE,
 )
+NOTICE_TYPES = frozenset({'erratum', 'retraction'})
 VERSION_SUFFIX = re.compile(r'_v(\d+)\s*$', re.IGNORECASE)
 ELIFE_VERSION = re.compile(r'^10\.7554/elife\.\d+(?:\.(\d+))?$', re.IGNORECASE)
 
@@ -29,12 +30,20 @@ def _repository_copy(c: Candidate) -> bool:
     return c.repository_only and c.openalex_type != 'preprint' and not c.pmid
 
 
+def is_notice(c: Candidate) -> bool:
+    """An erratum, retraction or similar notice about another work."""
+    return (
+        c.openalex_type in NOTICE_TYPES
+        or bool(c.excluded_type)
+        or bool(CORRECTION_TITLE.match(c.title or ''))
+    )
+
+
 def is_excluded(c: Candidate) -> bool:
     return (
         c.openalex_type in EXCLUDED_OPENALEX_TYPES
         or c.is_supplement
-        or bool(c.excluded_type)
-        or bool(CORRECTION_TITLE.match(c.title or ''))
+        or is_notice(c)
         or not (c.doi or c.pmid)
         or (c.doi or '').lower().startswith(OSF_PROJECT_PREFIX)
         or _repository_copy(c)

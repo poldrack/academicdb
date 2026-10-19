@@ -12,7 +12,7 @@ from academic.models import Publication
 from academic.sync.candidates import Candidate
 from academic.sync.crossref import published_dois_for_preprint
 from academic.sync.enrich import apply_enrichment
-from academic.sync.filters import select_new
+from academic.sync.filters import is_notice, select_new
 from academic.sync.http import SourceError
 from academic.sync.idconv import lookup_pmcids
 from academic.sync.known import KnownWorks
@@ -233,11 +233,22 @@ def _enrich_all(user, fetched, report) -> None:
     by_doi, by_openalex = _index(fetched.openalex)
     for pub in visible_approved(user):
         c = _match(pub, by_doi, by_openalex)
+        if c is not None and is_notice(c):
+            _record_notice_match(report, pub, c)
+            continue
         pmc = _pmc_entry(pub, fetched.pmc)
         if c is None and pmc is None:
             continue
         c = c or _blank_candidate()
         _record_enrichment(report, pub, c, apply_enrichment(pub, c, pmc))
+
+
+def _record_notice_match(report, pub, c) -> None:
+    """Our DOI resolves to a notice (e.g. an erratum), so it is probably wrong."""
+    kind = c.openalex_type or c.excluded_type or 'notice'
+    report.discrepancies.append({
+        'id': pub.id, 'doi': pub.doi or '', 'field': 'doi', 'ours': pub.doi or '',
+        'theirs': f'{kind}: {c.title}', 'source': c.source})
 
 
 def _record_enrichment(report, pub, c, result) -> None:
