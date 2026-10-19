@@ -43,8 +43,8 @@ def make_proposal(user, method='crossref_relation', evidence=None):
         evidence=evidence or {'relation': 'is-preprint-of'})
 
 
-def mock_github(pr_number=7, existing_sha=None):
-    url = f"{API}/repos/{REPO}/contents/review/2026-10-19.yml"
+def mock_github(pr_number=7, existing_sha=None, stamp='2026-10-19-090000'):
+    url = f"{API}/repos/{REPO}/contents/review/{stamp}.yml"
     if existing_sha:
         responses.get(url, json={"content": "eA==", "sha": existing_sha})
     else:
@@ -52,7 +52,7 @@ def mock_github(pr_number=7, existing_sha=None):
     responses.get(f'{API}/repos/{REPO}/git/ref/heads/main',
                   json={'object': {'sha': 'abc'}})
     responses.post(f'{API}/repos/{REPO}/git/refs', json={}, status=201)
-    responses.put(f'{API}/repos/{REPO}/contents/review/2026-10-19.yml',
+    responses.put(url,
                   json={'commit': {'sha': 'c1'}}, status=201)
     responses.post(f'{API}/repos/{REPO}/pulls', json={'number': pr_number},
                    status=201)
@@ -123,22 +123,34 @@ def test_open_review_pr_creates_branch_file_pr_and_batch(academic_user, gh):
     mock_github()
     batch = open_review_pr(academic_user, gh, REPO, NOW)
     assert batch.pr_number == 7
-    assert batch.branch == 'academicdb/review-2026-10-19'
-    assert batch.path == 'review/2026-10-19.yml'
+    assert batch.branch == 'academicdb/review-2026-10-19-090000'
+    assert batch.path == 'review/2026-10-19-090000.yml'
     assert batch.status == 'open'
     assert list(batch.publications.all()) == [pub]
     assert list(batch.proposals.all()) == [prop]
     calls = {(c.request.method, c.request.url.split('?')[0]): c
              for c in responses.calls}
     put = json.loads(calls[(
-        'PUT', f'{API}/repos/{REPO}/contents/review/2026-10-19.yml')
+        'PUT', f'{API}/repos/{REPO}/contents/review/2026-10-19-090000.yml')
     ].request.body)
-    assert put['branch'] == 'academicdb/review-2026-10-19'
+    assert put['branch'] == 'academicdb/review-2026-10-19-090000'
     assert put['message'] == 'Add review file'
     pr = json.loads(calls[('POST', f'{API}/repos/{REPO}/pulls')].request.body)
-    assert pr['head'] == 'academicdb/review-2026-10-19'
+    assert pr['head'] == 'academicdb/review-2026-10-19-090000'
     assert pr['base'] == 'main'
     assert pr['title'] == 'Review: 1 new paper, 1 preprint to hide'
+
+
+@responses.activate
+def test_review_names_use_utc_timestamp(academic_user, gh):
+    """Same-day re-runs get a fresh branch and file (requirement change)."""
+    make_pub(academic_user)
+    mock_github(stamp='2026-10-19-093015')
+    local = timezone(timedelta(hours=2))
+    now = datetime(2026, 10, 19, 11, 30, 15, tzinfo=local)
+    batch = open_review_pr(academic_user, gh, REPO, now)
+    assert batch.branch == 'academicdb/review-2026-10-19-093015'
+    assert batch.path == 'review/2026-10-19-093015.yml'
 
 
 @responses.activate

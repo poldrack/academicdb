@@ -27,7 +27,7 @@ API = 'https://api.github.com'
 PERSONAL = 'me/personal'
 LAB = 'lab/site'
 SITE_PATH = 'publications.yml'
-REVIEW_PATH = 'review/2026-10-19.yml'
+REVIEW_PATH = 'review/2026-10-19-090000.yml'
 ORCID = '0000-0000-0000-0001'
 NOW = datetime(2026, 10, 19, 9, 0, tzinfo=timezone.utc)
 MESSAGE = 'Update publications (academicdb)'
@@ -436,3 +436,128 @@ def test_process_review_ignores_other_owners_batch(
     out = _run_command('process_review', pr=12)
     assert 'No review batch for PR 12' in out
     assert len(responses.calls) == 0
+
+
+# PublishConfig repr
+
+def test_config_repr_hides_tokens():
+    config = PublishConfig.from_env(
+        {'PERSONAL_GITHUB_TOKEN': 'secret-personal',
+         'LAB_GITHUB_TOKEN': 'secret-lab'})
+    text = repr(config)
+    assert 'secret-personal' not in text and 'secret-lab' not in text
+    assert 'poldrack/poldrack.github.io' in text
+
+
+# A broken review file must not block routine publishing
+
+BROKEN = '- not a mapping\n'
+BROKEN_COMMENT = (
+    'The review file could not be read (Review file must be a mapping). '
+    'Nothing in this review was decided. To recover, set this review batch '
+    'to "closed" in the admin (its items will be offered again next week), '
+    'or fix the data and re-run the publish workflow.')
+COMMENTS_7 = f'{API}/repos/{PERSONAL}/issues/7/comments'
+
+
+def mock_broken_review():
+    mock_merged_batch_pr(BROKEN)
+    responses.post(COMMENTS_7, json={}, status=201)
+    mock_site(PERSONAL)
+    mock_site(LAB)
+
+
+def comment_bodies():
+    return [json.loads(c.request.body)['body']
+            for c in calls_to('POST', COMMENTS_7)]
+
+
+@pytest.fixture
+def broken_batch(academic_user):
+    approved(academic_user, '10.1000/old')
+    new = pending(academic_user, '10.1000/new')
+    pending(academic_user, '10.1000/later')
+    return batch_for(academic_user, [new], [])
+
+
+@freeze_time('2026-10-19 09:00:00')
+@responses.activate
+def test_broken_review_file_still_publishes_and_comments_once(
+        academic_user, env, broken_batch):
+    mock_broken_review()
+    with pytest.raises(CommandError, match='must be a mapping'):
+        call_command('publish_sites', orcid_id=ORCID)
+    for repo in (PERSONAL, LAB):
+        assert dois(put_text(repo)) == {'10.1000/old'}
+    assert calls_to('POST', f'{API}/repos/{PERSONAL}/pulls') == []
+    assert comment_bodies() == [BROKEN_COMMENT]
+    batch = ReviewBatch.objects.get(pk=broken_batch.pk)
+    assert batch.status == 'open'
+    assert batch.error_notified_at is not None
+    assert ReviewBatch.objects.count() == 1
+
+    responses.reset()
+    mock_broken_review()
+    with pytest.raises(CommandError, match='must be a mapping'):
+        call_command('publish_sites', orcid_id=ORCID)
+    assert comment_bodies() == []
+    assert calls_to('POST', f'{API}/repos/{PERSONAL}/pulls') == []
+
+
+@freeze_time('2026-10-19 09:00:00')
+@responses.activate
+def test_process_review_broken_file_publishes_and_comments_once(
+        academic_user, env, broken_batch):
+    mock_broken_review()
+    with pytest.raises(CommandError, match='must be a mapping'):
+        _run_command('process_review', pr=7)
+    for repo in (PERSONAL, LAB):
+        assert dois(put_text(repo)) == {'10.1000/old'}
+    assert comment_bodies() == [BROKEN_COMMENT]
+    responses.reset()
+    mock_broken_review()
+    with pytest.raises(CommandError):
+        _run_command('process_review', pr=7)
+    assert comment_bodies() == []
+
+
+@freeze_time('2026-10-19 09:00:00')
+@responses.activate
+def test_dry_run_broken_review_file_writes_nothing(
+        academic_user, monkeypatch, broken_batch):
+    for name in ('PERSONAL_GITHUB_TOKEN', 'LAB_GITHUB_TOKEN'):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv('PERSONAL_SITE_REPO', PERSONAL)
+    monkeypatch.setenv('LAB_SITE_REPO', LAB)
+    mock_merged_batch_pr(BROKEN)
+    responses.get(site_url(PERSONAL), status=404)
+    responses.get(site_url(LAB), status=404)
+    out = StringIO()
+    with pytest.raises(CommandError, match='must be a mapping'):
+        call_command('publish_sites', orcid_id=ORCID, dry_run=True,
+                     stdout=out)
+    assert writes() == []
+    assert f'COMMENT {PERSONAL}#7: The review file could not be read' \
+        in out.getvalue()
+    assert ReviewBatch.objects.get(
+        pk=broken_batch.pk).error_notified_at is None
+
+
+@freeze_time('2026-10-19 09:00:00')
+@responses.activate
+def test_closed_batch_offers_its_items_again(academic_user, env,
+                                             broken_batch):
+    """The README recovery: mark the batch closed in the admin."""
+    broken_batch.status = 'closed'
+    broken_batch.save()
+    mock_site(PERSONAL)
+    mock_site(LAB)
+    mock_review_pr(number=9)
+    call_command('publish_sites', orcid_id=ORCID)
+    new = ReviewBatch.objects.get(pr_number=9)
+    assert {p.doi for p in new.publications.all()} == {
+        '10.1000/new', '10.1000/later'}
+    assert set(Publication.objects.filter(
+        doi__in=['10.1000/new', '10.1000/later'])
+        .values_list('review_status', flat=True)) == {'pending'}
+    assert calls_to('GET', f'{API}/repos/{PERSONAL}/pulls/7') == []

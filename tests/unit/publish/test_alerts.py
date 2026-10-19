@@ -53,7 +53,8 @@ def test_failure_opens_issue_once_then_comments(gh):
     opened = body(posts('/issues')[0])
     assert opened['title'] == FAIL_TITLE
     assert RUN_URL in opened['body']
-    assert ('Check the run log; the next scheduled run will retry.'
+    assert ('Check the run log; the next scheduled run will retry, but a broken '
+            'review file needs the fix described in the README.'
             in opened['body'])
 
     responses.reset()

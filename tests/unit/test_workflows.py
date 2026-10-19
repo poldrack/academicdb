@@ -1,10 +1,13 @@
 """Structural tests for the GitHub Actions pipeline workflows."""
 
 import re
+import shlex
 from pathlib import Path
 
 import pytest
 import yaml
+
+from academic.management.commands.pipeline_alert import Command
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -121,3 +124,53 @@ def test_heartbeat_keepalive_always_runs():
     step = next(s for s in steps(load("heartbeat"))
                 if "gh workflow enable" in s.get("run", ""))
     assert step["if"] == "always()"
+
+
+# pipeline_alert invocations must parse against the real command
+
+RUN_URL_EXPR = ("${{ github.server_url }}/${{ github.repository }}"
+                "/actions/runs/${{ github.run_id }}")
+
+
+def _placeholders(text):
+    text = re.sub(r"\$\{\{[^}]*\}\}", "EXPR", text)
+    return re.sub(r"\$\{?([A-Z_][A-Z0-9_]*)\}?", r"VAR_\1", text)
+
+
+def alert_steps():
+    for name in NAMES:
+        for step in steps(load(name)):
+            if "pipeline_alert" in step.get("run", ""):
+                yield name, step
+
+
+def alert_argv(step):
+    words = shlex.split(_placeholders(step["run"]))
+    return words[words.index("pipeline_alert") + 1:]
+
+
+def parse_alert(argv):
+    parser = Command().create_parser("manage.py", "pipeline_alert")
+    return parser.parse_args(argv)
+
+
+def test_every_pipeline_alert_invocation_parses():
+    found = list(alert_steps())
+    for name, step in found:
+        args = parse_alert(alert_argv(step))
+        assert args.workflow == f"{name}.yml"
+        if args.action in ("failure", "recovered"):
+            assert args.run_url == "VAR_RUN_URL", (name, step["name"])
+            assert step["env"]["RUN_URL"] == RUN_URL_EXPR
+    assert len(found) == 5  # failure+recovered in two workflows, heartbeat
+
+
+def test_publish_closes_alert_on_recovery():
+    by_if = {s.get("if"): s.get("run", "") for s in steps(load("publish"))
+             if s.get("if")}
+    assert "pipeline_alert recovered" in by_if["success()"]
+    assert "--workflow publish.yml" in by_if["success()"]
+
+
+def test_heartbeat_can_be_dispatched():
+    assert "workflow_dispatch" in triggers(load("heartbeat"))

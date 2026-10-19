@@ -1,6 +1,10 @@
 import pytest
+from django.contrib import admin
 from django.db import IntegrityError, transaction
+from django.test import RequestFactory
 from django.utils import timezone
+
+from academic.admin import ReviewBatchAdmin
 
 from academic.models import PreprintHideProposal, ReviewBatch
 from academic.publish.batches import create_batch, open_batch, reviewable_items
@@ -96,3 +100,28 @@ def test_reviewable_items_excludes_keyless_items(academic_user):
     assert all(p.doi or p.identifiers for p in pubs)
     assert proposals == [good]
     assert PreprintHideProposal.objects.get(pk=keyless.pk).status == 'pending'
+
+
+def test_admin_can_close_batch_by_status_alone(academic_user):
+    """The README recovery sets status only; the form must accept that."""
+    pre = PublicationFactory(owner=academic_user, is_preprint=True,
+                             publication_type='preprint', doi='10.1101/p')
+    target = PublicationFactory(owner=academic_user, doi='10.1000/t')
+    prop = PreprintHideProposal.objects.create(
+        owner=academic_user, preprint=pre, published=target,
+        method='crossref_relation', evidence={})
+    batch = ReviewBatch.objects.create(
+        owner=academic_user, pr_number=3, branch='b', path='p',
+        opened_at=timezone.now())
+    batch.proposals.set([prop])
+    model_admin = ReviewBatchAdmin(ReviewBatch, admin.site)
+    request = RequestFactory().get('/')
+    academic_user.is_staff = academic_user.is_superuser = True
+    request.user = academic_user
+    form_class = model_admin.get_form(request, batch, change=True)
+    form = form_class(data={'status': 'closed'}, instance=batch)
+    assert form.is_valid(), form.errors
+    form.save()
+    batch.refresh_from_db()
+    assert batch.status == 'closed'
+    assert list(batch.proposals.all()) == [prop]

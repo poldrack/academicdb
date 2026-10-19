@@ -473,3 +473,65 @@ def test_hide_waits_when_published_target_is_held(academic_user):
     assert Publication.objects.get(pk=published.pk).review_status == 'pending'
     assert sorted(decisions.undecided) == sorted(
         [published.pk, other.pk, preprint.pk])
+
+
+# Items sharing one record key (a deletion would be ambiguous);
+# version-suffixed DOIs share the unversioned key
+
+def _status(pub):
+    return Publication.objects.get(pk=pub.pk).review_status
+
+
+def test_duplicate_pub_keys_are_held(academic_user):
+    dup_a = make_pending(academic_user, '10.7554/elife.12345')
+    dup_b = make_pending(academic_user, '10.7554/elife.12345.2')
+    keep = make_pending(academic_user, '10.1000/keep')
+    drop = make_pending(academic_user, '10.1000/drop')
+    batch = make_batch(academic_user, [dup_a, dup_b, keep, drop], [])
+    text = review_yaml([dup_a, keep], [])
+    decisions = apply_merged(batch, text, LATER)
+    assert _status(dup_a) == 'pending' and _status(dup_b) == 'pending'
+    assert sorted(decisions.undecided) == sorted([dup_a.pk, dup_b.pk])
+    assert decisions.unmatched == ['10.7554/elife.12345']
+    assert decisions.approved == [keep.pk]
+    assert decisions.rejected == [drop.pk]
+    assert RejectedWork.objects.count() == 1
+
+
+def test_duplicate_preprint_keys_are_held(academic_user):
+    target = PublicationFactory(owner=academic_user, doi='10.1000/target',
+                                review_status='approved')
+    pp_a = make_preprint(academic_user, '10.31234/osf.io/abcd')
+    pp_b = make_preprint(academic_user, '10.31234/osf.io/abcd_v2')
+    prop_a = make_proposal(academic_user, pp_a, target)
+    prop_b = make_proposal(academic_user, pp_b, target)
+    keep = make_pending(academic_user, '10.1000/keep')
+    batch = make_batch(academic_user, [keep], [prop_a, prop_b])
+    decisions = apply_merged(batch, review_yaml([keep], [prop_a]), LATER)
+    assert status_of(prop_a) == 'pending' and status_of(prop_b) == 'pending'
+    assert sorted(decisions.undecided) == sorted([pp_a.pk, pp_b.pk])
+    assert decisions.unmatched == ['10.31234/osf.io/abcd']
+    assert decisions.hidden == [] and decisions.kept == []
+    assert decisions.approved == [keep.pk]
+
+
+def test_hide_waits_when_target_has_duplicate_key(academic_user):
+    dup_a = make_pending(academic_user, '10.7554/elife.12345')
+    dup_b = make_pending(academic_user, '10.7554/elife.12345.2')
+    pre = make_preprint(academic_user, '10.1101/pre')
+    prop = make_proposal(academic_user, pre, dup_a)
+    batch = make_batch(academic_user, [dup_a, dup_b], [prop])
+    decisions = apply_merged(batch, review_yaml([dup_a, dup_b], [prop]),
+                             LATER)
+    assert status_of(prop) == 'pending'
+    assert pre.pk in decisions.undecided
+    assert Publication.objects.get(pk=pre.pk).is_ignored is False
+
+
+def test_close_rejects_duplicate_keys(academic_user):
+    dup_a = make_pending(academic_user, '10.7554/elife.12345')
+    dup_b = make_pending(academic_user, '10.7554/elife.12345.2')
+    batch = make_batch(academic_user, [dup_a, dup_b], [])
+    decisions = apply_closed(batch, LATER)
+    assert sorted(decisions.rejected) == sorted([dup_a.pk, dup_b.pk])
+    assert decisions.unmatched == [] and decisions.undecided == []

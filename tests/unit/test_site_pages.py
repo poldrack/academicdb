@@ -144,3 +144,8 @@ def test_lab_render_installs_pyyaml():
     deployed = (SITES / 'lab' / '.github' / 'workflows' / 'render.yml').read_text()
     assert PIP_LINE in upstream
     assert deployed == upstream.replace(PIP_LINE, PIP_LINE + ' pyyaml')
+
+
+def test_review_dispatch_workflow_has_no_default_permissions():
+    path = SITES / 'personal' / '.github' / 'workflows' / 'review-dispatch.yml'
+    assert load_workflow(path)['permissions'] == {}
