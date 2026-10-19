@@ -219,6 +219,17 @@ Backups are portable Django JSON fixtures and restore into Neon, any PostgreSQL,
 (bucket `BACKUP_BUCKET`, prefix `academicdb-backups/`, newest 26 kept); it needs
 `AWS_ENDPOINT_URL_S3`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`.
 
+### Weekly sync
+
+`manage.py weekly_sync` finds new publications (OpenAlex, with PubMed as a backstop), fills in missing PMIDs/PMCIDs and open-access links, and proposes hiding preprints that have been published. New publications are created as *pending* (not shown in the CV) and hides are only proposed; nothing you have edited or hidden is changed. Each run writes a JSON report.
+
+Required in `.env`: `OPENALEX_KEY`, `PUBMED_EMAIL`, `DISCOVERY_CUTOFF` (fixed date, `YYYY-MM-DD`; works published earlier are never proposed). Optional: `NCBI_API_KEY`.
+
+```bash
+make sync-dry-run   # full report in backups/sync_report_dry.json, nothing saved
+make sync           # saves pending items/proposals, report in backups/sync_report.json
+```
+
 ## Usage
 
 ### Web Interface

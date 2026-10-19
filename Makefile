@@ -55,6 +55,13 @@ migrate-neon:
 migrate-data:
 	USE_NEON=true NEON_UNPOOLED=true uv run python manage.py copy_database --source-sqlite academicdb_web/db.sqlite3
 
+# Weekly publication sync (see README "Weekly sync")
+sync-dry-run:
+	USE_NEON=true uv run python manage.py weekly_sync --orcid-id 0000-0001-6755-0259 --dry-run --report backups/sync_report_dry.json
+
+sync:
+	USE_NEON=true uv run python manage.py weekly_sync --orcid-id 0000-0001-6755-0259 --report backups/sync_report.json
+
 # Portable JSON backups (restore into Neon, Postgres or SQLite)
 LOCAL_BACKUP_DIR ?= backups
 
