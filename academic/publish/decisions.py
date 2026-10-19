@@ -6,6 +6,7 @@ to proposals that point at it. Hides are decided before publications for
 the same reason. An item that is gone or no longer pending was decided
 elsewhere and is skipped.
 """
+from collections import Counter
 from dataclasses import dataclass, field
 
 import yaml
@@ -84,20 +85,30 @@ class _Plan:
     new: set = field(default_factory=set)
     hide: set = field(default_factory=set)
     unmatched: list = field(default_factory=list)
+    dup_pubs: set = field(default_factory=set)
+    dup_preprints: set = field(default_factory=set)
 
     def kept(self, pub_id):
         return self.pub_keys[pub_id] in self.new
 
+    def reported(self):
+        """Keys the owner is told about: edited entries and shared keys."""
+        return sorted(set(self.unmatched) | self.dup_pubs
+                      | self.dup_preprints)
+
     def pub_on_hold(self, pub_id):
+        if self.pub_keys[pub_id] in self.dup_pubs:
+            return True
         return bool(self.unmatched) and not self.kept(pub_id)
 
     def proposal_on_hold(self, item):
-        if not self.unmatched:
-            return False
-        if self.preprint_keys[item.preprint_id] not in self.hide:
+        key = self.preprint_keys[item.preprint_id]
+        if key in self.dup_preprints:
             return True
-        return (item.published_id in self.pub_keys
-                and self.pub_on_hold(item.published_id))
+        if (item.published_id in self.pub_keys
+                and self.pub_on_hold(item.published_id)):
+            return True
+        return bool(self.unmatched) and key not in self.hide
 
 
 def _snapshot(batch):
@@ -111,6 +122,18 @@ def _snapshot(batch):
         preprint_keys={p.preprint_id: _pub_key(p.preprint)
                        for p in proposals},
     )
+
+
+def _repeated(keys):
+    return {key for key, count in Counter(keys).items() if count > 1}
+
+
+def _mark_duplicates(plan):
+    """Items sharing a key cannot tell which entry was deleted: hold them."""
+    plan.dup_pubs = _repeated(plan.pub_keys.values())
+    plan.dup_preprints = _repeated(
+        plan.preprint_keys[item.preprint_id] for item in plan.items)
+    return plan
 
 
 def _with_file(plan, new, hide):
@@ -185,7 +208,7 @@ def _hold_pub(pub_id, decisions):
 
 
 def _decide_merged(plan, now):
-    decisions = Decisions(unmatched=list(plan.unmatched))
+    decisions = Decisions(unmatched=plan.reported())
     for item in plan.items:
         if plan.proposal_on_hold(item):
             _hold_hide(item, decisions)
@@ -223,7 +246,7 @@ def apply_merged(batch, text, now):
     new, hide = parse_review_file(text)
     with transaction.atomic():
         fresh = _lock_open(batch)
-        plan = _with_file(_snapshot(fresh), new, hide)
+        plan = _mark_duplicates(_with_file(_snapshot(fresh), new, hide))
         decisions = _decide_merged(plan, now)
         _finish(batch, fresh, 'merged', now)
     return decisions

@@ -3,6 +3,7 @@ name: heartbeat
 on:
   schedule:
     - cron: '0 14 * * *'
+  workflow_dispatch:
 
 permissions:
   actions: write

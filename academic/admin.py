@@ -584,3 +584,7 @@ class ProfessionalActivityAdmin(admin.ModelAdmin):
 @admin.register(ReviewBatch)
 class ReviewBatchAdmin(admin.ModelAdmin):
     list_display = ('pr_number', 'status', 'opened_at')
+    # Only the status is edited by hand (closing a stuck review).
+    readonly_fields = ('owner', 'pr_number', 'branch', 'path', 'opened_at',
+                       'decided_at', 'reminded_at', 'error_notified_at',
+                       'publications', 'proposals')

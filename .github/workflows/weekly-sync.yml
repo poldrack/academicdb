@@ -90,11 +90,12 @@ jobs:
 
       - name: Alert on failure
         if: failure()
-        run: >-
-          uv run python manage.py pipeline_alert failure
-          --workflow weekly-sync.yml
-          --run-url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: uv run python manage.py pipeline_alert failure --workflow weekly-sync.yml --run-url "$RUN_URL"
 
       - name: Close alert on recovery
         if: success()
-        run: uv run python manage.py pipeline_alert recovered --workflow weekly-sync.yml
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: uv run python manage.py pipeline_alert recovered --workflow weekly-sync.yml --run-url "$RUN_URL"

@@ -4,6 +4,8 @@ on:
   pull_request:
     types: [closed]
 
+permissions: {}
+
 jobs:
   dispatch:
     if: startsWith(github.event.pull_request.head.ref, 'academicdb/review-')

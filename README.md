@@ -249,6 +249,26 @@ overlap. GitHub keeps only one pending run per concurrency group, so a `publish`
 cancelled while another run is in progress; the next weekly run then processes any review PR
 that was merged or closed in the meantime. Failures open an issue and a later success closes it. `weekly-sync` and
 `heartbeat` re-enable each other so GitHub's 60-day inactivity pause never disables them.
+`heartbeat` can also be run by hand (`workflow_dispatch`).
+
+Review branches and files are named by UTC timestamp (`academicdb/review-YYYY-MM-DD-HHMMSS`,
+`review/YYYY-MM-DD-HHMMSS.yml`), so a re-run never reuses an already merged branch.
+
+#### Recovering from a broken review file
+
+If a merged review file cannot be read (invalid YAML, wrong shape, or missing at the merge
+commit), nothing in that review is decided. Both sites are still published, no new review PR
+is opened, the run fails (opening a failure issue), and the review PR gets one comment saying
+so. Each later run does the same until the batch is dealt with. To recover, either:
+
+- open the review batch in the Django admin (Review batches), set its status to `closed` and
+  save. Its items stay pending and are offered again in the next weekly review PR; or
+- fix the data and re-run the `publish` workflow by hand with the PR number. The file is read
+  at the PR's merge commit, so editing it on `main` afterwards does not help; closing the batch
+  is usually the right fix.
+
+If two items in one review share a record key (for example two versions of the same DOI),
+deleting one entry is ambiguous, so both are held, left pending, and listed in the PR comment.
 
 ### Secrets
 

@@ -1,12 +1,12 @@
 """Push the public YAML to both sites and drive the weekly review PR."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Mapping
 
 from django.core.management.base import CommandError
 from django.db import transaction
 
 from academic.publish.batches import open_batch
-from academic.publish.decisions import process_pr
+from academic.publish.decisions import ReviewFileError, process_pr
 from academic.publish.github import GitHub
 from academic.publish.review_pr import open_review_pr, remind_if_stale
 from academic.publish.site_yaml import render_site_yaml, site_records
@@ -22,6 +22,12 @@ HELD_COMMENT = (
     'These review entries were edited and matched nothing in this review, '
     'so the items they would have decided are held:\n\n{keys}\n\n'
     'The held items will be offered again in the next review.'
+)
+BROKEN_FILE_COMMENT = (
+    'The review file could not be read ({error}). Nothing in this review '
+    'was decided. To recover, set this review batch to "closed" in the '
+    'admin (its items will be offered again next week), or fix the data '
+    'and re-run the publish workflow.'
 )
 
 
@@ -39,8 +45,8 @@ class PublishConfig:
     personal_repo: str
     lab_repo: str
     pipeline_repo: str
-    personal_token: str | None
-    lab_token: str | None
+    personal_token: str | None = field(repr=False)
+    lab_token: str | None = field(repr=False)
     site_path: str = 'publications.yml'
 
     @classmethod
@@ -148,6 +154,25 @@ def decide_batch(batch, gh, repo, now, log):
     return decisions
 
 
+def _notify_broken_file(batch, gh, repo, error, now):
+    """Comment once per batch that its review file could not be read."""
+    if batch.error_notified_at is not None:
+        return
+    gh.comment(repo, batch.pr_number, BROKEN_FILE_COMMENT.format(error=error))
+    batch.error_notified_at = now
+    batch.save(update_fields=['error_notified_at'])
+
+
+def decide_or_report(batch, gh, repo, now, log):
+    """Decide the batch; return a ReviewFileError instead of raising it."""
+    try:
+        decide_batch(batch, gh, repo, now, log)
+    except ReviewFileError as exc:
+        _notify_broken_file(batch, gh, repo, exc, now)
+        return exc
+    return None
+
+
 # Commands
 
 @dataclass
@@ -192,11 +217,16 @@ def _review_step(user, sites, now, log):
 
 
 def _publish_sites_body(user, sites, now, dry_run, log):
+    """A broken review file still publishes (the public YAML holds no
+    pending items) but skips the review step and then fails loudly."""
     batch = open_batch(user)
+    error = None
     if batch is not None:
-        decide_batch(batch, sites.personal, sites.config.personal_repo,
-                     now, log)
+        error = decide_or_report(batch, sites.personal,
+                                 sites.config.personal_repo, now, log)
     _publish_and_log(user, sites, dry_run, log)
+    if error is not None:
+        raise error
     _review_step(user, sites, now, log)
 
 
@@ -223,11 +253,15 @@ def run_publish_sites(user, config, now, dry_run=False,
             raise _DryRunRollback
     except _DryRunRollback:
         pass
-    _log_planned(sites, log)
+    finally:
+        _log_planned(sites, log)
 
 
 def run_process_review(user, batch, config, now, log=print):
     """Decide one review PR (from a dispatch), then publish both sites."""
     sites = Sites.build(config)
-    decide_batch(batch, sites.personal, config.personal_repo, now, log)
+    error = decide_or_report(batch, sites.personal, config.personal_repo,
+                             now, log)
     _publish_and_log(user, sites, False, log)
+    if error is not None:
+        raise error

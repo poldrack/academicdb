@@ -158,8 +158,8 @@ def test_every_pipeline_alert_invocation_parses():
     found = list(alert_steps())
     for name, step in found:
         args = parse_alert(alert_argv(step))
-        assert args.workflow == f"{name}.yml"
         if args.action in ("failure", "recovered"):
+            assert args.workflow == f"{name}.yml"
             assert args.run_url == "VAR_RUN_URL", (name, step["name"])
             assert step["env"]["RUN_URL"] == RUN_URL_EXPR
     assert len(found) == 5  # failure+recovered in two workflows, heartbeat

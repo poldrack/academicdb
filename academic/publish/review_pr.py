@@ -1,5 +1,5 @@
 """Open the weekly review pull request and remind about stale ones."""
-from datetime import timedelta
+from datetime import timedelta, timezone
 
 import yaml
 
@@ -119,14 +119,19 @@ def _cap_body(body):
     return cut + '\n' + TRUNCATED
 
 
+def review_names(now):
+    """Branch and file named by UTC timestamp, so re-runs never collide."""
+    stamp = now.astimezone(timezone.utc).strftime('%Y-%m-%d-%H%M%S')
+    return f'academicdb/review-{stamp}', f'review/{stamp}.yml'
+
+
 def open_review_pr(user, gh, repo, now):
     if open_batch(user):
         return None
     pubs, proposals = reviewable_items(user)
     if not pubs and not proposals:
         return None
-    day = now.date().isoformat()
-    branch, path = f'academicdb/review-{day}', f'review/{day}.yml'
+    branch, path = review_names(now)
     gh.create_branch(repo, branch)
     existing = gh.get_file(repo, path, ref=branch)
     gh.put_file(repo, path, review_yaml(pubs, proposals),

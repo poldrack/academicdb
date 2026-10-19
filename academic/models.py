@@ -3059,6 +3059,7 @@ class ReviewBatch(models.Model):
     opened_at = models.DateTimeField()
     decided_at = models.DateTimeField(null=True)
     reminded_at = models.DateTimeField(null=True)
+    error_notified_at = models.DateTimeField(null=True)
     publications = models.ManyToManyField(
         Publication, related_name='review_batches'
     )

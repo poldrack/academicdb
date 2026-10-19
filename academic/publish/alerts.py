@@ -1,7 +1,8 @@
 """Failure issues and the stale-pipeline heartbeat."""
 from datetime import datetime, timedelta
 
-RETRY_LINE = 'Check the run log; the next scheduled run will retry.'
+RETRY_LINE = ('Check the run log; the next scheduled run will retry, but a '
+              'broken review file needs the fix described in the README.')
 
 
 def _failing_title(workflow: str) -> str:
