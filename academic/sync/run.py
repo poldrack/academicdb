@@ -17,7 +17,7 @@ from academic.sync.http import SourceError
 from academic.sync.idconv import lookup_pmcids
 from academic.sync.known import KnownWorks
 from academic.sync.openalex import fetch_works_by_orcid, full_authors, parse_work
-from academic.sync.preprints import propose_hides
+from academic.sync.preprints import propose_hides, visible_preprints
 from academic.sync.pubmed import search_pubmed
 from academic.sync.text import fit_field
 from academic.tombstones import doi_key
@@ -77,6 +77,7 @@ class _Fetched:
     openalex: list[Candidate]
     new: list[Candidate]
     pmc: dict
+    crossref: dict
 
 
 class _DryRunRollback(Exception):
@@ -107,7 +108,8 @@ def _fetch(user, config, report) -> _Fetched:
     pubmed = _fetch_pubmed(user, config, report)
     new = select_new(openalex + pubmed, KnownWorks.from_db(user), config.cutoff)
     new = [_full_authors(c, config, report) for c in new]
-    return _Fetched(openalex=openalex, new=new, pmc=_fetch_pmc(user, config, report))
+    return _Fetched(openalex=openalex, new=new, pmc=_fetch_pmc(user, config, report),
+                    crossref=_fetch_crossref(user, report))
 
 
 def _fetch_pubmed(user, config, report) -> list[Candidate]:
@@ -127,6 +129,23 @@ def _full_authors(c, config, report) -> Candidate:
     except SourceError as exc:
         report.errors.append(f'openalex authors {c.openalex_id}: {exc}')
         return c
+
+
+def _fetch_crossref(user, report) -> dict:
+    found = {}
+    for doi in visible_preprints(user).exclude(doi__isnull=True).values_list(
+            'doi', flat=True):
+        if doi_key(doi):
+            found[doi_key(doi)] = _published_dois(doi, report)
+    return found
+
+
+def _published_dois(doi, report) -> list:
+    try:
+        return published_dois_for_preprint(doi)
+    except SourceError as exc:
+        report.errors.append(f'crossref: {exc}')
+        return []
 
 
 def visible_approved(user):
@@ -276,14 +295,8 @@ def _location_index(candidates) -> dict:
     return {key: c.doi for key, c in chosen.items()}
 
 
-def _crossref_lookup(report):
-    def lookup(doi):
-        try:
-            return published_dois_for_preprint(doi)
-        except SourceError as exc:
-            report.errors.append(f'crossref: {exc}')
-            return []
-    return lookup
+def _crossref_lookup(crossref: dict):
+    return lambda doi: crossref.get(doi_key(doi), [])
 
 
 def _pub_ref(pub) -> dict:
@@ -291,7 +304,7 @@ def _pub_ref(pub) -> dict:
 
 
 def _propose(user, fetched, report) -> None:
-    proposals = propose_hides(user, _crossref_lookup(report),
+    proposals = propose_hides(user, _crossref_lookup(fetched.crossref),
                               _location_index(fetched.openalex))
     for p in proposals:
         report.proposed_hides.append({

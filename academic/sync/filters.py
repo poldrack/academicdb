@@ -23,6 +23,7 @@ CORRECTION_TITLE = re.compile(
 NOTICE_TYPES = frozenset({'erratum', 'retraction'})
 VERSION_SUFFIX = re.compile(r'_v(\d+)\s*$', re.IGNORECASE)
 ELIFE_VERSION = re.compile(r'^10\.7554/elife\.\d+(?:\.(\d+))?$', re.IGNORECASE)
+RESEARCH_SQUARE_VERSION = re.compile(r'^10\.21203/rs\.[^/]+/v(\d+)$', re.IGNORECASE)
 
 
 def _repository_copy(c: Candidate) -> bool:
@@ -62,7 +63,8 @@ def _version(c: Candidate) -> float:
     elife = ELIFE_VERSION.match(c.doi or '')
     if elife:  # the unversioned eLife DOI always resolves to the latest version
         return int(elife.group(1)) if elife.group(1) else math.inf
-    match = VERSION_SUFFIX.search(c.doi or '')
+    match = (RESEARCH_SQUARE_VERSION.match(c.doi or '')
+             or VERSION_SUFFIX.search(c.doi or ''))
     return int(match.group(1)) if match else 0
 
 

@@ -6,6 +6,8 @@ from academic.models import Publication, RejectedWork
 
 OSF_VERSION_SUFFIX = re.compile(r'_v\d+$')
 ELIFE_VERSION_SUFFIX = re.compile(r'^(10\.7554/elife\.\d+)\.\d+$')
+RESEARCH_SQUARE_PREFIX = '10.21203/rs.'
+RESEARCH_SQUARE_VERSION_SUFFIX = re.compile(r'/v\d+$')
 
 
 def doi_key(doi):
@@ -14,6 +16,8 @@ def doi_key(doi):
     key = re.sub(r'/+', '/', normalize_doi(doi))
     if 'osf.io/' in key:
         key = OSF_VERSION_SUFFIX.sub('', key)
+    if key.startswith(RESEARCH_SQUARE_PREFIX):
+        key = RESEARCH_SQUARE_VERSION_SUFFIX.sub('', key)
     return ELIFE_VERSION_SUFFIX.sub(r'\1', key)
 
 

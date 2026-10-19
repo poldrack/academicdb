@@ -230,6 +230,8 @@ make sync-dry-run   # full report in backups/sync_report_dry.json, nothing saved
 make sync           # saves pending items/proposals, report in backups/sync_report.json
 ```
 
+Deleting publications, including the bulk "delete all", records each one as rejected so the sync never re-adds it. To allow a deleted paper back, delete its row in `RejectedWork` via the admin.
+
 ## Usage
 
 ### Web Interface
