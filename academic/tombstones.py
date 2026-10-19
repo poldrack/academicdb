@@ -23,18 +23,24 @@ def title_key(title):
 
 def _identity(pub):
     doi = doi_key(pub.doi)
-    return {'doi': doi} if doi else {'title_key': title_key(pub.title)}
+    return {'doi': doi} if doi else {'doi': '', 'title_key': title_key(pub.title)}
+
+
+def _defaults(pub, reason):
+    identifiers = pub.identifiers or {}
+    return {
+        'reason': reason,
+        'openalex_id': identifiers.get('openalex') or '',
+        'pmid': str(identifiers.get('pmid') or ''),
+        'title_key': title_key(pub.title),
+    }
 
 
 def record_tombstone(pub: Publication, reason: str) -> RejectedWork:
-    identifiers = pub.identifiers or {}
-    defaults = {
-        'reason': reason,
-        'openalex_id': identifiers.get('openalex', ''),
-        'pmid': identifiers.get('pmid', ''),
-        'title_key': title_key(pub.title),
-    }
-    work, _ = RejectedWork.objects.get_or_create(
-        owner_id=pub.owner_id, defaults=defaults, **_identity(pub)
-    )
-    return work
+    identity = _identity(pub)
+    existing = RejectedWork.objects.filter(
+        owner_id=pub.owner_id, **identity).order_by('id').first()
+    if existing:
+        return existing
+    return RejectedWork.objects.create(
+        owner_id=pub.owner_id, **{**_defaults(pub, reason), **identity})

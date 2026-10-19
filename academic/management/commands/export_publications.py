@@ -88,6 +88,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Exclude preprints from export'
         )
+        parser.add_argument(
+            '--include-pending',
+            action='store_true',
+            help='Also export unreviewed (pending) publications (default: approved only)'
+        )
 
         # Field selection
         parser.add_argument(
@@ -200,6 +205,9 @@ class Command(BaseCommand):
 
     def _apply_filters(self, queryset, options):
         """Apply additional filters to the queryset"""
+        if not options.get('include_pending'):
+            queryset = queryset.filter(review_status='approved')
+
         if options['year_from']:
             queryset = queryset.filter(year__gte=options['year_from'])
 

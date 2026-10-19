@@ -497,6 +497,8 @@ class Publication(models.Model):
             '10.48550',   # arXiv (new format)
             '10.31234',   # PsyArXiv
             '10.21203',   # Research Square preprints
+            '10.64898',   # bioRxiv (new prefix)
+            '10.31219',   # OSF Preprints
         ]
 
         # Check standard preprint prefixes
@@ -587,63 +589,45 @@ class Publication(models.Model):
         ).order_by('doi')
 
     @classmethod
+    def _approved_published(cls, user):
+        """Approved, visible, non-preprint publications that can supersede a preprint."""
+        return cls.objects.filter(
+            owner=user, is_preprint=False, is_ignored=False, review_status='approved'
+        ).exclude(publication_type='preprint')
+
+    @staticmethod
+    def _relation_dois(preprint):
+        """DOIs named by explicit preprint relations in the metadata."""
+        metadata = preprint.metadata if isinstance(preprint.metadata, dict) else {}
+        relations = metadata.get('relation') or {}
+        dois = []
+        for relation_type in ['is-preprint-of', 'has-version', 'is-version-of']:
+            relation_list = relations.get(relation_type)
+            if not isinstance(relation_list, list):
+                continue
+            for rel in relation_list:
+                if isinstance(rel, dict) and 'id' in rel:
+                    dois.append(re.sub(r'^https?://doi\.org/', '', rel['id']).lower())
+        return dois
+
+    @classmethod
     def find_published_version_of_preprint(cls, preprint, user):
         """
-        Find if a preprint has a corresponding published journal article
+        Find an approved published version of a preprint.
 
-        Uses multiple strategies:
-        1. Check for explicit relationship metadata
-        2. Match by title similarity and author overlap
-
-        Args:
-            preprint: Publication object that is a preprint
-            user: User object to filter by
-
-        Returns:
-            Publication object if published version found, None otherwise
+        Strategies: explicit relation metadata, then title similarity and
+        author overlap. Pending (unreviewed) publications never count.
         """
-        if not preprint.is_preprint:
+        if not (preprint.is_preprint or preprint.publication_type == 'preprint'):
             return None
-
-        # Strategy 1: Check for explicit relationships in metadata
-        if preprint.metadata and isinstance(preprint.metadata, dict):
-            relations = preprint.metadata.get('relation', {})
-            if relations:
-                for relation_type in ['is-preprint-of', 'has-version', 'is-version-of']:
-                    if relation_type in relations:
-                        relation_list = relations[relation_type]
-                        if isinstance(relation_list, list):
-                            for rel in relation_list:
-                                if isinstance(rel, dict) and 'id' in rel:
-                                    # Extract DOI from the relation
-                                    published_doi = rel['id']
-                                    # Clean the DOI
-                                    if published_doi.startswith('https://doi.org/'):
-                                        published_doi = published_doi.replace('https://doi.org/', '')
-                                    elif published_doi.startswith('http://doi.org/'):
-                                        published_doi = published_doi.replace('http://doi.org/', '')
-
-                                    # Find this publication
-                                    published_pub = cls.objects.filter(
-                                        owner=user,
-                                        doi=published_doi,
-                                        is_preprint=False
-                                    ).first()
-                                    if published_pub:
-                                        return published_pub
-
-        # Strategy 2: Look for published articles with matching title and similar authors
-        # Get all non-preprint publications by the same user
-        published_pubs = cls.objects.filter(
-            owner=user,
-            is_preprint=False,
-            is_ignored=False
-        ).exclude(id=preprint.id)
-
-        for pub in published_pubs:
+        published = cls._approved_published(user).exclude(id=preprint.id)
+        for doi in cls._relation_dois(preprint):
+            match = published.filter(doi=doi).first()
+            if match:
+                return match
+        for pub in published:
             if cls._is_likely_published_version(preprint, pub):
                 return pub
-
         return None
 
     @classmethod
@@ -819,27 +803,39 @@ class Publication(models.Model):
 
         return name
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._loaded_doi = getattr(instance, 'doi', None)
+        return instance
+
+    def _was_auto_detected_preprint(self):
+        """True if the stored DOI was a known preprint DOI and has since changed."""
+        loaded = getattr(self, '_loaded_doi', None)
+        return bool(loaded) and loaded != self.doi and self.is_preprint_doi(loaded)
+
     def detect_preprint_status(self):
         """
-        Detect and update preprint status based on DOI
+        Update preprint status from the DOI.
+
+        A known preprint prefix promotes the record to a preprint. An unknown
+        prefix never demotes an existing preprint, unless the record was
+        auto-detected from a known prefix whose DOI has since changed.
 
         Returns:
             bool: True if preprint status was updated
         """
-        old_status = self.is_preprint
-        old_type = self.publication_type
-
-        # Detect if this is a preprint
-        is_preprint = self.is_preprint_doi(self.doi)
-
-        # Update preprint status and type
-        self.is_preprint = is_preprint
-        if is_preprint:
+        old_status, old_type = self.is_preprint, self.publication_type
+        if self.is_preprint_doi(self.doi):
+            self.is_preprint = True
+        elif self._was_auto_detected_preprint():
+            self.is_preprint = False
+            if old_type == 'preprint':
+                self.publication_type = 'journal-article'
+        else:
+            self.is_preprint = old_status or old_type == 'preprint'
+        if self.is_preprint:
             self.publication_type = 'preprint'
-        elif old_type == 'preprint' and not is_preprint:
-            # If it was a preprint but no longer is (DOI changed), revert to journal-article
-            self.publication_type = 'journal-article'
-
         return old_status != self.is_preprint or old_type != self.publication_type
 
     @property

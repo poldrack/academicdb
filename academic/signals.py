@@ -1,4 +1,5 @@
 from django.db.models.signals import post_delete
+from django.db import transaction
 from django.db.models import QuerySet
 from django.dispatch import receiver
 from allauth.socialaccount.signals import pre_social_login, social_account_added
@@ -81,5 +82,10 @@ def tombstone_deleted_publication(sender, instance, origin=None, **kwargs):
     Skipped when the delete was started from the owner account: the
     tombstone would outlive (and dangle from) the account.
     """
-    if not _deleted_via_user(origin):
-        record_tombstone(instance, 'deleted')
+    if _deleted_via_user(origin):
+        return
+    try:
+        with transaction.atomic():
+            record_tombstone(instance, 'deleted')
+    except Exception:
+        logger.exception('Could not record tombstone for publication %s', instance.pk)
