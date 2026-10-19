@@ -67,6 +67,10 @@ sync-dry-run:
 sync:
 	USE_NEON=true uv run python manage.py weekly_sync --orcid-id 0000-0001-6755-0259 --report backups/sync_report.json
 
+# Publishing dry run: logs planned GitHub writes, rolls back DB writes
+publish-dry-run:
+	USE_NEON=true uv run python manage.py publish_sites --orcid-id 0000-0001-6755-0259 --dry-run
+
 # Portable JSON backups (restore into Neon, Postgres or SQLite)
 LOCAL_BACKUP_DIR ?= backups
 

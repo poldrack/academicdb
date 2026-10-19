@@ -112,7 +112,7 @@ def batch_for(user, pubs, proposals, number=7):
 
 
 def dois(text):
-    return {r['doi'] for r in yaml.safe_load(text) or []}
+    return {r['doi'] for r in yaml.safe_load(text)['publications']}
 
 
 @pytest.fixture
