@@ -103,7 +103,7 @@ def register_openalex(works):
     responses.add(responses.GET, f'{WORKS_URL}/W2', json=new_work(truncated=False))
 
 
-def register_ncbi(pubmed_ok=True):
+def register_ncbi(pubmed_ok=True, crossref_status=404):
     if pubmed_ok:
         responses.add(responses.GET, ESEARCH, json={'esearchresult': {'idlist': ['222']}})
         responses.add(responses.GET, EFETCH, body=efetch_body(
@@ -112,7 +112,7 @@ def register_ncbi(pubmed_ok=True):
         responses.add(responses.GET, ESEARCH, status=500)
     responses.add(responses.GET, IDCONV_RE, json={'records': [
         {'requested-id': KNOWN_DOI, 'pmid': '111', 'pmcid': 'PMC999'}]})
-    responses.add(responses.GET, CROSSREF_RE, status=404)
+    responses.add(responses.GET, CROSSREF_RE, status=crossref_status)
 
 
 def register_all(works=None, pubmed_ok=True):
@@ -382,8 +382,7 @@ def test_preprint_hide_proposed_not_applied(user, config, library):
 @responses.activate
 def test_crossref_failure_reported(user, config, library):
     register_openalex(base_works())
-    responses.add(responses.GET, CROSSREF_RE, status=500)
-    register_ncbi()
+    register_ncbi(crossref_status=500)
     report = run(user, config)
     assert any('crossref' in e for e in report.errors)
     assert PreprintHideProposal.objects.filter(owner=user).count() == 1
