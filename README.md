@@ -245,7 +245,9 @@ expecting any schedule to fire.
 - `heartbeat.yml` (daily 14:00 UTC): opens an issue if the weekly sync has gone stale.
 
 `weekly-sync` and `publish` share the concurrency group `academicdb-pipeline` and never
-overlap. Failures open an issue and a later success closes it. `weekly-sync` and
+overlap. GitHub keeps only one pending run per concurrency group, so a `publish` run can be
+cancelled while another run is in progress; the next weekly run then processes any review PR
+that was merged or closed in the meantime. Failures open an issue and a later success closes it. `weekly-sync` and
 `heartbeat` re-enable each other so GitHub's 60-day inactivity pause never disables them.
 
 ### Secrets

@@ -28,6 +28,7 @@ jobs:
         run: uv run python manage.py pipeline_alert heartbeat --workflow weekly-sync.yml
 
       - name: Keep scheduled workflows alive
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow enable weekly-sync.yml && gh workflow enable heartbeat.yml

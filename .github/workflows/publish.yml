@@ -58,10 +58,10 @@ jobs:
         env:
           PERSONAL_GITHUB_TOKEN: ${{ steps.personal-token.outputs.token }}
           LAB_GITHUB_TOKEN: ${{ steps.lab-token.outputs.token }}
-        run: >-
-          uv run python manage.py process_review
-          --orcid-id 0000-0001-6755-0259
-          --pr ${{ github.event.client_payload.pr || inputs.pr }}
+          PR_NUMBER: ${{ github.event.client_payload.pr || inputs.pr }}
+        run: |
+          test -n "$PR_NUMBER" && [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "invalid PR number"; exit 1; }
+          uv run python manage.py process_review --orcid-id 0000-0001-6755-0259 --pr "$PR_NUMBER"
 
       - name: Alert on failure
         if: failure()
