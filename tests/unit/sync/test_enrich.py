@@ -189,3 +189,12 @@ def test_no_discrepancy_for_manually_edited_field(academic_user):
     assert 'title' not in fields
     assert 'publication_name' not in fields
     assert 'identifiers.pmid' in fields
+
+
+@pytest.mark.parametrize('name,limit', [
+    ('volume', 50), ('page_range', 100), ('publication_name', 500)])
+def test_fill_truncates_to_field_max_length(academic_user, name, limit):
+    pub = make_pub(academic_user, **{name: None})
+    apply_enrichment(pub, make(**{name: 'x' * (limit + 10)}))
+    pub.refresh_from_db()
+    assert getattr(pub, name) == 'x' * limit

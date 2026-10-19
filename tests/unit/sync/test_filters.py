@@ -210,3 +210,12 @@ def test_select_new_dedupes_doi_and_doiless_same_title(academic_user):
     a = make(source='openalex', doi='10.1/a', pmid='', title='Same Title')
     b = make(source='pubmed', doi='', pmid='42', title='Same Title')
     assert select_new([a, b], known, CUTOFF) == [a]
+
+
+@pytest.mark.django_db
+def test_select_new_drops_pubmed_erratum(academic_user):
+    from tests.unit.sync.test_ncbi_crossref import typed_article
+    from academic.sync import pubmed
+    c = pubmed.parse_pubmed_article(typed_article('Published Erratum'))
+    c.year = 2026
+    assert select_new([c], KnownWorks.from_db(academic_user), CUTOFF) == []

@@ -208,3 +208,8 @@ def test_parse_work_volume_and_pages():
     assert openalex.parse_work(make_work(
         biblio={'first_page': '100'})).page_range == '100'
     assert openalex.parse_work(make_work(biblio={})).page_range == ''
+
+
+def test_parse_work_cleans_title_markup():
+    work = make_work(title='<i>Drosophila</i>  &amp; H<sub>2</sub>O\n uptake')
+    assert openalex.parse_work(work).title == 'Drosophila & H2O uptake'

@@ -293,7 +293,10 @@ def test_enrichment_matches_by_openalex_id(user, config, library):
 
 @responses.activate
 def test_idconv_fills_pmcid_without_openalex_match(user, config, library):
-    register_openalex([])
+    # Final-review finding 5: an empty OpenAlex list is now an error, so use
+    # a single work that matches nothing in the library.
+    register_openalex([oa_work('W3', OLD_DOI, 'An old study from before the cutoff',
+                               2024, '2024-01-01')])
     register_ncbi()
     report = run(user, config)
     known = Publication.objects.get(pk=library['known'].pk)
@@ -539,3 +542,46 @@ def test_crash_removes_stale_report(user, tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         call_command('weekly_sync', '--orcid-id', user.orcid_id, '--report', str(report))
     assert not report.exists()
+
+
+# --- Final review fixes ---------------------------------------------------
+
+@responses.activate
+def test_empty_openalex_results_is_command_error(user, library, tmp_path):
+    register_openalex([])
+    register_ncbi()
+    pubs = Publication.objects.count()
+    with pytest.raises(CommandError):
+        run_command(user, tmp_path)
+    assert Publication.objects.count() == pubs
+    known = Publication.objects.get(pk=library['known'].pk)
+    assert 'pmcid' not in known.identifiers
+    report = json.loads((tmp_path / 'report.json').read_text())
+    assert any('no works' in e for e in report['errors'])
+
+
+@responses.activate
+def test_empty_openalex_results_raises_source_error(user, config, library):
+    register_openalex([])
+    register_ncbi()
+    with pytest.raises(http.SourceError, match=f'no works for {user.orcid_id}'):
+        run(user, config)
+
+
+@responses.activate
+@pytest.mark.parametrize('name,limit', [
+    ('volume', 50), ('page_range', 100), ('publication_name', 500)])
+def test_pending_fields_truncated_to_max_length(user, config, library, name, limit):
+    long = 'x' * (limit + 10)
+    biblio = {'volume': long} if name == 'volume' else {}
+    if name == 'page_range':
+        biblio = {'first_page': '1', 'last_page': long}
+    work = new_work(truncated=False)
+    work['biblio'] = biblio
+    if name == 'publication_name':
+        work['primary_location'] = {'source': {'display_name': long}}
+    register_openalex([work])
+    register_ncbi()
+    run(user, config)
+    full = f'1-{long}' if name == 'page_range' else long
+    assert getattr(pending(user).get(), name) == full[:limit]

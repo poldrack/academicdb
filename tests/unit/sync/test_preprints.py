@@ -211,3 +211,15 @@ def test_find_match_prefers_closest_title_regardless_of_list_order(academic_user
     best = make_published(academic_user)
     pub, method, _ = find_match(preprint, [worse, best], [], {})
     assert (pub, method) == (best, 'title_author')
+
+
+# --- Final review fixes ---------------------------------------------------
+
+def test_preprint_typed_row_without_flag_is_visible_not_published(academic_user):
+    from academic.models import Publication
+    from academic.sync.preprints import published_candidates, visible_preprints
+    row = make_published(academic_user, doi='10.9999/server.0001',
+                         publication_type='preprint')
+    Publication.objects.filter(pk=row.pk).update(is_preprint=False)
+    assert row.pk in {p.pk for p in visible_preprints(academic_user)}
+    assert row.pk not in {p.pk for p in published_candidates(academic_user)}

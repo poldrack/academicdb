@@ -310,3 +310,29 @@ def test_parse_pubmed_volume_and_pages():
     bare = pubmed.parse_pubmed_article(
         {'MedlineCitation': {'PMID': '7', 'Article': {'ArticleTitle': 'T.'}}})
     assert (bare.volume, bare.page_range) == ('', '')
+
+
+def typed_article(*types):
+    type_xml = ''.join(f'<PublicationType UI="D0">{t}</PublicationType>' for t in types)
+    xml = article_xml().replace(
+        '</AuthorList>', f'</AuthorList><PublicationTypeList>{type_xml}'
+        '</PublicationTypeList>')
+    body = f'{XML_HEAD}<PubmedArticleSet>{xml}</PubmedArticleSet>'
+    return Entrez.read(io.BytesIO(body.encode()))['PubmedArticle'][0]
+
+
+@pytest.mark.parametrize('notice', [
+    'Published Erratum', 'Editorial', 'Letter', 'Comment',
+    'Retraction of Publication', 'Retracted Publication', 'Expression of Concern',
+])
+def test_pubmed_notice_types_are_excluded(notice):
+    from academic.sync.filters import is_excluded
+    c = pubmed.parse_pubmed_article(typed_article('Journal Article', notice))
+    assert is_excluded(c)
+
+
+def test_pubmed_journal_article_not_excluded():
+    from academic.sync.filters import is_excluded
+    c = pubmed.parse_pubmed_article(typed_article('Journal Article', 'Review'))
+    assert not is_excluded(c)
+    assert c.publication_type == 'journal-article'
