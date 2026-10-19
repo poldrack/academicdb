@@ -244,9 +244,21 @@ def _record_enrichment(report, pub, c, result) -> None:
         report.discrepancies.append({'id': pub.id, 'doi': doi, **d, 'source': c.source})
 
 
+def _is_preprint(c) -> bool:
+    return c.publication_type == 'preprint'
+
+
 def _location_index(candidates) -> dict:
-    return {doi_key(loc): c.doi for c in candidates if c.doi
-            for loc in c.location_dois if doi_key(loc)}
+    """Map each location DOI to a candidate DOI, preferring non-preprints."""
+    chosen = {}
+    for c in candidates:
+        for key in filter(None, (doi_key(loc) for loc in c.location_dois)):
+            if not c.doi:
+                continue
+            current = chosen.get(key)
+            if current is None or (_is_preprint(current) and not _is_preprint(c)):
+                chosen[key] = c
+    return {key: c.doi for key, c in chosen.items()}
 
 
 def _crossref_lookup(report):

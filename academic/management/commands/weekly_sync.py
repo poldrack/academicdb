@@ -34,9 +34,10 @@ class Command(BaseCommand):
                             help='Run the write phase, then roll it back')
 
     def handle(self, *args, **options):
+        report_path = Path(options['report'])
+        report_path.unlink(missing_ok=True)
         config = _config(options['orcid_id'])
         user = _user(options['orcid_id'])
-        report_path = Path(options['report'])
         report = self._run(user, config, report_path, options['dry_run'])
         report_path.write_text(report.to_json())
         self.stdout.write(report.summary())

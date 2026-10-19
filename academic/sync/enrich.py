@@ -79,7 +79,7 @@ def _plan_oa(pub, c, result):
 def _plan_discrepancies(pub, c, result):
     for name in COMPARE_FIELDS:
         ours, theirs = getattr(pub, name), getattr(c, name, None)
-        if _empty(ours) or _empty(theirs):
+        if _empty(ours) or _empty(theirs) or pub.manual_edits.get(name):
             continue
         if _norm(ours) != _norm(theirs):
             result.discrepancies.append(
