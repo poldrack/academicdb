@@ -16,6 +16,11 @@ from tests.factories import PublicationFactory
 CUTOFF = date(2025, 10, 18)
 
 
+def preprint(user, **kw):
+    return PublicationFactory(owner=user, is_preprint=True,
+                              publication_type='preprint', **kw)
+
+
 def make(**kw):
     base = dict(
         source='openalex', title='A Title', year=2026, publication_date=None,
@@ -112,7 +117,7 @@ def test_known_matches_tombstone_openalex_and_pmid(academic_user):
 
 def test_known_title_only_for_no_doi(academic_user):
     title = 'Statistical Thinking for the 21st Century'
-    PublicationFactory(owner=academic_user, doi=None, title=title)
+    preprint(academic_user, doi=None, title=title)
     known = KnownWorks.from_db(academic_user)
     assert known.contains(make(title=title.upper() + '.', doi=''))
     assert not known.contains(make(title=title, doi='10.9/new'))
@@ -165,7 +170,7 @@ def test_select_new_filters_and_keeps_order(academic_user):
     have = make(doi='10.1/have', title='Have')
     erratum = make(doi='10.1/err', title='Erratum: foo')
     peer = make(doi='10.1/pr', openalex_type='peer-review', title='PR')
-    keep2 = make(doi='', title='K2')
+    keep2 = make(doi='', pmid='9', title='K2')
     out = select_new([keep1, old, have, erratum, peer, keep2], known, CUTOFF)
     assert out == [keep1, keep2]
 
@@ -199,7 +204,7 @@ def test_genuine_titles_not_excluded(title):
 
 def test_doiless_candidate_matches_known_doi_bearing_title(academic_user):
     title = 'A Known Paper With A DOI'
-    PublicationFactory(owner=academic_user, doi='10.1/known', title=title)
+    preprint(academic_user, doi='10.1101/known', title=title)
     known = KnownWorks.from_db(academic_user)
     assert known.contains(make(title=title, doi=''))
     assert not known.contains(make(title=title, doi='10.9/different'))
@@ -219,3 +224,69 @@ def test_select_new_drops_pubmed_erratum(academic_user):
     c = pubmed.parse_pubmed_article(typed_article('Published Erratum'))
     c.year = 2026
     assert select_new([c], KnownWorks.from_db(academic_user), CUTOFF) == []
+
+
+@pytest.mark.parametrize('kind', ['software', 'dissertation'])
+def test_software_and_dissertations_excluded(kind):
+    assert is_excluded(make(doi='10.5281/zenodo.1', openalex_type=kind))
+
+
+@pytest.mark.parametrize('kind', ['article', 'conference-paper'])
+def test_repository_only_non_preprint_excluded(kind):
+    assert is_excluded(make(doi='10.17863/cam.1', openalex_type=kind,
+                            repository_only=True))
+
+
+def test_repository_only_preprint_or_pubmed_indexed_kept():
+    assert not is_excluded(make(doi='10.48550/arxiv.1', openalex_type='preprint',
+                                repository_only=True))
+    assert not is_excluded(make(doi='10.1/x', pmid='5', openalex_type='article',
+                                repository_only=True))
+
+
+def test_work_without_doi_or_pmid_excluded():
+    assert is_excluded(make(doi='', pmid='', openalex_type='preprint'))
+    assert not is_excluded(make(doi='', pmid='42'))
+
+
+def test_osf_project_doi_excluded():
+    assert is_excluded(make(doi='10.17605/osf.io/a6mpc', openalex_type='preprint'))
+    assert not is_excluded(make(doi='10.31234/osf.io/cn59h_v2',
+                                openalex_type='preprint'))
+
+
+def test_collapse_elife_versions_prefers_concept_doi():
+    dois = ['10.7554/elife.112683.1', '10.7554/elife.112683',
+            '10.7554/elife.112683.2']
+    out = collapse_versions([make(doi=d) for d in dois])
+    assert [c.doi for c in out] == ['10.7554/elife.112683']
+
+
+def test_collapse_elife_versions_without_concept_keeps_latest():
+    dois = ['10.7554/elife.5.2', '10.7554/elife.5.3', '10.7554/elife.5.1']
+    out = collapse_versions([make(doi=d) for d in dois])
+    assert [c.doi for c in out] == ['10.7554/elife.5.3']
+
+
+def test_known_matches_elife_version_of_existing(academic_user):
+    PublicationFactory(owner=academic_user, doi='10.7554/eLife.112683')
+    known = KnownWorks.from_db(academic_user)
+    assert known.contains(make(doi='10.7554/elife.112683.2', title='other'))
+
+
+def test_copy_of_published_paper_with_own_doi_skipped(academic_user):
+    PublicationFactory(owner=academic_user, doi='10.1038/s41586-025-1',
+                       title='Investigating the analytical robustness of X.')
+    known = KnownWorks.from_db(academic_user)
+    copy = make(doi='10.17863/cam.122939', openalex_type='article',
+                title='Investigating the analytical robustness of X')
+    preprint = make(doi='10.31222/osf.io/twqsv_v1', openalex_type='preprint',
+                    title='Investigating the Analytical Robustness of X')
+    assert select_new([copy, preprint], known, CUTOFF) == []
+
+
+def test_published_version_of_existing_preprint_kept(academic_user):
+    preprint(academic_user, doi='10.1101/2024.1', title='Deep models of rest')
+    known = KnownWorks.from_db(academic_user)
+    journal = make(doi='10.1002/hbm.1', title='Deep Models of Rest')
+    assert select_new([journal], known, CUTOFF) == [journal]

@@ -213,3 +213,20 @@ def test_parse_work_volume_and_pages():
 def test_parse_work_cleans_title_markup():
     work = make_work(title='<i>Drosophila</i>  &amp; H<sub>2</sub>O\n uptake')
     assert openalex.parse_work(work).title == 'Drosophila & H2O uptake'
+
+
+def _loc(kind):
+    return {'source': {'type': kind, 'display_name': kind}} if kind else {'source': None}
+
+
+@pytest.mark.parametrize('kinds,expected', [
+    (['repository', None], True),
+    (['repository', 'repository'], True),
+    (['journal', 'repository'], False),
+    (['conference'], False),
+    ([], False),
+    ([None], False),
+])
+def test_parse_work_flags_repository_only(kinds, expected):
+    work = make_work(locations=[_loc(k) for k in kinds])
+    assert openalex.parse_work(work).repository_only is expected

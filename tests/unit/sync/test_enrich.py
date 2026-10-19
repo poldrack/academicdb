@@ -198,3 +198,39 @@ def test_fill_truncates_to_field_max_length(academic_user, name, limit):
     apply_enrichment(pub, make(**{name: 'x' * (limit + 10)}))
     pub.refresh_from_db()
     assert getattr(pub, name) == 'x' * limit
+
+
+@pytest.mark.parametrize('ours,theirs', [
+    ('Striatal D<sub>2</sub>/D<sub>3</sub>Receptors', 'Striatal D2/D3Receptors'),
+    ('Corrigendum to "A test"', 'Corrigendum to “A test”'),
+    ('Relations between the neural bases', 'Relations Between the Neural Bases.'),
+])
+def test_cosmetic_title_difference_not_discrepancy(academic_user, ours, theirs):
+    pub = make_pub(academic_user, title=ours)
+    result = plan_enrichment(pub, make(title=theirs))
+    assert not [d for d in result.discrepancies if d['field'] == 'title']
+
+
+@pytest.mark.parametrize('ours,theirs', [
+    ('Nat Hum Behav', 'Nature Human Behaviour'),
+    ('Neuroscience and Biobehavioral Reviews', 'Neuroscience & Biobehavioral Reviews'),
+    ('Psychiatry Research - Neuroimaging', 'Psychiatry Research Neuroimaging'),
+    ('Imaging Neurosci (Camb)', 'Imaging Neuroscience'),
+    ('The Journal of Neuroscience', 'Journal of Neuroscience'),
+])
+def test_cosmetic_venue_difference_not_discrepancy(academic_user, ours, theirs):
+    pub = make_pub(academic_user, publication_name=ours)
+    result = plan_enrichment(pub, make(publication_name=theirs))
+    assert not [d for d in result.discrepancies if d['field'] == 'publication_name']
+
+
+@pytest.mark.parametrize('ours,theirs', [
+    ('Cerebral Cortex', 'Cortex'),
+    ('Neuron', 'NeuroImage'),
+    ('Neuroimaging of Human Memory', 'Oxford University Press eBooks'),
+])
+def test_real_venue_difference_is_discrepancy(academic_user, ours, theirs):
+    pub = make_pub(academic_user, publication_name=ours)
+    result = plan_enrichment(pub, make(publication_name=theirs))
+    assert {'field': 'publication_name', 'ours': ours,
+            'theirs': theirs} in result.discrepancies
