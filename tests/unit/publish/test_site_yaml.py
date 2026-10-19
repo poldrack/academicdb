@@ -58,9 +58,24 @@ def test_links_empty_without_resources(academic_user):
     assert site_record(pub)['links'] == {}
 
 
-def test_links_keep_nonempty_entries_of_pub_links(academic_user):
-    pub = make_pub(academic_user, links={'pdf': 'http://p', 'code': ''})
-    assert site_record(pub)['links'] == {'pdf': 'http://p'}
+def test_pub_links_field_is_not_exported(academic_user):
+    pub = make_pub(academic_user, links={
+        'pdf': 'x', 'resources': [{'type': 'Code', 'url': 'stale'}]})
+    assert site_record(pub)['links'] == {}
+    assert site_records(academic_user)[0]['links'] == {}
+
+
+def test_link_with_url_form_doi_attaches(academic_user):
+    make_pub(academic_user, doi='10.1/abc')
+    Link.objects.create(owner=academic_user, type='Code', doi='https://doi.org/10.1/ABC', url='http://a')
+    assert len(site_records(academic_user)[0]['links']['resources']) == 1
+
+
+def test_link_with_blank_doi_attaches_to_nothing(academic_user):
+    make_pub(academic_user, doi='')
+    make_pub(academic_user, doi='10.1/x')
+    Link.objects.create(owner=academic_user, type='Code', doi='', url='http://a')
+    assert all(r['links'] == {} for r in site_records(academic_user))
 
 
 def test_author_name_falls_back_to_given_family(academic_user):
