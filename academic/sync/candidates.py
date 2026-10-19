@@ -25,3 +25,4 @@ class Candidate:
     volume: str = ''
     page_range: str = ''
     excluded_type: str = ''  # source-specific notice type (e.g. PubMed erratum)
+    repository_only: bool = False  # every sourced location is a repository

@@ -1,14 +1,17 @@
 """Fill-only enrichment: never overwrites existing or hand-edited data."""
+import re
 from dataclasses import dataclass, field
 
 from django.utils import timezone
 
 from academic.sync.candidates import Candidate
-from academic.sync.text import fit_field
+from academic.sync.text import clean_markup, fit_field
+from academic.tombstones import title_key
 
 FILL_FIELDS = ('publication_date', 'publication_name', 'volume', 'page_range')
 COMPARE_FIELDS = ('title', 'publication_name', 'year')
 IDENTIFIER_KEYS = ('pmid', 'pmcid', 'openalex')
+PARENTHETICAL = re.compile(r'\([^)]*\)')
 
 
 @dataclass
@@ -26,6 +29,27 @@ def _norm(value):
     if isinstance(value, str):
         return ' '.join(value.lower().split())
     return int(value) if isinstance(value, (int, float)) else value
+
+
+def _venue_words(value) -> list[str]:
+    text = PARENTHETICAL.sub(' ', clean_markup(value).lower()).replace('&', ' and ')
+    words = re.sub(r'[^a-z0-9 ]', ' ', text).split()
+    return words[1:] if words[:1] == ['the'] else words
+
+
+def _same_venue(ours, theirs) -> bool:
+    """Equal up to punctuation, '&', a leading 'The' and word abbreviations."""
+    a, b = _venue_words(ours), _venue_words(theirs)
+    return len(a) == len(b) and all(
+        x.startswith(y) or y.startswith(x) for x, y in zip(a, b))
+
+
+def _same(name, ours, theirs) -> bool:
+    if name == 'title':
+        return title_key(clean_markup(ours)) == title_key(clean_markup(theirs))
+    if name == 'publication_name':
+        return _same_venue(ours, theirs)
+    return _norm(ours) == _norm(theirs)
 
 
 def _plan_fill(pub, c, result):
@@ -82,7 +106,7 @@ def _plan_discrepancies(pub, c, result):
         ours, theirs = getattr(pub, name), getattr(c, name, None)
         if _empty(ours) or _empty(theirs) or pub.manual_edits.get(name):
             continue
-        if _norm(ours) != _norm(theirs):
+        if not _same(name, ours, theirs):
             result.discrepancies.append(
                 {'field': name, 'ours': ours, 'theirs': theirs})
 

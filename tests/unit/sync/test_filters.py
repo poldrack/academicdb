@@ -31,14 +31,14 @@ def make(**kw):
 
 
 def test_excluded_types_and_supplements():
-    assert is_excluded(make(openalex_type='peer-review'))
-    assert is_excluded(make(openalex_type='dataset'))
-    assert is_excluded(make(openalex_type='journal-article', is_supplement=True))
-    assert is_excluded(make(title='Erratum: X'))
-    assert is_excluded(make(title='author correction: Y'))
-    assert is_excluded(make(title='CORRIGENDUM to Z'))
-    assert not is_excluded(make(openalex_type='article'))
-    assert not is_excluded(make(title='Correlates of success'))
+    assert is_excluded(make(doi='10.1/a', openalex_type='peer-review'))
+    assert is_excluded(make(doi='10.1/a', openalex_type='dataset'))
+    assert is_excluded(make(doi='10.1/a', openalex_type='journal-article', is_supplement=True))
+    assert is_excluded(make(doi='10.1/a', title='Erratum: X'))
+    assert is_excluded(make(doi='10.1/a', title='author correction: Y'))
+    assert is_excluded(make(doi='10.1/a', title='CORRIGENDUM to Z'))
+    assert not is_excluded(make(doi='10.1/a', openalex_type='article'))
+    assert not is_excluded(make(doi='10.1/a', title='Correlates of success'))
 
 
 def test_before_cutoff_uses_date_then_year():
@@ -190,7 +190,7 @@ def test_select_new_adds_kept_to_known(academic_user):
     '  correction - X',
 ])
 def test_notice_titles_excluded(title):
-    assert is_excluded(make(title=title))
+    assert is_excluded(make(doi='10.1/a', title=title))
 
 
 @pytest.mark.parametrize('title', [
@@ -199,7 +199,7 @@ def test_notice_titles_excluded(title):
     'Erratic behavior in models',
 ])
 def test_genuine_titles_not_excluded(title):
-    assert not is_excluded(make(title=title))
+    assert not is_excluded(make(doi='10.1/a', title=title))
 
 
 def test_doiless_candidate_matches_known_doi_bearing_title(academic_user):

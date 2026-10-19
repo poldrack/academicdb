@@ -5,6 +5,7 @@ from academic.link_import import normalize_doi
 from academic.models import Publication, RejectedWork
 
 OSF_VERSION_SUFFIX = re.compile(r'_v\d+$')
+ELIFE_VERSION_SUFFIX = re.compile(r'^(10\.7554/elife\.\d+)\.\d+$')
 
 
 def doi_key(doi):
@@ -13,7 +14,7 @@ def doi_key(doi):
     key = re.sub(r'/+', '/', normalize_doi(doi))
     if 'osf.io/' in key:
         key = OSF_VERSION_SUFFIX.sub('', key)
-    return key
+    return ELIFE_VERSION_SUFFIX.sub(r'\1', key)
 
 
 def title_key(title):

@@ -16,17 +16,20 @@ class KnownWorks:
     openalex_ids: set[str] = field(default_factory=set)
     pmids: set[str] = field(default_factory=set)
     title_keys: set[str] = field(default_factory=set)
+    published_title_keys: set[str] = field(default_factory=set)
 
     @classmethod
     def from_db(cls, user) -> 'KnownWorks':
         known = cls()
         pubs = Publication.objects.filter(owner=user).values_list(
-            'doi', 'title', 'identifiers'
+            'doi', 'title', 'identifiers', 'is_preprint', 'publication_type'
         )
-        for doi, title, identifiers in pubs:
+        for doi, title, identifiers, is_preprint, pub_type in pubs:
             ids = identifiers or {}
             known._absorb(doi_key(doi), ids.get('openalex'), ids.get('pmid'),
                           title_key(title))
+            if not is_preprint and pub_type != 'preprint':
+                known.published_title_keys |= _clean([title_key(title)])
         rejected = RejectedWork.objects.filter(owner=user).values_list(
             'doi', 'openalex_id', 'pmid', 'title_key'
         )
@@ -49,6 +52,8 @@ class KnownWorks:
         if c.pmid and c.pmid in self.pmids:
             return True
         tkey = title_key(c.title)
+        if tkey in self.published_title_keys:
+            return True  # a copy, or a preprint, of a paper already published
         return not doi and bool(tkey) and tkey in self.title_keys
 
     def add(self, c: Candidate) -> None:

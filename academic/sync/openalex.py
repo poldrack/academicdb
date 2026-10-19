@@ -70,6 +70,12 @@ def _parse_location_dois(locations, own_doi):
     return dois
 
 
+def _repository_only(locations):
+    kinds = [(loc.get('source') or {}).get('type') for loc in locations]
+    kinds = [k for k in kinds if k]
+    return bool(kinds) and all(k == 'repository' for k in kinds)
+
+
 def _is_supplement(biblio):
     issue = biblio.get('issue') or ''
     first_page = biblio.get('first_page') or ''
@@ -122,6 +128,7 @@ def parse_work(work):
         location_dois=_parse_location_dois(locations, doi),
         pmc_url=pmc_url,
         is_supplement=_is_supplement(work.get('biblio') or {}),
+        repository_only=_repository_only(locations),
         volume=(work.get('biblio') or {}).get('volume') or '',
         page_range=_page_range(work.get('biblio') or {}),
         authors_truncated=bool(work.get('is_authors_truncated')
