@@ -24,3 +24,4 @@ class Candidate:
     authors_truncated: bool = False
     volume: str = ''
     page_range: str = ''
+    excluded_type: str = ''  # source-specific notice type (e.g. PubMed erratum)

@@ -1,18 +1,22 @@
 """Propose hiding preprints whose published version is already in the database."""
 from typing import Callable
 
+from django.db.models import Q
+
 from academic.models import Publication, PreprintHideProposal
 from academic.tombstones import doi_key
 
 
 def visible_preprints(user):
     return Publication.objects.filter(
-        owner=user, is_preprint=True, is_ignored=False, review_status='approved')
+        Q(is_preprint=True) | Q(publication_type='preprint'),
+        owner=user, is_ignored=False, review_status='approved')
 
 
 def published_candidates(user) -> list:
     return list(Publication.objects.filter(
-        owner=user, is_preprint=False, is_ignored=False))
+        owner=user, is_preprint=False, is_ignored=False,
+    ).exclude(publication_type='preprint'))
 
 
 def _by_doi_key(published, doi):

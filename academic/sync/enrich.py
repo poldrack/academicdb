@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from django.utils import timezone
 
 from academic.sync.candidates import Candidate
+from academic.sync.text import fit_field
 
 FILL_FIELDS = ('publication_date', 'publication_name', 'volume', 'page_range')
 COMPARE_FIELDS = ('title', 'publication_name', 'year')
@@ -33,7 +34,7 @@ def _plan_fill(pub, c, result):
         flagged = pub.manual_edits.get(name)
         if _empty(getattr(pub, name)) and not _empty(theirs) and not flagged:
             result.changed.append(name)
-            result.updates[name] = theirs
+            result.updates[name] = fit_field(name, theirs)
     if _empty(pub.authors) and c.authors and not pub.manual_edits.get('authors'):
         result.changed.append('authors')
         result.updates['authors'] = list(c.authors)

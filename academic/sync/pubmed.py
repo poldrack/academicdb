@@ -6,9 +6,14 @@ from Bio import Entrez
 
 from academic.sync.candidates import Candidate
 from academic.sync.http import SourceError, get, get_json
+from academic.sync.text import clean_markup
 
 EUTILS = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils'
 BATCH = 200
+EXCLUDED_PUBMED_TYPES = frozenset({
+    'Published Erratum', 'Editorial', 'Letter', 'Comment',
+    'Retraction of Publication', 'Retracted Publication', 'Expression of Concern',
+})
 
 
 def _base_params(email, api_key):
@@ -83,8 +88,12 @@ def _authors(art):
 
 
 def _clean_title(raw):
-    text = re.sub(r'<[^>]+>', '', str(raw))
-    return ' '.join(text.split()).rstrip('.')
+    return clean_markup(raw).rstrip('.')
+
+
+def _excluded_type(art) -> str:
+    types = [str(t) for t in art.get('PublicationTypeList', [])]
+    return next((t for t in types if t in EXCLUDED_PUBMED_TYPES), '')
 
 
 def parse_pubmed_article(article: dict) -> Candidate | None:
@@ -109,4 +118,5 @@ def parse_pubmed_article(article: dict) -> Candidate | None:
         pmcid=_article_id(article, 'pmc'),
         volume=str(journal.get('JournalIssue', {}).get('Volume') or ''),
         page_range=str(art.get('Pagination', {}).get('MedlinePgn') or ''),
+        excluded_type=_excluded_type(art),
     )

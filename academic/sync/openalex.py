@@ -4,6 +4,7 @@ from datetime import date
 from academic.link_import import normalize_doi
 from academic.sync.candidates import Candidate
 from academic.sync.http import SourceError, get_json
+from academic.sync.text import clean_markup
 
 OPENALEX = 'https://api.openalex.org'
 TYPE_MAP = {
@@ -105,7 +106,7 @@ def parse_work(work):
     source = (work.get('primary_location') or {}).get('source') or {}
     return Candidate(
         source='openalex',
-        title=work.get('title') or '',
+        title=clean_markup(work.get('title')),
         year=work.get('publication_year'),
         publication_date=_parse_date(work.get('publication_date')),
         publication_name=source.get('display_name') or '',

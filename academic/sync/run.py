@@ -19,6 +19,7 @@ from academic.sync.known import KnownWorks
 from academic.sync.openalex import fetch_works_by_orcid, full_authors, parse_work
 from academic.sync.preprints import propose_hides
 from academic.sync.pubmed import search_pubmed
+from academic.sync.text import fit_field
 from academic.tombstones import doi_key
 
 REQUIRED_ENV = ('OPENALEX_KEY', 'PUBMED_EMAIL', 'DISCOVERY_CUTOFF')
@@ -100,6 +101,8 @@ def run_weekly_sync(user, config: SyncConfig, now: datetime,
 
 def _fetch(user, config, report) -> _Fetched:
     works = fetch_works_by_orcid(config.orcid, config.openalex_key)
+    if not works:
+        raise SourceError(f'OpenAlex returned no works for {config.orcid}')
     openalex = [parse_work(w) for w in works]
     pubmed = _fetch_pubmed(user, config, report)
     new = select_new(openalex + pubmed, KnownWorks.from_db(user), config.cutoff)
@@ -179,9 +182,10 @@ def _create_pending(user, c) -> Publication:
         owner=user, review_status='pending', source=c.source,
         doi=c.doi or None, title=c.title, year=c.year,
         publication_date=c.publication_date,
-        publication_name=c.publication_name or None,
+        publication_name=fit_field('publication_name', c.publication_name) or None,
         publication_type=c.publication_type, authors=list(c.authors),
-        volume=c.volume or None, page_range=c.page_range or None,
+        volume=fit_field('volume', c.volume) or None,
+        page_range=fit_field('page_range', c.page_range) or None,
         identifiers=_identifiers(c), metadata=_oa_metadata(c))
 
 

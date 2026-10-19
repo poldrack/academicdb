@@ -25,6 +25,7 @@ def is_excluded(c: Candidate) -> bool:
     return (
         c.openalex_type in EXCLUDED_OPENALEX_TYPES
         or c.is_supplement
+        or bool(c.excluded_type)
         or bool(CORRECTION_TITLE.match(c.title or ''))
     )
 
