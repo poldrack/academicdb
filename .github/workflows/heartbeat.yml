@@ -1,0 +1,33 @@
+name: heartbeat
+
+on:
+  schedule:
+    - cron: '0 14 * * *'
+
+permissions:
+  actions: write
+  issues: write
+  contents: read
+
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check weekly sync freshness
+        run: uv run python manage.py pipeline_alert heartbeat --workflow weekly-sync.yml
+
+      - name: Keep scheduled workflows alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable weekly-sync.yml && gh workflow enable heartbeat.yml

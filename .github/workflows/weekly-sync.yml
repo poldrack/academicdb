@@ -1,0 +1,100 @@
+name: weekly-sync
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: academicdb-pipeline
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  issues: write
+  contents: read
+
+env:
+  USE_NEON: 'true'
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+  NEON_DATABASE_URL_UNPOOLED: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+  GITHUB_TOKEN: ${{ github.token }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Back up database
+        env:
+          NEON_UNPOOLED: 'true'
+          AWS_ENDPOINT_URL_S3: ${{ secrets.AWS_ENDPOINT_URL_S3 }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
+        run: uv run python manage.py backup_database --output-dir backups --upload
+
+      - name: Weekly sync
+        env:
+          OPENALEX_KEY: ${{ secrets.OPENALEX_KEY }}
+          PUBMED_EMAIL: ${{ secrets.PUBMED_EMAIL }}
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+          DISCOVERY_CUTOFF: ${{ vars.DISCOVERY_CUTOFF }}
+        run: uv run python manage.py weekly_sync --orcid-id 0000-0001-6755-0259 --report sync_report.json
+
+      - name: Upload sync report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-report
+          path: sync_report.json
+          if-no-files-found: ignore
+
+      - name: Create publishing tokens (personal)
+        id: personal-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: poldrack
+          repositories: poldrack.github.io,academicdb
+
+      - name: Create publishing tokens (lab)
+        id: lab-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: poldracklab
+          repositories: poldracklab.github.io
+
+      - name: Publish sites
+        env:
+          PERSONAL_GITHUB_TOKEN: ${{ steps.personal-token.outputs.token }}
+          LAB_GITHUB_TOKEN: ${{ steps.lab-token.outputs.token }}
+        run: uv run python manage.py publish_sites --orcid-id 0000-0001-6755-0259
+
+      - name: Keep scheduled workflows alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable weekly-sync.yml && gh workflow enable heartbeat.yml
+
+      - name: Alert on failure
+        if: failure()
+        run: >-
+          uv run python manage.py pipeline_alert failure
+          --workflow weekly-sync.yml
+          --run-url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Close alert on recovery
+        if: success()
+        run: uv run python manage.py pipeline_alert recovered --workflow weekly-sync.yml

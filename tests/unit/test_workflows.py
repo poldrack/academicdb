@@ -60,7 +60,7 @@ def test_pipeline_workflows_share_concurrency_group(name):
 def test_weekly_sync_step_order():
     wf = load("weekly-sync")
     runs = run_commands(wf)
-    needles = ["backup_database --upload", "weekly_sync", "publish_sites",
+    needles = ["backup_database --output-dir backups --upload", "weekly_sync", "publish_sites",
                "gh workflow enable"]
     idx = [next(i for i, r in enumerate(runs) if n in r) for n in needles]
     assert idx == sorted(idx) and len(set(idx)) == 4

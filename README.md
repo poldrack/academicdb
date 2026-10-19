@@ -232,6 +232,51 @@ make sync           # saves pending items/proposals, report in backups/sync_repo
 
 Deleting publications, including the bulk "delete all", records each one as rejected so the sync never re-adds it. To allow a deleted paper back, delete its row in `RejectedWork` via the admin.
 
+## Automation
+
+Three GitHub Actions workflows in `.github/workflows/` run the pipeline. Scheduled
+workflows only run from the default branch (`main`), so merge to `main` before
+expecting any schedule to fire.
+
+- `weekly-sync.yml` (Mondays 13:00 UTC, or manual): back up the database, run `weekly_sync`,
+  upload `sync_report.json` as an artifact, then `publish_sites`.
+- `publish.yml` (`repository_dispatch` type `review-pr-closed`, or manual with a `pr` input):
+  runs `process_review` for a closed review pull request.
+- `heartbeat.yml` (daily 14:00 UTC): opens an issue if the weekly sync has gone stale.
+
+`weekly-sync` and `publish` share the concurrency group `academicdb-pipeline` and never
+overlap. Failures open an issue and a later success closes it. `weekly-sync` and
+`heartbeat` re-enable each other so GitHub's 60-day inactivity pause never disables them.
+
+### Secrets
+
+Set under Settings > Secrets and variables > Actions.
+
+| Secret | Purpose |
+| --- | --- |
+| `SECRET_KEY` | Django secret key |
+| `NEON_DATABASE_URL` | Neon pooled connection string |
+| `NEON_DATABASE_URL_UNPOOLED` | Neon direct connection string (used for backups) |
+| `OPENALEX_KEY` | OpenAlex API key |
+| `PUBMED_EMAIL` | contact email sent to PubMed |
+| `NCBI_API_KEY` | optional NCBI key (higher rate limit) |
+| `AWS_ENDPOINT_URL_S3` | Neon object storage endpoint for backups |
+| `AWS_ACCESS_KEY_ID` | object storage access key |
+| `AWS_SECRET_ACCESS_KEY` | object storage secret key |
+| `AWS_REGION` | object storage region |
+| `BACKUP_BUCKET` | backup bucket name |
+| `APP_ID` | GitHub App ID used to publish |
+| `APP_PRIVATE_KEY` | GitHub App private key (PEM) |
+
+Repository variable: `DISCOVERY_CUTOFF` (fixed date, `YYYY-MM-DD`).
+
+### GitHub App
+
+The publishing App needs repository permissions Contents read/write, Pull requests
+read/write and Metadata read. Install it on `poldrack` (repositories `poldrack.github.io`
+and `academicdb`) and on `poldracklab` (repository `poldracklab.github.io`). Each workflow
+mints one token per owner with `actions/create-github-app-token@v2`.
+
 ## Usage
 
 ### Web Interface

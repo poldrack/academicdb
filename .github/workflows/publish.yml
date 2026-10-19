@@ -1,0 +1,71 @@
+name: publish
+
+on:
+  repository_dispatch:
+    types: [review-pr-closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Review pull request number
+        required: true
+
+concurrency:
+  group: academicdb-pipeline
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  USE_NEON: 'true'
+  SECRET_KEY: ${{ secrets.SECRET_KEY }}
+  NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+  NEON_DATABASE_URL_UNPOOLED: ${{ secrets.NEON_DATABASE_URL_UNPOOLED }}
+  GITHUB_TOKEN: ${{ github.token }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Create publishing tokens (personal)
+        id: personal-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: poldrack
+          repositories: poldrack.github.io,academicdb
+
+      - name: Create publishing tokens (lab)
+        id: lab-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: poldracklab
+          repositories: poldracklab.github.io
+
+      - name: Process review
+        env:
+          PERSONAL_GITHUB_TOKEN: ${{ steps.personal-token.outputs.token }}
+          LAB_GITHUB_TOKEN: ${{ steps.lab-token.outputs.token }}
+        run: >-
+          uv run python manage.py process_review
+          --orcid-id 0000-0001-6755-0259
+          --pr ${{ github.event.client_payload.pr || inputs.pr }}
+
+      - name: Alert on failure
+        if: failure()
+        run: >-
+          uv run python manage.py pipeline_alert failure
+          --workflow publish.yml
+          --run-url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
