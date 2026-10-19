@@ -13,6 +13,11 @@ export:
     		--exclude-edit-history \
     		--exclude-ignored
 
+export-yaml:
+	USE_NEON=true uv run python manage.py export_site_yaml \
+		--orcid-id 0000-0001-6755-0259 \
+		--output backups/publications.yml
+
 # Load environment variables from .env file if it exists
 ifneq (,$(wildcard .env))
     include .env
