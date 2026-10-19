@@ -77,3 +77,22 @@ def test_deleting_rejected_pub_removes_it_from_batch(academic_user):
     gone.delete()
     assert ReviewBatch.objects.filter(pk=batch.pk).exists()
     assert list(batch.publications.all()) == [keep]
+
+
+def test_reviewable_items_excludes_keyless_items(academic_user):
+    keyed = make_pub(academic_user, review_status='pending')
+    make_pub(academic_user, review_status='pending', doi=None,
+             identifiers={})
+    pmid_only = make_pub(academic_user, review_status='pending', doi=None,
+                         identifiers={'pmid': '42'})
+    good = make_proposal(academic_user)
+    keyless_pp = make_pub(academic_user, is_preprint=True, doi=None,
+                          identifiers={})
+    keyless = PreprintHideProposal.objects.create(
+        owner=academic_user, preprint=keyless_pp,
+        published=make_pub(academic_user), method='crossref_relation')
+    pubs, proposals = reviewable_items(academic_user)
+    assert keyed in pubs and pmid_only in pubs
+    assert all(p.doi or p.identifiers for p in pubs)
+    assert proposals == [good]
+    assert PreprintHideProposal.objects.get(pk=keyless.pk).status == 'pending'

@@ -104,11 +104,18 @@ def test_parse_review_file_pmid_key_and_empty_lists():
 @pytest.mark.parametrize('text', [
     'new: [unclosed', '[]', 'new: []', 'hide: []', 'new: {}\nhide: []',
     'new: []\nhide: 3', 'new: [3]\nhide: []',
-    'new: [{doi: null, identifiers: {}}]\nhide: []',
 ])
 def test_parse_review_file_rejects_invalid(text):
     with pytest.raises(ReviewFileError):
         parse_review_file(text)
+
+
+def test_parse_review_file_skips_keyless_entries():
+    new, hide = parse_review_file(
+        'new:\n- {doi: "10.1/a"}\n- {doi: null, identifiers: {}}\n'
+        'hide:\n- {doi: null, title: x}\n- {doi: "10.1101/b"}\n')
+    assert new == {'10.1/a'}
+    assert hide == {'10.1101/b'}
 
 
 # apply_merged
@@ -366,3 +373,88 @@ def test_process_pr_already_decided_is_noop(academic_user, scenario, gh):
     assert process_pr(batch, gh, REPO, LATER) is None
     assert snapshot() == before
     assert len(responses.calls) == 0
+
+
+def _edit_doi(text, old, new):
+    assert old in text
+    return text.replace(old, new)
+
+
+def test_edited_new_key_leaves_unkept_pubs_pending(academic_user, scenario):
+    text = _edit_doi(scenario['text'], '10.1000/keep', '10.1000/edited')
+    decisions = apply_merged(scenario['batch'], text, LATER)
+    for key in ('keep', 'drop'):
+        pub = Publication.objects.get(pk=scenario[key].pk)
+        assert pub.review_status == 'pending'
+    assert RejectedWork.objects.count() == 0
+    assert decisions.unmatched == ['10.1000/edited']
+    assert sorted(decisions.undecided) == sorted(
+        [scenario['keep'].pk, scenario['drop'].pk])
+    assert decisions.approved == [] and decisions.rejected == []
+    # hide entries still matched: decided normally
+    assert status_of(scenario['hide_prop']) == 'confirmed'
+    assert status_of(scenario['keep_prop']) == 'pending'
+    assert scenario['keep_pp'].pk in decisions.undecided
+    assert ReviewBatch.objects.get(pk=scenario['batch'].pk).status == 'merged'
+
+
+def test_edited_hide_key_leaves_proposal_pending(academic_user, scenario):
+    text = _edit_doi(scenario['text'], '10.1101/hide', '10.1101/edited')
+    decisions = apply_merged(scenario['batch'], text, LATER)
+    assert status_of(scenario['hide_prop']) == 'pending'
+    assert status_of(scenario['keep_prop']) == 'pending'
+    assert Publication.objects.get(pk=scenario['hide_pp'].pk).is_ignored is False
+    assert decisions.unmatched == ['10.1101/edited']
+    assert decisions.hidden == [] and decisions.kept == []
+    assert Publication.objects.get(pk=scenario['keep'].pk).review_status == (
+        'approved')
+    assert Publication.objects.get(pk=scenario['drop'].pk).review_status == (
+        'pending')
+    assert sorted(decisions.undecided) == sorted([
+        scenario['hide_pp'].pk, scenario['keep_pp'].pk, scenario['drop'].pk])
+
+
+def test_no_unmatched_keys_means_empty_lists(academic_user, scenario):
+    decisions = apply_merged(scenario['batch'], scenario['text'], LATER)
+    assert decisions.unmatched == [] and decisions.undecided == []
+
+
+def _hide_only_batch(user, published):
+    preprint = make_preprint(user, '10.1101/pre')
+    proposal = make_proposal(user, preprint, published)
+    batch = make_batch(user, [], [proposal])
+    return preprint, proposal, batch, review_yaml([], [proposal])
+
+
+def test_hide_rejected_when_published_target_ignored(academic_user):
+    published = PublicationFactory(owner=academic_user, doi='10.1000/j',
+                                   review_status='approved', is_ignored=True)
+    preprint, proposal, batch, text = _hide_only_batch(
+        academic_user, published)
+    decisions = apply_merged(batch, text, LATER)
+    assert status_of(proposal) == 'rejected'
+    assert Publication.objects.get(pk=preprint.pk).is_ignored is False
+    assert decisions.kept == [preprint.pk]
+
+
+def test_hide_rejected_when_target_pending_outside_batch(academic_user):
+    published = make_pending(academic_user, '10.1000/j')
+    preprint, proposal, batch, text = _hide_only_batch(
+        academic_user, published)
+    decisions = apply_merged(batch, text, LATER)
+    assert status_of(proposal) == 'rejected'
+    assert Publication.objects.get(pk=preprint.pk).is_ignored is False
+    assert decisions.kept == [preprint.pk]
+    assert Publication.objects.get(pk=published.pk).review_status == 'pending'
+
+
+def test_unexpected_value_error_propagates(academic_user, scenario,
+                                           monkeypatch):
+    def boom(pub):
+        raise ValueError('something else')
+
+    monkeypatch.setattr('academic.publish.decisions.approve_pending', boom)
+    before = snapshot()
+    with pytest.raises(ValueError):
+        apply_merged(scenario['batch'], scenario['text'], LATER)
+    assert snapshot() == before
