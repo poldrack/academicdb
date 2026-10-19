@@ -601,3 +601,38 @@ def test_doi_matching_an_erratum_reported_not_enriched(user, config, library):
     assert {'id': known.pk, 'doi': KNOWN_DOI, 'field': 'doi', 'ours': KNOWN_DOI,
             'theirs': f'erratum: Erratum: {KNOWN_TITLE}',
             'source': 'openalex'} in report.discrepancies
+
+
+# --- Plan 3 task 1: CrossRef prefetch --------------------------------------
+
+@responses.activate
+def test_crossref_fetched_before_any_write(user, config, library, monkeypatch):
+    import academic.sync.run as run_module
+    log, looked_up = [], []
+    real_lookup, real_write = run_module.published_dois_for_preprint, run_module._write
+
+    def lookup(doi):
+        log.append('crossref')
+        looked_up.append(doi)
+        return real_lookup(doi)
+
+    def write(*args, **kwargs):
+        log.append('write')
+        return real_write(*args, **kwargs)
+
+    monkeypatch.setattr(run_module, 'published_dois_for_preprint', lookup)
+    monkeypatch.setattr(run_module, '_write', write)
+    register_all()
+    run(user, config)
+    assert 'crossref' in log and 'write' in log
+    assert log.index('write') > max(i for i, x in enumerate(log) if x == 'crossref')
+    assert PREPRINT_DOI in looked_up
+
+
+@responses.activate
+def test_crossref_failure_recorded_once_and_sync_continues(user, config, library):
+    register_openalex(base_works())
+    register_ncbi(crossref_status=500)
+    report = run(user, config)
+    assert len([e for e in report.errors if e.startswith('crossref:')]) == 1
+    assert pending(user).count() == 1

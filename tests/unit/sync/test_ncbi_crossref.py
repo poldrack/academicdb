@@ -336,3 +336,17 @@ def test_pubmed_journal_article_not_excluded():
     c = pubmed.parse_pubmed_article(typed_article('Journal Article', 'Review'))
     assert not is_excluded(c)
     assert c.publication_type == 'journal-article'
+
+
+@responses.activate
+def test_idconv_uses_new_endpoint_and_one_id_type_per_request():
+    assert idconv.IDCONV == 'https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/'
+    responses.add(responses.GET, lookup_url(), json={'records': [
+        {'requested-id': '10.1/a', 'pmid': '1', 'pmcid': 'PMC1'},
+        {'requested-id': '123', 'pmid': '123', 'pmcid': 'PMC123'}]})
+    out = idconv.lookup_pmcids(['10.1/a', '123', '10.1/b'], 'e@x')
+    assert len(responses.calls) == 2
+    params = {c.request.params['idtype']: c.request.params['ids']
+              for c in responses.calls}
+    assert params == {'doi': '10.1/a,10.1/b', 'pmid': '123'}
+    assert set(out) == {'10.1/a', '123'}

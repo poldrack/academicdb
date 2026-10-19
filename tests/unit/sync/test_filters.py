@@ -290,3 +290,12 @@ def test_published_version_of_existing_preprint_kept(academic_user):
     known = KnownWorks.from_db(academic_user)
     journal = make(doi='10.1002/hbm.1', title='Deep Models of Rest')
     assert select_new([journal], known, CUTOFF) == [journal]
+
+
+def test_research_square_versions_collapse():
+    from academic.tombstones import doi_key
+    base = '10.21203/rs.3.rs-1234567'
+    assert doi_key(f'{base}/v2') == base
+    out = collapse_versions([make(doi=f'{base}/{v}') for v in ('v1', 'v3', 'v2')])
+    assert [c.doi for c in out] == [f'{base}/v3']
+    assert doi_key('10.5555/abc/v2') == '10.5555/abc/v2'
