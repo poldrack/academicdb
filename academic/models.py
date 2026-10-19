@@ -3041,3 +3041,30 @@ class PreprintHideProposal(models.Model):
 
     class Meta:
         unique_together = ('preprint', 'published')
+
+
+class ReviewBatch(models.Model):
+    """A batch of pending items submitted for review as one pull request."""
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('merged', 'Merged'),
+        ('closed', 'Closed'),
+    ]
+
+    owner = models.ForeignKey(AcademicUser, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    pr_number = models.PositiveIntegerField(null=True, unique=True)
+    branch = models.CharField(max_length=100)
+    path = models.CharField(max_length=200)
+    opened_at = models.DateTimeField()
+    decided_at = models.DateTimeField(null=True)
+    reminded_at = models.DateTimeField(null=True)
+    publications = models.ManyToManyField(
+        Publication, related_name='review_batches'
+    )
+    proposals = models.ManyToManyField(
+        PreprintHideProposal, related_name='review_batches'
+    )
+
+    def __str__(self):
+        return f"ReviewBatch PR #{self.pr_number} ({self.status})"

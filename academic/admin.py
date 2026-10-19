@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils import timezone
 import json
-from .models import AcademicUser, Publication, AuthorCache, ProfessionalActivity, APIRecordCache
+from .models import AcademicUser, Publication, AuthorCache, ProfessionalActivity, APIRecordCache, ReviewBatch
 
 
 @admin.register(AcademicUser)
@@ -579,3 +579,8 @@ class ProfessionalActivityAdmin(admin.ModelAdmin):
         """Optimize queryset with select_related"""
         qs = super().get_queryset(request)
         return qs.select_related('owner').order_by('-is_current', '-start_date')
+
+
+@admin.register(ReviewBatch)
+class ReviewBatchAdmin(admin.ModelAdmin):
+    list_display = ('pr_number', 'status', 'opened_at')
