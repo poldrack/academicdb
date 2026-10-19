@@ -1,4 +1,5 @@
 """Tests for opening the weekly review PR (GitHub mocked with responses)."""
+import base64
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -11,7 +12,7 @@ from academic.publish.batches import create_batch
 from academic.publish.github import GitHub, GitHubError
 from academic.publish.review_pr import (
     REVIEW_HEADER, open_review_pr, pr_body, pr_title, remind_if_stale,
-    review_yaml,
+    ReviewPRError, review_yaml,
 )
 from tests.factories import PublicationFactory
 
@@ -42,7 +43,12 @@ def make_proposal(user, method='crossref_relation', evidence=None):
         evidence=evidence or {'relation': 'is-preprint-of'})
 
 
-def mock_github(pr_number=7):
+def mock_github(pr_number=7, existing_sha=None):
+    url = f"{API}/repos/{REPO}/contents/review/2026-10-19.yml"
+    if existing_sha:
+        responses.get(url, json={"content": "eA==", "sha": existing_sha})
+    else:
+        responses.get(url, status=404)
     responses.get(f'{API}/repos/{REPO}/git/ref/heads/main',
                   json={'object': {'sha': 'abc'}})
     responses.post(f'{API}/repos/{REPO}/git/refs', json={}, status=201)
@@ -176,3 +182,64 @@ def test_remind_once_after_14_days(academic_user, gh):
     assert remind_if_stale(
         batch, gh, REPO, NOW + timedelta(days=20)) is False
     assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_create_batch_failure_after_pr_raises_review_pr_error(
+        academic_user, gh, monkeypatch):
+    make_pub(academic_user)
+    mock_github(pr_number=9)
+
+    def boom(*a, **k):
+        raise RuntimeError('db down')
+
+    monkeypatch.setattr('academic.publish.review_pr.create_batch', boom)
+    with pytest.raises(ReviewPRError) as err:
+        open_review_pr(academic_user, gh, REPO, NOW)
+    assert str(err.value) == (
+        'Review PR #9 was opened but its batch could not be saved; '
+        'close it by hand')
+    assert isinstance(err.value.__cause__, RuntimeError)
+    assert ReviewBatch.objects.count() == 0
+
+
+def test_create_batch_is_atomic(academic_user):
+    bad = PreprintHideProposal(owner=academic_user)
+    with pytest.raises(Exception):
+        create_batch(academic_user, 3, 'b', 'p', [], [bad], NOW)
+    assert ReviewBatch.objects.count() == 0
+
+
+@responses.activate
+def test_retry_passes_sha_of_existing_file(academic_user, gh):
+    make_pub(academic_user)
+    mock_github(existing_sha='oldsha')
+    open_review_pr(academic_user, gh, REPO, NOW)
+    put = [c for c in responses.calls if c.request.method == 'PUT'][0]
+    assert json.loads(put.request.body)['sha'] == 'oldsha'
+
+
+@responses.activate
+def test_pr_body_capped_and_review_file_complete(academic_user, gh):
+    for i in range(400):
+        make_pub(academic_user, title=f'Paper {i} ' + 'x' * 200)
+    mock_github()
+    open_review_pr(academic_user, gh, REPO, NOW)
+    pr = [c for c in responses.calls if c.request.url.endswith('/pulls')][0]
+    body = json.loads(pr.request.body)['body']
+    assert len(body) <= 60000
+    assert body.endswith('…list truncated; the review file has every item.')
+    put = [c for c in responses.calls if c.request.method == 'PUT'][0]
+    text = base64.b64decode(json.loads(put.request.body)['content']).decode()
+    assert len(yaml.safe_load(text)['new']) == 400
+
+
+def test_remind_ignores_closed_batch(academic_user, gh):
+    batch = create_batch(academic_user, 7, 'b', 'p', [], [], NOW)
+    batch.status = 'closed'
+    batch.save()
+    with responses.RequestsMock():
+        assert remind_if_stale(
+            batch, gh, REPO, NOW + timedelta(days=30)) is False
+    batch.refresh_from_db()
+    assert batch.reminded_at is None
