@@ -31,6 +31,8 @@ class Decisions:
     rejected: list[int] = field(default_factory=list)
     hidden: list[int] = field(default_factory=list)
     kept: list[int] = field(default_factory=list)
+    unmatched: list[str] = field(default_factory=list)
+    undecided: list[int] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -56,16 +58,13 @@ def _section_keys(data, name):
     entries = data.get(name)
     if not isinstance(entries, list):
         raise ReviewFileError(f'Review file needs a "{name}" list')
-    keys = set()
-    for entry in entries:
-        key = record_key(entry) if isinstance(entry, dict) else ''
-        if not key:
-            raise ReviewFileError(f'Unidentifiable entry under "{name}"')
-        keys.add(key)
-    return keys
+    if not all(isinstance(entry, dict) for entry in entries):
+        raise ReviewFileError(f'Non-mapping entry under "{name}"')
+    return {record_key(entry) for entry in entries} - {''}
 
 
 def parse_review_file(text):
+    """Return the record keys under "new" and "hide"; keyless entries skip."""
     data = _load(text)
     new, hide = (_section_keys(data, name) for name in SECTIONS)
     return new, hide
@@ -77,48 +76,132 @@ def _pub_key(pub):
     return record_key(site_record(pub))
 
 
+@dataclass
+class _Plan:
+    pub_keys: dict
+    items: list
+    preprint_keys: dict
+    new: set = field(default_factory=set)
+    hide: set = field(default_factory=set)
+    unmatched: list = field(default_factory=list)
+
+    def kept(self, pub_id):
+        return self.pub_keys[pub_id] in self.new
+
+    def pub_on_hold(self, pub_id):
+        return bool(self.unmatched) and not self.kept(pub_id)
+
+    def proposal_on_hold(self, item):
+        if not self.unmatched:
+            return False
+        if self.preprint_keys[item.preprint_id] not in self.hide:
+            return True
+        return (item.published_id in self.pub_keys
+                and self.pub_on_hold(item.published_id))
+
+
 def _snapshot(batch):
     pubs = list(batch.publications.order_by('id'))
     proposals = list(batch.proposals.select_related('preprint')
                      .order_by('id'))
-    pub_keys = {p.id: _pub_key(p) for p in pubs}
-    items = [_ProposalItem(p.id, p.preprint_id, p.published_id)
-             for p in proposals]
-    preprint_keys = {p.preprint_id: _pub_key(p.preprint) for p in proposals}
-    return pub_keys, items, preprint_keys
+    return _Plan(
+        pub_keys={p.id: _pub_key(p) for p in pubs},
+        items=[_ProposalItem(p.id, p.preprint_id, p.published_id)
+               for p in proposals],
+        preprint_keys={p.preprint_id: _pub_key(p.preprint)
+                       for p in proposals},
+    )
 
 
-# Individual decisions (skip what was decided elsewhere)
+def _with_file(plan, new, hide):
+    plan.new, plan.hide = new, hide
+    plan.unmatched = sorted((new - set(plan.pub_keys.values()))
+                            | (hide - set(plan.preprint_keys.values())))
+    return plan
 
-def _try(transition, model, pk, *args):
-    obj = model.objects.filter(pk=pk).first()
-    if obj is None:
+
+# Re-fetching (an item gone or no longer pending was decided elsewhere)
+
+def _locked(model, pk):
+    return model.objects.select_for_update().filter(pk=pk).first()
+
+
+def _pending_pub(pk):
+    pub = _locked(Publication, pk)
+    return pub if pub and pub.review_status == 'pending' else None
+
+
+def _pending_proposal(pk):
+    proposal = _locked(PreprintHideProposal, pk)
+    return proposal if proposal and proposal.status == 'pending' else None
+
+
+# Individual decisions
+
+def _target_ok(item, plan):
+    """The published target will be visible once this batch is decided."""
+    target = Publication.objects.filter(pk=item.published_id).first()
+    if target is None or target.is_ignored:
         return False
-    try:
-        transition(obj, *args)
-    except ValueError:
-        return False
-    return True
+    if item.published_id in plan.pub_keys:
+        return plan.kept(item.published_id) and target.review_status in (
+            'approved', 'pending')
+    return target.review_status == 'approved'
 
 
-def _hide(item, now, decisions):
-    if _try(confirm_hide, PreprintHideProposal, item.id, now):
+def _decide_hide(item, plan, now, decisions):
+    proposal = _pending_proposal(item.id)
+    if proposal is None:
+        return
+    wanted = plan.preprint_keys[item.preprint_id] in plan.hide
+    if wanted and _target_ok(item, plan):
+        confirm_hide(proposal, now)
         decisions.hidden.append(item.preprint_id)
-
-
-def _keep(item, now, decisions):
-    if _try(reject_hide, PreprintHideProposal, item.id, now):
+    else:
+        reject_hide(proposal, now)
         decisions.kept.append(item.preprint_id)
 
 
-def _approve(pub_id, decisions):
-    if _try(approve_pending, Publication, pub_id):
+def _decide_pub(pub_id, plan, decisions):
+    pub = _pending_pub(pub_id)
+    if pub is None:
+        return
+    if plan.kept(pub_id):
+        approve_pending(pub)
         decisions.approved.append(pub_id)
-
-
-def _reject(pub_id, decisions):
-    if _try(reject_pending, Publication, pub_id):
+    else:
+        reject_pending(pub)
         decisions.rejected.append(pub_id)
+
+
+def _hold_hide(item, decisions):
+    if _pending_proposal(item.id) is not None:
+        decisions.undecided.append(item.preprint_id)
+
+
+def _hold_pub(pub_id, decisions):
+    if _pending_pub(pub_id) is not None:
+        decisions.undecided.append(pub_id)
+
+
+def _decide_merged(plan, now):
+    decisions = Decisions(unmatched=list(plan.unmatched))
+    for item in plan.items:
+        if plan.proposal_on_hold(item):
+            _hold_hide(item, decisions)
+        else:
+            _decide_hide(item, plan, now, decisions)
+    for pub_id in plan.pub_keys:
+        if plan.pub_on_hold(pub_id):
+            _hold_pub(pub_id, decisions)
+        else:
+            _decide_pub(pub_id, plan, decisions)
+    return decisions
+
+
+def _decide_closed(plan, now):
+    """Closing rejects everything: an empty file with nothing unmatched."""
+    return _decide_merged(_with_file(plan, set(), set()), now)
 
 
 # Batch-level application
@@ -136,43 +219,12 @@ def _finish(batch, fresh, status, now):
     batch.status, batch.decided_at = status, now
 
 
-def _hide_wanted(item, pub_keys, preprint_keys, new, hide):
-    if item.published_id in pub_keys and pub_keys[item.published_id] not in new:
-        return False
-    return preprint_keys[item.preprint_id] in hide
-
-
-def _decide_merged(snapshot, new, hide, now):
-    pub_keys, items, preprint_keys = snapshot
-    decisions = Decisions()
-    for item in items:
-        if _hide_wanted(item, pub_keys, preprint_keys, new, hide):
-            _hide(item, now, decisions)
-        else:
-            _keep(item, now, decisions)
-    for pub_id, key in pub_keys.items():
-        if key in new:
-            _approve(pub_id, decisions)
-        else:
-            _reject(pub_id, decisions)
-    return decisions
-
-
-def _decide_closed(snapshot, now):
-    pub_keys, items, _ = snapshot
-    decisions = Decisions()
-    for item in items:
-        _keep(item, now, decisions)
-    for pub_id in pub_keys:
-        _reject(pub_id, decisions)
-    return decisions
-
-
 def apply_merged(batch, text, now):
     new, hide = parse_review_file(text)
     with transaction.atomic():
         fresh = _lock_open(batch)
-        decisions = _decide_merged(_snapshot(fresh), new, hide, now)
+        plan = _with_file(_snapshot(fresh), new, hide)
+        decisions = _decide_merged(plan, now)
         _finish(batch, fresh, 'merged', now)
     return decisions
 

@@ -2,6 +2,7 @@
 from django.db import transaction
 
 from academic.models import Publication, PreprintHideProposal, ReviewBatch
+from academic.publish.site_yaml import record_key, site_record
 
 
 def open_batch(user):
@@ -13,15 +14,24 @@ def open_batch(user):
     )
 
 
+def _has_key(pub):
+    return bool(record_key(site_record(pub)))
+
+
 def reviewable_items(user):
-    """Return (pending publications, pending hide proposals), ordered by id."""
+    """Return (pending publications, pending hide proposals), ordered by id.
+
+    Items with no record key (no DOI and no PMID) cannot be matched back
+    from the review file, so they are left out and stay pending.
+    """
     pubs = Publication.objects.filter(
         owner=user, review_status='pending', is_ignored=False
     ).order_by('id')
     proposals = PreprintHideProposal.objects.filter(
         owner=user, status='pending'
-    ).order_by('id')
-    return list(pubs), list(proposals)
+    ).select_related('preprint').order_by('id')
+    return ([p for p in pubs if _has_key(p)],
+            [p for p in proposals if _has_key(p.preprint)])
 
 
 def create_batch(user, pr_number, branch, path, pubs, proposals, now):

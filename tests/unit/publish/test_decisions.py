@@ -389,7 +389,7 @@ def test_edited_new_key_leaves_unkept_pubs_pending(academic_user, scenario):
     assert RejectedWork.objects.count() == 0
     assert decisions.unmatched == ['10.1000/edited']
     assert sorted(decisions.undecided) == sorted(
-        [scenario['keep'].pk, scenario['drop'].pk])
+        [scenario['keep'].pk, scenario['drop'].pk, scenario['keep_pp'].pk])
     assert decisions.approved == [] and decisions.rejected == []
     # hide entries still matched: decided normally
     assert status_of(scenario['hide_prop']) == 'confirmed'
@@ -458,3 +458,18 @@ def test_unexpected_value_error_propagates(academic_user, scenario,
     with pytest.raises(ValueError):
         apply_merged(scenario['batch'], scenario['text'], LATER)
     assert snapshot() == before
+
+
+def test_hide_waits_when_published_target_is_held(academic_user):
+    published = make_pending(academic_user, '10.1000/journal')
+    other = make_pending(academic_user, '10.1000/other')
+    preprint = make_preprint(academic_user, '10.1101/pre')
+    proposal = make_proposal(academic_user, preprint, published)
+    batch = make_batch(academic_user, [published, other], [proposal])
+    text = _edit_doi(review_yaml([other], [proposal]),
+                     '10.1000/other', '10.1000/edited')
+    decisions = apply_merged(batch, text, LATER)
+    assert status_of(proposal) == 'pending'
+    assert Publication.objects.get(pk=published.pk).review_status == 'pending'
+    assert sorted(decisions.undecided) == sorted(
+        [published.pk, other.pk, preprint.pk])
