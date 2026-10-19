@@ -26,10 +26,7 @@ def _identifiers(pub):
 
 
 def _links(pub, resources):
-    links = {k: v for k, v in (pub.links or {}).items() if v}
-    if resources:
-        links['resources'] = list(resources)
-    return links
+    return {'resources': list(resources)} if resources else {}
 
 
 def site_record(pub, resources=()):
@@ -54,9 +51,11 @@ def site_record(pub, resources=()):
 def _resources_by_doi(user):
     grouped = defaultdict(list)
     for link in Link.objects.filter(owner=user).order_by('type', 'url'):
-        grouped[link.doi.lower()].append(
-            {'type': link.type, 'url': link.url, 'title': link.title}
-        )
+        key = doi_key(link.doi)
+        if key:
+            grouped[key].append(
+                {'type': link.type, 'url': link.url, 'title': link.title}
+            )
     return grouped
 
 
@@ -81,7 +80,7 @@ def _publications(user, include_pending):
 def site_records(user, include_pending=False):
     pubs = _publications(user, include_pending)
     resources = _resources_by_doi(user)
-    return [site_record(p, resources.get((p.doi or '').lower(), ())) for p in pubs]
+    return [site_record(p, resources.get(doi_key(p.doi), ())) for p in pubs]
 
 
 def render_site_yaml(records):
