@@ -585,3 +585,19 @@ def test_pending_fields_truncated_to_max_length(user, config, library, name, lim
     run(user, config)
     full = f'1-{long}' if name == 'page_range' else long
     assert getattr(pending(user).get(), name) == full[:limit]
+
+
+@responses.activate
+def test_doi_matching_an_erratum_reported_not_enriched(user, config, library):
+    erratum = known_work()
+    erratum.update(type='erratum', title=f'Erratum: {KNOWN_TITLE}')
+    register_all(works=[w for w in base_works() if w['id'] != erratum['id']]
+                 + [erratum])
+    report = run(user, config)
+    known = Publication.objects.get(pk=library['known'].pk)
+    assert known.identifiers == {'pmid': '111'}
+    assert 'oa_url' not in known.metadata
+    assert not any(e['id'] == known.pk for e in report.enriched)
+    assert {'id': known.pk, 'doi': KNOWN_DOI, 'field': 'doi', 'ours': KNOWN_DOI,
+            'theirs': f'erratum: Erratum: {KNOWN_TITLE}',
+            'source': 'openalex'} in report.discrepancies
