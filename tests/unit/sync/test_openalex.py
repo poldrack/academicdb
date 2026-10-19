@@ -230,3 +230,16 @@ def _loc(kind):
 def test_parse_work_flags_repository_only(kinds, expected):
     work = make_work(locations=[_loc(k) for k in kinds])
     assert openalex.parse_work(work).repository_only is expected
+
+
+@pytest.mark.parametrize('raw,expected', [
+    ('Chen, Zijiao', 'Chen, Zijiao'),
+    ('Chen,Zijiao', 'Chen, Zijiao'),
+    ('Smith,', 'Smith'),
+    ('Russell A. Poldrack', 'Poldrack, Russell A.'),
+    ('Thomas', 'Thomas'),
+])
+def test_parse_work_author_name_forms(raw, expected):
+    work = make_work(authorships=[{'raw_author_name': raw}])
+    parsed = openalex.parse_work(work)
+    assert parsed.authors == [{'name': expected}]
