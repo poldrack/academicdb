@@ -1,0 +1,27 @@
+name: Notify academicdb of closed review PR
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  dispatch:
+    if: startsWith(github.event.pull_request.head.ref, 'academicdb/review-')
+    runs-on: ubuntu-latest
+    steps:
+    - name: Mint GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: poldrack
+        repositories: academicdb
+    - name: Dispatch review-pr-closed
+      run: >-
+        gh api repos/poldrack/academicdb/dispatches
+        -f event_type=review-pr-closed
+        -F "client_payload[pr]=$PR_NUMBER"
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}

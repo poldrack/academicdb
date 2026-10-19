@@ -1,0 +1,103 @@
+---
+title: "Poldracklab Publications"
+format:
+  html:
+    page-layout: full
+---
+
+```{python}
+#| echo: false
+#| output: asis
+#| warning: false
+#| message: false
+
+# this code reads publications from publications.yml and formats them for display
+from datetime import date
+import yaml
+from pathlib import Path
+import os
+
+# Read publications from YAML file
+yaml_file = Path('publications.yml')
+
+if not yaml_file.exists():
+    raise FileNotFoundError(
+        f'Publications YAML file not found at {yaml_file}'
+    )
+
+with open(yaml_file) as f:
+    data = yaml.safe_load(f)
+
+publications = data['publications']
+
+# Group publications by year (descending)
+pubs_by_year = {}
+for pub in publications:
+    if pub.get('is_ignored', False):
+        continue
+    year = pub.get('year', 'Unknown')
+    if year not in pubs_by_year:
+        pubs_by_year[year] = []
+    pubs_by_year[year].append(pub)
+
+# Sort years in descending order
+sorted_years = sorted(pubs_by_year.keys(), reverse=True)
+
+# Format and print publications
+for year in sorted_years:
+    print(f'\n## {year}\n')
+    for pub in pubs_by_year[year]:
+        # Format authors
+        authors = pub.get('authors', [])
+        if authors:
+            author_names = [author.get('name', '') for author in authors]
+            author_str = ', '.join(author_names)
+        else:
+            author_str = ''
+
+        # Get title
+        title = pub.get('title', 'Untitled')
+
+        # Get publication venue
+        venue = pub.get('publication_name', '')
+
+        # Build publication string
+        pub_parts = []
+        if author_str:
+            pub_parts.append(author_str)
+
+        # Add title with link if DOI exists
+        doi = pub.get('doi', '')
+        if doi:
+            pub_parts.append(f'[{title}](https://doi.org/{doi})')
+        else:
+            pub_parts.append(f'*{title}*')
+
+        # Add venue info
+        venue_parts = []
+        if venue:
+            if pub.get('is_preprint', False):
+                venue_parts.append(f'{venue} (preprint)')
+            else:
+                venue_parts.append(venue)
+
+        volume = pub.get('volume')
+        if volume:
+            venue_parts.append(f'*{volume}*')
+
+        page_range = pub.get('page_range')
+        if page_range:
+            venue_parts.append(page_range)
+
+        if venue_parts:
+            pub_parts.append(', '.join(venue_parts))
+
+        # Print the publication
+        print('- ' + '. '.join(pub_parts) + '.')
+        print()
+
+print('\ \n\ \n')
+print(f'*Updated: {date.today()} - generated from academicdb*')
+
+
+```

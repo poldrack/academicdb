@@ -1,0 +1,114 @@
+---
+title: "Poldracklab Software and Data"
+format:
+  html:
+    page-layout: full
+---
+
+
+Our lab endeavors to make all of our research code openly available. None of this code is guaranteed to work outside of our local environment, and most of it is not built for portability, but if you use it and find any bugs, please let us know. Unless otherwise noted, all code is released under the unrestrictive [MIT License](http://opensource.org/licenses/MIT)
+
+For additional information on our organized software development projects,
+see [Informatics projects](projects.md#informatics-projects).
+
+## Github repositories
+
+The Poldrack lab manages several GitHub organizations:
+
+- [Poldrack Lab at Stanford](https://github.com/poldracklab)
+- [OpenNeuro.org](https://github.com/OpenNeuroOrg)
+- [The Experiment Factory](https://github.com/expfactory)
+- [The Cognitive Atlas](https://github.com/CognitiveAtlas)
+
+We are currently or have been heavily involved in the following organizations:
+
+- [Brain Imaging Data Structure](https://github.com/bids-standard)
+- [NeuroVault](https://github.com/neurovault)
+- [NiPreps](https://github.com/nipreps)
+- [TemplateFlow](https://github.com/templateflow)
+
+We also contribute to greater and lesser extents to many other projects, including:
+
+- [The Nipy community](https://github.com/nipy)
+- [Nipype](https://github.com/nipype)
+- [Nilearn](https://github.com/nilearn)
+
+For individual members' GitHub profiles, see [Lab members](people.md).
+
+## Software for tasks used in lab publications
+- Many of our recent tasks are housed in the [Experiment Factory](https://expfactory.github.io/)
+- [mixed gambles task](http://web.stanford.edu/group/poldracklab/software/mixed_gambles_task.zip) (demo and scanning script from task used in Tom et al., 2007)
+
+## Task software used in Consortium for Neuropsychiatric Phenomics (CNP)
+  - ​Users of these tasks should include the following acknowledgment in any resulting publications: Development of this software was supported by the Consortium for Neuropsychiatric Phenomics (NIH Roadmap for Medical Research grants UL1-DE019580, RL1MH083269, RL1DA024853, PL1MH083271.
+  - [Balloon Analog Risk task](http://web.stanford.edu/group/poldracklab/software/BART.zip) (demo and scanning script)
+  - [Breath holding task](http://web.stanford.edu/group/poldracklab/software/BHT.zip)
+  - Paired Associate Memory
+  - [Spatial working memory capacity](http://web.stanford.edu/group/poldracklab/software/SCAP.zip)
+  - [Stop Signal task](http://web.stanford.edu/group/poldracklab/software/STOPSIG.zip)
+  - [Task switching](http://web.stanford.edu/group/poldracklab/software/TASKSWITCH.zip)
+
+
+## Data/code/OSF pages for published papers
+
+```{python}
+#| echo: false
+#| output: asis
+#| warning: false
+#| message: false
+
+import yaml
+import os
+
+pubfile = 'publications.yml'
+
+with open(pubfile) as f:
+    data = yaml.safe_load(f)
+
+# filter to publications that have resource links
+pubs_with_links = [
+    pub for pub in data['publications']
+    if pub.get('links') and pub['links'].get('resources')
+]
+
+# sort by year descending, then by title
+pubs_with_links.sort(key=lambda p: (-p.get('year', 0), p.get('title', '')))
+
+
+def format_authors(authors):
+    names = [a['name'] for a in authors]
+    if len(names) > 5:
+        return ', '.join(names[:5]) + ', et al.'
+    return ', '.join(names)
+
+
+def format_publication(pub):
+    authors = format_authors(pub.get('authors', []))
+    title = pub.get('title', '').rstrip('.')
+    journal = pub.get('publication_name', '')
+    year = pub.get('year', '')
+    output = f'{authors} ({year}). {title}. *{journal}*.'
+
+    # DOI link
+    doi = pub.get('doi')
+    if doi and 'nodoi' not in doi:
+        output += f' [DOI](https://doi.org/{doi})'
+
+    # PMC link
+    pmcid = pub.get('identifiers', {}).get('pmcid')
+    if pmcid:
+        output += f' [PMC](https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid})'
+
+    # Resource links (Data, Code, OSF)
+    resources = pub.get('links', {}).get('resources', [])
+    link_map = {r['type']: r['url'] for r in resources}
+    for link_type in ['Data', 'Code', 'OSF']:
+        if link_type in link_map and link_map[link_type]:
+            output += f' [{link_type}]({link_map[link_type]})'
+
+    return output
+
+
+lines = [format_publication(pub) for pub in pubs_with_links]
+print('\n\n'.join(lines))
+```

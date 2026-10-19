@@ -1,0 +1,73 @@
+name: Render quarto website
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render_site:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.10' 
+    - name: Install GDebi first
+      run: sudo apt-get install gdebi-core
+    - name: Download the deb file
+      run: sudo curl -LO https://quarto.org/download/latest/quarto-linux-amd64.deb 
+    - name: Install the deb file
+      run: sudo apt-get install -y ./quarto-linux-amd64.deb
+    - name: Verify Install
+      run: /usr/local/bin/quarto check
+    - name: Install quarto deps
+      run: pip install nbformat nbclient ipykernel jupyter tomli biopython scholarly crossrefapi toml pymongo orcid pyyaml
+    - name: Install academicdb
+      run: pip install academicdb
+    - name: decrypt config file
+      run: ./decrypt_secret.sh
+      continue-on-error: true
+      env:
+        CONFIG_SECRET_PASSPHRASE: ${{ secrets.CONFIG_SECRET_PASSPHRASE }}
+    - name: decrypt pybliometrics config file
+      run: ./decrypt_pyb_config.sh
+      continue-on-error: true
+      env:
+        TOKEN_PASSCODE: ${{ secrets.TOKEN_PASSCODE }}
+    - name: Allow Python code to fail on forked PRs
+      run: |
+        if [ "$REPO_OWNER" != "poldracklab" ]; then
+          echo "POLDRACKLAB_IGNORE_FAILURE=1" | tee -a $GITHUB_ENV
+        fi
+      env:
+        REPO_OWNER: ${{ github.event.pull_request.head.repo.owner.login }}
+    - name: build site
+      run: quarto render .
+    - name: Upload Pages artifact
+      if: github.event_name == 'push'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: docs
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: render_site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
