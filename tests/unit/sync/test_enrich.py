@@ -176,3 +176,16 @@ def test_authors_are_copied_not_aliased(academic_user):
     apply_enrichment(pub, c)
     assert pub.authors == c.authors
     assert pub.authors is not c.authors
+
+
+def test_no_discrepancy_for_manually_edited_field(academic_user):
+    pub = make_pub(academic_user, title='Owner chosen title',
+                   publication_name='Owner Journal', identifiers={'pmid': '1'},
+                   manual_edits={'title': True, 'publication_name': True,
+                                 'identifiers': True})
+    c = make(title='Other title', publication_name='Other Journal', pmid='2')
+    result = plan_enrichment(pub, c)
+    fields = [d['field'] for d in result.discrepancies]
+    assert 'title' not in fields
+    assert 'publication_name' not in fields
+    assert 'identifiers.pmid' in fields

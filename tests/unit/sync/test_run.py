@@ -299,6 +299,7 @@ def test_idconv_fills_pmcid_without_openalex_match(user, config, library):
     known = Publication.objects.get(pk=library['known'].pk)
     assert known.identifiers == {'pmid': '111', 'pmcid': 'PMC999'}
     assert any(e['id'] == known.pk for e in report.enriched)
+    assert report.discrepancies == []
     lookups = [c for c in responses.calls if c.request.url.startswith(idconv.IDCONV)]
     requested = lookups[0].request.params['ids'].split(',')
     assert set(requested) == {KNOWN_DOI, PREPRINT_DOI, PUBLISHED_DOI}
@@ -321,8 +322,9 @@ def test_discrepancies_reported(user, config, library):
 def test_hand_edited_and_hidden_publications_untouched(user, config, library):
     hand = approved(
         user, doi='10.1000/hand.2023', title='Hand edited title by the owner',
-        year=2023, publication_date=date(2023, 4, 1), publication_name='Journal H',
-        volume='5', page_range='1-9', manual_edits={'title': True, 'volume': True},
+        year=2023, publication_date=None, publication_name='Journal H',
+        volume='5', page_range='1-9',
+        manual_edits={'title': True, 'volume': True, 'publication_date': True},
         identifiers={'pmid': '333', 'pmcid': 'PMC333', 'openalex': 'W6'},
         metadata={'oa_url': 'https://oa.example/hand', 'oa_status': 'gold'})
     hidden = approved(user, doi='10.1000/hidden.2023', year=2023,
@@ -346,9 +348,12 @@ def test_hand_edited_and_hidden_publications_untouched(user, config, library):
     ]
     register_all(works)
     before = [model_to_dict(Publication.objects.get(pk=p.pk)) for p in (hand, hidden)]
-    run(user, config)
+    report = run(user, config)
     after = [model_to_dict(Publication.objects.get(pk=p.pk)) for p in (hand, hidden)]
     assert after == before
+    assert after[0]['publication_date'] is None
+    # Ruling (fix round 1): owner-decided fields no longer produce discrepancies.
+    assert not [d for d in report.discrepancies if d['id'] == hand.pk]
 
 
 @responses.activate
@@ -380,6 +385,19 @@ def test_preprint_hide_proposed_not_applied(user, config, library):
 
 
 @responses.activate
+def test_location_index_prefers_published_candidate(user, config, library):
+    preprint_copy = oa_work(
+        'W8', '10.31234/osf.io/abcde', 'Preprint copy of the memory study', 2024,
+        '2024-06-01', type='preprint',
+        locations=[{'landing_page_url': f'https://doi.org/{PREPRINT_DOI}'}])
+    register_all(base_works() + [preprint_copy])
+    run(user, config)
+    proposal = PreprintHideProposal.objects.get(owner=user)
+    assert proposal.method == 'openalex_location'
+    assert proposal.published_id == library['published'].pk
+
+
+@responses.activate
 def test_crossref_failure_reported(user, config, library):
     register_openalex(base_works())
     register_ncbi(crossref_status=500)
@@ -392,7 +410,9 @@ def test_crossref_failure_reported(user, config, library):
 def test_second_run_is_noop(user, config, library):
     register_all()
     run(user, config)
+    proposals = PreprintHideProposal.objects.count()
     second = run(user, config)
+    assert PreprintHideProposal.objects.count() == proposals
     assert second.new_pending == []
     assert second.enriched == []
     assert second.proposed_hides == []
@@ -494,3 +514,28 @@ def test_unknown_orcid_is_command_error(user, tmp_path):
     with pytest.raises(CommandError, match='9999'):
         call_command('weekly_sync', '--orcid-id', '9999-9999-9999-9999',
                      '--report', str(tmp_path / 'r.json'))
+
+
+@responses.activate
+def test_openalex_failure_hides_secrets(user, library, tmp_path, capsys):
+    responses.add(responses.GET, WORKS_URL, status=500)
+    register_ncbi()
+    with pytest.raises(CommandError) as excinfo:
+        run_command(user, tmp_path)
+    texts = [str(excinfo.value), capsys.readouterr().out,
+             (tmp_path / 'report.json').read_text()]
+    for text in texts:
+        assert 'OAKEY' not in text
+        assert 'me@x.org' not in text
+
+
+def test_crash_removes_stale_report(user, tmp_path, monkeypatch):
+    report = tmp_path / 'report.json'
+    report.write_text('{"stale": true}')
+
+    def boom(*args, **kwargs):
+        raise RuntimeError('parse bug')
+    monkeypatch.setattr('academic.management.commands.weekly_sync.run_weekly_sync', boom)
+    with pytest.raises(RuntimeError):
+        call_command('weekly_sync', '--orcid-id', user.orcid_id, '--report', str(report))
+    assert not report.exists()
