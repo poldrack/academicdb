@@ -15,6 +15,12 @@ STALE_AFTER = timedelta(days=14)
 REMINDER = ('This review has been open for 14 days. '
             'New discoveries wait until it is merged or closed.')
 MAX_AUTHORS = 3
+MAX_BODY = 60000
+TRUNCATED = '…list truncated; the review file has every item.'
+
+
+class ReviewPRError(Exception):
+    """The PR was opened but its batch could not be recorded."""
 
 
 def _hide_entry(proposal):
@@ -102,7 +108,15 @@ def pr_body(pubs, proposals):
         lines += ['', '## Preprints to hide', '']
         for proposal in proposals:
             lines += _hide_lines(proposal)
-    return '\n'.join(lines) + '\n'
+    return _cap_body('\n'.join(lines) + '\n')
+
+
+def _cap_body(body):
+    if len(body) <= MAX_BODY:
+        return body
+    room = MAX_BODY - len(TRUNCATED) - 1
+    cut = body[:room].rsplit('\n', 1)[0]
+    return cut + '\n' + TRUNCATED
 
 
 def open_review_pr(user, gh, repo, now):
@@ -114,15 +128,28 @@ def open_review_pr(user, gh, repo, now):
     day = now.date().isoformat()
     branch, path = f'academicdb/review-{day}', f'review/{day}.yml'
     gh.create_branch(repo, branch)
+    existing = gh.get_file(repo, path, ref=branch)
     gh.put_file(repo, path, review_yaml(pubs, proposals),
-                'Add review file', branch=branch)
+                'Add review file', branch=branch,
+                sha=existing.sha if existing else None)
     number = gh.open_pr(repo, branch, pr_title(pubs, proposals),
                         pr_body(pubs, proposals))
-    return create_batch(user, number, branch, path, pubs, proposals, now)
+    return _record_batch(user, number, branch, path, pubs, proposals, now)
+
+
+def _record_batch(user, number, branch, path, pubs, proposals, now):
+    try:
+        return create_batch(user, number, branch, path, pubs, proposals, now)
+    except Exception as exc:
+        raise ReviewPRError(
+            f'Review PR #{number} was opened but its batch could not be '
+            'saved; close it by hand') from exc
 
 
 def remind_if_stale(batch, gh, repo, now):
-    if batch.reminded_at or now - batch.opened_at < STALE_AFTER:
+    if batch.status != 'open' or batch.reminded_at:
+        return False
+    if now - batch.opened_at < STALE_AFTER:
         return False
     gh.comment(repo, batch.pr_number, REMINDER)
     batch.reminded_at = now

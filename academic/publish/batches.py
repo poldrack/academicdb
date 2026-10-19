@@ -1,4 +1,6 @@
 """Review batch state: which pending items are out for review."""
+from django.db import transaction
+
 from academic.models import Publication, PreprintHideProposal, ReviewBatch
 
 
@@ -24,10 +26,11 @@ def reviewable_items(user):
 
 def create_batch(user, pr_number, branch, path, pubs, proposals, now):
     """Record a new open batch linking the given items."""
-    batch = ReviewBatch.objects.create(
-        owner=user, status='open', pr_number=pr_number,
-        branch=branch, path=path, opened_at=now,
-    )
-    batch.publications.set(pubs)
-    batch.proposals.set(proposals)
+    with transaction.atomic():
+        batch = ReviewBatch.objects.create(
+            owner=user, status='open', pr_number=pr_number,
+            branch=branch, path=path, opened_at=now,
+        )
+        batch.publications.set(pubs)
+        batch.proposals.set(proposals)
     return batch
