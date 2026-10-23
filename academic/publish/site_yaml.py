@@ -4,6 +4,7 @@ from collections import defaultdict
 import yaml
 
 from academic.models import Link, Publication
+from academic.publish.citations import format_publication
 from academic.tombstones import doi_key
 
 
@@ -31,7 +32,7 @@ def _links(pub, resources):
 
 def site_record(pub, resources=()):
     date = pub.publication_date
-    return {
+    record = {
         'doi': pub.doi,
         'title': pub.title,
         'year': pub.year,
@@ -46,6 +47,8 @@ def site_record(pub, resources=()):
         'links': _links(pub, resources),
         'oa_url': (pub.metadata or {}).get('oa_url'),
     }
+    record['citation'] = format_publication(record)
+    return record
 
 
 def _resources_by_doi(user):
