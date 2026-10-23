@@ -149,3 +149,16 @@ def test_lab_render_installs_pyyaml():
 def test_review_dispatch_workflow_has_no_default_permissions():
     path = SITES / 'personal' / '.github' / 'workflows' / 'review-dispatch.yml'
     assert load_workflow(path)['permissions'] == {}
+
+
+@pytest.mark.parametrize('site', ['personal', 'lab'])
+def test_publications_page_prints_yaml_citation_verbatim(
+        site, tmp_path, monkeypatch, capsys):
+    record = {'year': 2026, 'title': 'Ignored', 'citation': 'Smith J. *Exact text*.'}
+    (tmp_path / 'publications.yml').write_text(render_site_yaml([record]))
+    monkeypatch.chdir(tmp_path)
+    capsys.readouterr()
+    qmd = SITES / site / 'publications.qmd'
+    for block in python_blocks(qmd):
+        exec(compile(block, str(qmd), 'exec'), {'__name__': '__qmd__'})
+    assert '- Smith J. *Exact text*.\n' in capsys.readouterr().out
