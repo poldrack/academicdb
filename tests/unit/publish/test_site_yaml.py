@@ -14,7 +14,7 @@ from tests.factories import PublicationFactory
 FIELDS = [
     'doi', 'title', 'year', 'publication_date', 'publication_name',
     'publication_type', 'is_preprint', 'volume', 'page_range', 'authors',
-    'identifiers', 'links', 'oa_url',
+    'identifiers', 'links', 'oa_url', 'citation',
 ]
 
 
@@ -26,6 +26,18 @@ def make_pub(user, **kwargs):
 def test_record_has_exactly_the_site_fields_in_order(academic_user):
     record = site_record(make_pub(academic_user))
     assert list(record) == FIELDS
+
+
+def test_citation_is_formatted_from_the_record(academic_user):
+    pub = make_pub(
+        academic_user, title='A study.', doi='10.1/abc', publication_name='NeuroImage',
+        volume='12', page_range='1-10', publication_type='journal-article',
+        is_preprint=False,
+        authors=[{'name': 'Poldrack, Russell A'}, {'name': 'Smith J'}],
+    )
+    assert site_record(pub)['citation'] == (
+        'Poldrack RA, Smith J. [A study.](https://doi.org/10.1/abc) NeuroImage, *12*, 1-10.'
+    )
 
 
 def test_identifiers_keep_only_nonempty_pmid_and_pmcid(academic_user):

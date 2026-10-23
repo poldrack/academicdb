@@ -47,53 +47,8 @@ sorted_years = sorted(pubs_by_year.keys(), reverse=True)
 for year in sorted_years:
     print(f'\n## {year}\n')
     for pub in pubs_by_year[year]:
-        # Format authors
-        authors = pub.get('authors', [])
-        if authors:
-            author_names = [author.get('name', '') for author in authors]
-            author_str = ', '.join(author_names)
-        else:
-            author_str = ''
-
-        # Get title
-        title = pub.get('title', 'Untitled')
-
-        # Get publication venue
-        venue = pub.get('publication_name', '')
-
-        # Build publication string
-        pub_parts = []
-        if author_str:
-            pub_parts.append(author_str)
-
-        # Add title with link if DOI exists
-        doi = pub.get('doi', '')
-        if doi:
-            pub_parts.append(f'[{title}](https://doi.org/{doi})')
-        else:
-            pub_parts.append(f'*{title}*')
-
-        # Add venue info
-        venue_parts = []
-        if venue:
-            if pub.get('is_preprint', False):
-                venue_parts.append(f'{venue} (preprint)')
-            else:
-                venue_parts.append(venue)
-
-        volume = pub.get('volume')
-        if volume:
-            venue_parts.append(f'*{volume}*')
-
-        page_range = pub.get('page_range')
-        if page_range:
-            venue_parts.append(page_range)
-
-        if venue_parts:
-            pub_parts.append(', '.join(venue_parts))
-
-        # Print the publication
-        print('- ' + '. '.join(pub_parts) + '.')
+        # The citation is pre-formatted by academicdb (academic/publish/citations.py)
+        print('- ' + pub['citation'])
         print()
 
 print('\ \n\ \n')

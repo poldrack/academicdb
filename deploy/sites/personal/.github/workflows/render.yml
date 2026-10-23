@@ -19,8 +19,8 @@ jobs:
   render_site:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@v7
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.12'
     - uses: quarto-dev/quarto-actions/setup@v2
@@ -28,9 +28,11 @@ jobs:
       run: pip install pyyaml jupyter nbformat nbclient ipykernel
     - name: build site
       run: quarto render .
+    - name: Add Mastodon rel="me" link
+      run: python fix_mastodon_link.py
     - name: Upload Pages artifact
       if: github.event_name == 'push'
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v5
       with:
         path: docs
 
@@ -44,4 +46,4 @@ jobs:
     steps:
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5

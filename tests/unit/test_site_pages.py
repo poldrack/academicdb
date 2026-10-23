@@ -115,11 +115,15 @@ def test_personal_render_workflow():
     assert 'quarto-dev/quarto-actions/setup@v2' in text
     steps = wf['jobs']['render_site']['steps']
     upload = next(s for s in steps if 'upload-pages-artifact' in s.get('uses', ''))
-    assert upload['uses'] == 'actions/upload-pages-artifact@v3'
+    assert upload['uses'] == 'actions/upload-pages-artifact@v5'
     assert upload['with']['path'] == 'docs'
     deploy = wf['jobs']['deploy']
     assert deploy['if'] == "github.event_name == 'push'"
-    assert deploy['steps'][0]['uses'] == 'actions/deploy-pages@v4'
+    assert deploy['steps'][0]['uses'] == 'actions/deploy-pages@v5'
+    uses = {s['uses'].split('@')[0]: s['uses'] for s in steps if 'uses' in s}
+    assert uses['actions/checkout'] == 'actions/checkout@v7'
+    assert uses['actions/setup-python'] == 'actions/setup-python@v7'
+    assert any(s.get('run') == 'python fix_mastodon_link.py' for s in steps)
 
 
 def test_review_dispatch_workflow():
@@ -129,6 +133,7 @@ def test_review_dispatch_workflow():
     job = next(iter(wf['jobs'].values()))
     assert "startsWith(github.event.pull_request.head.ref, 'academicdb/review-')" in job['if']
     token = next(s for s in job['steps'] if 'create-github-app-token' in s.get('uses', ''))
+    assert token['uses'] == 'actions/create-github-app-token@v3'
     assert token['with']['owner'] == 'poldrack'
     assert token['with']['repositories'] == 'academicdb'
     run = next(s for s in job['steps'] if 'gh api' in s.get('run', ''))
@@ -149,3 +154,16 @@ def test_lab_render_installs_pyyaml():
 def test_review_dispatch_workflow_has_no_default_permissions():
     path = SITES / 'personal' / '.github' / 'workflows' / 'review-dispatch.yml'
     assert load_workflow(path)['permissions'] == {}
+
+
+@pytest.mark.parametrize('site', ['personal', 'lab'])
+def test_publications_page_prints_yaml_citation_verbatim(
+        site, tmp_path, monkeypatch, capsys):
+    record = {'year': 2026, 'title': 'Ignored', 'citation': 'Smith J. *Exact text*.'}
+    (tmp_path / 'publications.yml').write_text(render_site_yaml([record]))
+    monkeypatch.chdir(tmp_path)
+    capsys.readouterr()
+    qmd = SITES / site / 'publications.qmd'
+    for block in python_blocks(qmd):
+        exec(compile(block, str(qmd), 'exec'), {'__name__': '__qmd__'})
+    assert '- Smith J. *Exact text*.\n' in capsys.readouterr().out
