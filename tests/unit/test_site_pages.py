@@ -115,11 +115,15 @@ def test_personal_render_workflow():
     assert 'quarto-dev/quarto-actions/setup@v2' in text
     steps = wf['jobs']['render_site']['steps']
     upload = next(s for s in steps if 'upload-pages-artifact' in s.get('uses', ''))
-    assert upload['uses'] == 'actions/upload-pages-artifact@v3'
+    assert upload['uses'] == 'actions/upload-pages-artifact@v5'
     assert upload['with']['path'] == 'docs'
     deploy = wf['jobs']['deploy']
     assert deploy['if'] == "github.event_name == 'push'"
-    assert deploy['steps'][0]['uses'] == 'actions/deploy-pages@v4'
+    assert deploy['steps'][0]['uses'] == 'actions/deploy-pages@v5'
+    uses = {s['uses'].split('@')[0]: s['uses'] for s in steps if 'uses' in s}
+    assert uses['actions/checkout'] == 'actions/checkout@v7'
+    assert uses['actions/setup-python'] == 'actions/setup-python@v7'
+    assert any(s.get('run') == 'python fix_mastodon_link.py' for s in steps)
 
 
 def test_review_dispatch_workflow():
@@ -129,6 +133,7 @@ def test_review_dispatch_workflow():
     job = next(iter(wf['jobs'].values()))
     assert "startsWith(github.event.pull_request.head.ref, 'academicdb/review-')" in job['if']
     token = next(s for s in job['steps'] if 'create-github-app-token' in s.get('uses', ''))
+    assert token['uses'] == 'actions/create-github-app-token@v3'
     assert token['with']['owner'] == 'poldrack'
     assert token['with']['repositories'] == 'academicdb'
     run = next(s for s in job['steps'] if 'gh api' in s.get('run', ''))
