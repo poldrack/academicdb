@@ -124,17 +124,47 @@ def test_other_users_publications_excluded(academic_user):
     assert len(site_records(academic_user)) == 1
 
 
-def test_order_year_date_title(academic_user):
+def _ordered_titles(user, specs):
+    for title, year, first_author, date in specs:
+        authors = [{'name': first_author}, {'name': 'Zed, Z'}] if first_author else []
+        make_pub(user, title=title, year=year, publication_date=date, authors=authors)
+    return [r['title'] for r in site_records(user)]
+
+
+def test_order_year_then_first_author_surname(academic_user):
+    specs = [
+        ('old', 2019, 'Aaron, A', None), ('a-smith', 2020, 'Smith, Jane', None),
+        ('z-baker', 2020, 'baker, Bob', None), ('new', 2021, 'Young, Y', None),
+    ]
+    assert _ordered_titles(academic_user, specs) == ['new', 'z-baker', 'a-smith', 'old']
+
+
+def test_same_first_author_ordered_newest_first(academic_user):
     d = datetime.date
     specs = [
-        ('old', 2019, None), ('b-title', 2020, d(2020, 5, 1)),
-        ('A-title', 2020, d(2020, 5, 1)), ('nodate', 2020, None),
-        ('later', 2020, d(2020, 6, 1)), ('new', 2021, None),
+        ('b-title', 2020, 'Poldrack, Russell A', d(2020, 5, 1)),
+        ('A-title', 2020, 'Poldrack, Russell A', d(2020, 5, 1)),
+        ('nodate', 2020, 'Poldrack, Russell A', None),
+        ('later', 2020, 'Poldrack, Russell A', d(2020, 6, 1)),
+        ('first', 2020, 'Adams, Amy', d(2020, 1, 1)),
     ]
-    for title, year, date in specs:
-        make_pub(academic_user, title=title, year=year, publication_date=date)
-    titles = [r['title'] for r in site_records(academic_user)]
-    assert titles == ['new', 'later', 'A-title', 'b-title', 'nodate', 'old']
+    assert _ordered_titles(academic_user, specs) == [
+        'first', 'later', 'A-title', 'b-title', 'nodate']
+
+
+def test_author_sort_ignores_accents_and_separates_initials(academic_user):
+    specs = [
+        ('smith-j', 2020, 'Smith, John', None), ('ozturk', 2020, 'Öztürk, Ali', None),
+        ('smith-a', 2020, 'Smith, Anna', None), ('oakes', 2020, 'Oakes, Pat', None),
+        ('pubmed-style', 2020, 'Nash J', None),
+    ]
+    assert _ordered_titles(academic_user, specs) == [
+        'pubmed-style', 'oakes', 'ozturk', 'smith-a', 'smith-j']
+
+
+def test_papers_without_authors_come_last_in_year(academic_user):
+    specs = [('anon', 2020, None, None), ('named', 2020, 'Zimmer, Z', None)]
+    assert _ordered_titles(academic_user, specs) == ['named', 'anon']
 
 
 def test_two_queries_regardless_of_count(academic_user, django_assert_num_queries):
