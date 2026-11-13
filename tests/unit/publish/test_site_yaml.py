@@ -162,6 +162,28 @@ def test_author_sort_ignores_accents_and_separates_initials(academic_user):
         'pubmed-style', 'oakes', 'ozturk', 'smith-a', 'smith-j']
 
 
+def test_given_first_names_sort_by_surname(academic_user):
+    specs = [
+        ('ricard', 2020, 'Jocelyn A. Ricard', None), ('nash', 2020, 'Nash J', None),
+        ('kovacs', 2020, 'Marton Kovacs', None), ('mumford', 2020, 'Mumford JA', None),
+        ('hyphen', 2020, 'Xi-Nian Zuo', None),
+    ]
+    assert _ordered_titles(academic_user, specs) == [
+        'kovacs', 'mumford', 'nash', 'ricard', 'hyphen']
+
+
+def test_same_author_in_different_name_forms_ordered_by_date(academic_user):
+    d = datetime.date
+    specs = [
+        ('mid', 2020, 'Russell A. Poldrack', d(2020, 6, 1)),
+        ('early', 2020, 'Poldrack, Russell A', d(2020, 2, 1)),
+        ('late', 2020, 'Poldrack RA', d(2020, 9, 1)),
+        ('other-poldrack', 2020, 'Poldrack, Zoe', d(2020, 12, 1)),
+    ]
+    assert _ordered_titles(academic_user, specs) == [
+        'late', 'mid', 'early', 'other-poldrack']
+
+
 def test_papers_without_authors_come_last_in_year(academic_user):
     specs = [('anon', 2020, None, None), ('named', 2020, 'Zimmer, Z', None)]
     assert _ordered_titles(academic_user, specs) == ['named', 'anon']
