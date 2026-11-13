@@ -84,7 +84,7 @@ def test_every_secret_documented(any_workflow_text):
 def test_app_tokens_per_owner():
     wf = load("publish")
     apps = [s for s in steps(wf)
-            if s.get("uses") == "actions/create-github-app-token@v2"]
+            if s.get("uses") == "actions/create-github-app-token@v3"]
     assert len(apps) == 2
     by_owner = {s["with"]["owner"]: s for s in apps}
     assert by_owner["poldrack"]["with"]["repositories"] == "poldrack.github.io,academicdb"
@@ -174,3 +174,28 @@ def test_publish_closes_alert_on_recovery():
 
 def test_heartbeat_can_be_dispatched():
     assert "workflow_dispatch" in triggers(load("heartbeat"))
+
+
+# Action versions that run on Node 24 (Node 20 actions are deprecated).
+NODE24_ACTIONS = {
+    "actions/checkout": "v7",
+    "actions/create-github-app-token": "v3",
+    "actions/upload-artifact": "v7",
+    "astral-sh/setup-uv": "v10.3.3",
+    "actions/setup-python": "v7",
+    "actions/upload-pages-artifact": "v5",
+    "actions/deploy-pages": "v5",
+    "quarto-dev/quarto-actions/setup": "v2",
+}
+ALL_WORKFLOW_FILES = sorted(WORKFLOWS.glob("*.yml")) + sorted(
+    (ROOT / "deploy" / "sites").glob("*/.github/workflows/*.yml"))
+
+
+@pytest.mark.parametrize("path", ALL_WORKFLOW_FILES, ids=lambda p: str(p.relative_to(ROOT)))
+def test_actions_use_node24_versions(path):
+    wf = yaml.safe_load(path.read_text())
+    for step in steps(wf):
+        if "uses" not in step:
+            continue
+        action, version = step["uses"].split("@")
+        assert NODE24_ACTIONS.get(action) == version, step["uses"]
