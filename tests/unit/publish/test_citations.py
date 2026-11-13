@@ -21,9 +21,39 @@ def test_format_author_name_converts_last_first(name, expected):
     assert pubs.format_author_name(name) == expected
 
 
-@pytest.mark.parametrize("name", ["Poldrack RA", "Russell A. Poldrack", "Xi-Nian Zuo"])
-def test_format_author_name_leaves_other_formats_unchanged(name):
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Russell A. Poldrack", "Poldrack RA"),
+        ("Russell A Poldrack", "Poldrack RA"),
+        ("Jocelyn A. Ricard", "Ricard JA"),
+        ("Marton Kovacs", "Kovacs M"),
+        ("Xi-Nian Zuo", "Zuo XN"),
+        ("Bianca de Haan", "de Haan B"),
+        ("Ludwig van Beethoven", "van Beethoven L"),
+    ],
+)
+def test_format_author_name_converts_given_first(name, expected):
+    assert pubs.format_author_name(name) == expected
+
+
+@pytest.mark.parametrize("name", ["Poldrack RA", "Quah SKL", "Goncalves M", "Thomas"])
+def test_format_author_name_keeps_formatted_and_single_names(name):
     assert pubs.format_author_name(name) == name
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Poldrack, Russell A", ("Poldrack", "RA")),
+        ("Poldrack RA", ("Poldrack", "RA")),
+        ("Russell A. Poldrack", ("Poldrack", "RA")),
+        ("Haan, Bianca de", ("de Haan", "B")),
+        ("Thomas", ("Thomas", "")),
+    ],
+)
+def test_author_name_parts(name, expected):
+    assert pubs.author_name_parts(name) == expected
 
 
 def test_format_author_name_strips_whitespace():
