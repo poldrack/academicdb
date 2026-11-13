@@ -56,6 +56,18 @@ def test_author_name_parts(name, expected):
     assert pubs.author_name_parts(name) == expected
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Byun, Andrew (Jin Soo)", "Byun A"),
+        ("Cowan, Raffles (Henry)", "Cowan R"),
+        ("Andrew (Jin Soo) Byun", "Byun A"),
+    ],
+)
+def test_format_author_name_drops_parenthetical_nicknames(name, expected):
+    assert pubs.format_author_name(name) == expected
+
+
 def test_format_author_name_strips_whitespace():
     assert pubs.format_author_name("  Poldrack ,  Russell  A ") == "Poldrack RA"
 
