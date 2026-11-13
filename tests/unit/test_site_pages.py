@@ -144,11 +144,23 @@ def test_review_dispatch_workflow():
     assert '${{' not in run['run']
 
 
-def test_lab_render_installs_pyyaml():
+LAB_ACTION_BUMPS = {
+    'actions/checkout@v3': 'actions/checkout@v7',
+    'actions/setup-python@v4': 'actions/setup-python@v7',
+    'actions/upload-pages-artifact@v3': 'actions/upload-pages-artifact@v5',
+    'actions/deploy-pages@v4': 'actions/deploy-pages@v5',
+}
+
+
+def test_lab_render_installs_pyyaml_and_bumps_actions():
     upstream = UPSTREAM_LAB_RENDER.read_text()
     deployed = (SITES / 'lab' / '.github' / 'workflows' / 'render.yml').read_text()
     assert PIP_LINE in upstream
-    assert deployed == upstream.replace(PIP_LINE, PIP_LINE + ' pyyaml')
+    expected = upstream.replace(PIP_LINE, PIP_LINE + ' pyyaml')
+    for old, new in LAB_ACTION_BUMPS.items():
+        assert old in expected
+        expected = expected.replace(old, new)
+    assert deployed == expected
 
 
 def test_review_dispatch_workflow_has_no_default_permissions():
