@@ -251,6 +251,21 @@ that was merged or closed in the meantime. Failures open an issue and a later su
 `heartbeat` re-enable each other so GitHub's 60-day inactivity pause never disables them.
 `heartbeat` can also be run by hand (`workflow_dispatch`).
 
+### Weekly review
+
+Updates to papers already on the sites are published straight away. New papers and proposed
+preprint hides go through a review pull request on `poldrack/poldrack.github.io`, titled e.g.
+"Review: 3 new papers, 1 preprint to hide". It adds one file, `review/<timestamp>.yml`, with
+two lists:
+
+- `new`: delete an entry to reject that paper; entries left in are approved.
+- `hide`: delete an entry to keep that preprint visible; entries left in are hidden.
+
+Edits to fields in the file are ignored; make content changes in the local app. Merging the
+PR applies the decisions, deletes the review file and republishes both sites. **Closing the
+PR without merging rejects every new paper and keeps every preprint visible.** While a review
+PR is open, new discoveries wait for the next one; after 14 days the PR gets a reminder.
+
 Review branches and files are named by UTC timestamp (`academicdb/review-YYYY-MM-DD-HHMMSS`,
 `review/YYYY-MM-DD-HHMMSS.yml`), so a re-run never reuses an already merged branch.
 
@@ -291,6 +306,24 @@ Set under Settings > Secrets and variables > Actions.
 | `APP_PRIVATE_KEY` | GitHub App private key (PEM) |
 
 Repository variable: `DISCOVERY_CUTOFF` (fixed date, `YYYY-MM-DD`).
+
+The personal site repository also needs `APP_ID` and `APP_PRIVATE_KEY`, so its
+`review-dispatch.yml` can tell this repository when a review PR is closed. The lab site
+needs no secrets.
+
+### Site repositories
+
+`deploy/sites/` holds the files each site repository needs: `publications.qmd` (and
+`software.qmd` for the lab) and the workflows under `.github/workflows/`. Copy them into
+`poldrack.github.io` and `poldracklab.github.io` when they change. Both sites must deploy
+through GitHub Actions (Settings > Pages > Source). Each site's `publications.yml` is written
+by `publish_sites`; its records include a pre-formatted Markdown `citation`, which the pages
+print as is.
+
+```bash
+make export-yaml       # write the site YAML to backups/publications.yml
+make publish-dry-run   # log the GitHub writes publish_sites would make; DB changes rolled back
+```
 
 ### GitHub App
 
@@ -385,6 +418,25 @@ uv run python manage.py sync_scopus --user-id ID [--scopus-id SCOPUS_ID]
 
 # Enhanced Scopus sync with author ID capture
 uv run python manage.py sync_scopus_enhanced --user-id ID
+```
+
+### Publishing Pipeline
+
+```bash
+# Find new publications and preprint hides (see "Weekly sync")
+uv run python manage.py weekly_sync --orcid-id ORCID [--dry-run] [--report FILE]
+
+# Write the site YAML to a file
+uv run python manage.py export_site_yaml --orcid-id ORCID --output FILE [--include-pending]
+
+# Publish both sites and open a review PR if needed
+uv run python manage.py publish_sites --orcid-id ORCID [--dry-run]
+
+# Apply the decisions from a closed review PR
+uv run python manage.py process_review --orcid-id ORCID --pr NUMBER
+
+# Open/close pipeline failure issues (used by the workflows)
+uv run python manage.py pipeline_alert {failure,recovered,heartbeat} --workflow NAME [--run-url URL]
 ```
 
 ### Data Enrichment
