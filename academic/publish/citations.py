@@ -1,4 +1,5 @@
 """Format site publication records as compact Markdown citations."""
+import re
 
 MAX_AUTHORS = 20
 N_FIRST_AUTHORS = 10
@@ -6,6 +7,8 @@ N_LAST_AUTHORS = 1
 
 OSF_PUBLISHER_NAMES = {None, '', 'Center for Open Science'}
 VENUE_ALIASES = {'arXiv (Cornell University)': 'arXiv'}
+INITIALS = re.compile(r'[A-Z]{1,4}')
+NICKNAME = re.compile(r'\([^()]*\)')
 
 
 def _initials(given):
@@ -19,14 +22,29 @@ def _initials(given):
     return ''.join(initials), particles
 
 
-def format_author_name(name):
-    """Convert "Last, First Middle" to "Last FM"; leave other formats as is."""
-    name = name.strip()
-    if ',' not in name:
-        return name
-    surname, given = (part.strip() for part in name.split(',', 1))
+def author_name_parts(name):
+    """Return (surname with any particles, initials) for an author name.
+
+    Accepts "Last, First Middle", PubMed-style "Last FM" and "First Middle Last".
+    """
+    name = ' '.join(NICKNAME.sub(' ', name).split())
+    if ',' in name:
+        surname, given = (part.strip() for part in name.split(',', 1))
+    else:
+        tokens = name.split(' ')
+        if len(tokens) < 2:
+            return name, ''
+        initials = tokens[-1].replace('.', '')
+        if INITIALS.fullmatch(initials):
+            return ' '.join(tokens[:-1]), initials
+        surname, given = tokens[-1], ' '.join(tokens[:-1])
     initials, particles = _initials(given)
-    surname = ' '.join(particles + [surname])
+    return ' '.join(particles + [surname]), initials
+
+
+def format_author_name(name):
+    """Format an author name PubMed-style: "Last FM"."""
+    surname, initials = author_name_parts(name)
     return f'{surname} {initials}' if initials else surname
 
 

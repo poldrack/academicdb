@@ -1,15 +1,12 @@
 """Build the publication YAML consumed by the static sites."""
-import re
 import unicodedata
 from collections import defaultdict
 
 import yaml
 
 from academic.models import Link, Publication
-from academic.publish.citations import format_publication
+from academic.publish.citations import author_name_parts, format_publication
 from academic.tombstones import doi_key
-
-INITIALS = re.compile(r'[A-Z]{1,4}')
 
 
 def _author_name(author):
@@ -72,31 +69,12 @@ def _fold(text):
     return ''.join(c for c in decomposed if not unicodedata.combining(c)).casefold()
 
 
-def _initials_of(given):
-    tokens = given.replace('.', ' ').split()
-    return ''.join(part[0] for token in tokens if not token.islower()
-                   for part in token.split('-') if part)
-
-
-def _surname_and_initials(name):
-    """Split "Family, Given", "Family INITIALS" or "Given Family"."""
-    if ',' in name:
-        surname, given = name.split(',', 1)
-        return surname.strip(), _initials_of(given)
-    tokens = name.split()
-    if len(tokens) < 2:
-        return name, ''
-    if INITIALS.fullmatch(tokens[-1]):
-        return ' '.join(tokens[:-1]), tokens[-1]
-    return tokens[-1], _initials_of(' '.join(tokens[:-1]))
-
-
 def _first_author_key(pub):
     """Sort key from the first author's surname, then initials."""
     names = [a['name'] for a in _authors(pub)]
     if not names:
         return (True, '', '')
-    surname, initials = _surname_and_initials(names[0])
+    surname, initials = author_name_parts(names[0])
     return (False, _fold(surname), _fold(initials))
 
 
